@@ -1,0 +1,183 @@
+import {spawn} from 'node:child_process';
+import {mkdir} from 'node:fs/promises';
+import {setTimeout as wait} from 'node:timers/promises';
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright';
+import {objectives,territories} from '../src/data/mapGraph.ts';
+import {createGame,applyCommand,assertState} from '../src/engine/RisikoRulesEngine.ts';
+await mkdir('artifacts/browser',{recursive:true});
+const server=spawn(process.execPath,['scripts/serve.mjs'],{stdio:'pipe',env:{...process.env,PORT:'4173'}});
+let browser,page,logs='';server.stdout.on('data',d=>logs+=d);server.stderr.on('data',d=>logs+=d);
+try{
+ let connected=false;
+ for(let i=0;i<100;i++){if(server.exitCode!==null)throw new Error('Server non disponibile: '+logs);try{if((await fetch('http://127.0.0.1:4173')).ok){connected=true;break;}}catch{}await wait(200);}
+ assert.ok(connected,'Server non avviato');
+ browser=await chromium.launch({headless:true});
+ page=await browser.newPage({viewport:{width:844,height:390}});
+ const errors=[],external=[];
+ await page.context().tracing.start({screenshots:true,snapshots:true});
+ page.on('pageerror',e=>errors.push(e.message));
+ page.on('request',r=>{if(!r.url().startsWith('http://127.0.0.1:4173')&&!r.url().startsWith('data:')&&!r.url().startsWith('blob:'))external.push(r.url());});
+ await page.goto('http://127.0.0.1:4173');
+ await page.locator('[data-action="new"]:not([disabled])').waitFor();
+ await page.screenshot({path:'artifacts/browser/lobby.png',fullPage:true});
+ await page.locator('[data-action="blind-all"]').click();assert.equal(await page.getByText('Bot ? · livello segreto',{exact:true}).count(),3);
+ await page.locator('[data-count="3"]').click();await page.locator('[data-action="new"]').click();
+ await page.locator('.game-table').waitFor();assert.equal(await page.locator('[data-territory]').count(),42);
+ assert.equal(await page.evaluate(async()=>{await document.fonts.load('900 15px RisikoCounter','0123456789');return document.fonts.check('900 15px RisikoCounter','0123456789');}),true,'Il carattere dei carri deve essere incorporato e caricato');
+ async function completeSetup(expected,territoryCount){
+  await page.locator('.game-table[data-phase="SETUP_PLACEMENT"]').waitFor();
+  await page.locator('[data-speed="0"]').click();
+  let clicks=0;const deadline=Date.now()+60000;
+  while(Date.now()<deadline){
+   const phase=await page.locator('.game-table').getAttribute('data-phase');if(phase!=='SETUP_PLACEMENT')break;
+   const human=await page.locator('.game-table').getAttribute('data-active')==='0';
+   if(human&&await page.locator('#effects > *').count()===0){
+    assert.equal(await page.locator('.placement-plus').count(),territoryCount);
+    const revision=await page.locator('.game-table').getAttribute('data-revision');
+    await page.locator('[data-territory][aria-label*="Comandante,"] .territory-hit').first().click({force:true});
+    await page.waitForFunction(r=>document.querySelector('.game-table')?.getAttribute('data-revision')!==r,revision);clicks++;
+   }else await wait(100);
+  }
+  assert.equal(clicks,expected,'Devono essere piazzate tutte le armate della riserva iniziale');
+  assert.notEqual(await page.locator('.game-table').getAttribute('data-phase'),'SETUP_PLACEMENT');
+ }
+ await completeSetup(21,14);
+ await page.locator('[data-action="pause"]').click();await page.locator('.pause-card').waitFor();
+ await page.screenshot({path:'artifacts/browser/table.png',fullPage:true});
+ await page.reload();await page.locator('[data-action="resume"]').waitFor();await page.locator('[data-action="resume"]').click();await page.locator('.game-table').waitFor();
+ await page.locator('[data-action="objective"]').click();await page.getByText('IL TUO OBIETTIVO',{exact:true}).waitFor();
+ await page.screenshot({path:'artifacts/browser/objective.png'});await page.locator('[data-action="close"]').click();
+ await page.locator('[data-action="objective-view"]').click();assert.ok(await page.locator('.territory.goal').count()>0);
+
+ // Load through real IndexedDB with the previous game's Worker already gone.
+ // Reloading an active game after writing the fixture can trigger visibility
+ // PAUSE and overwrite the fixture with the old game's in-memory state.
+ async function loadFixture(state){
+  assertState(state);
+  // Callers may already have paused the game (for example the turn-boundary
+  // scenario). Its overlay covers Pausa: do not click through that overlay.
+  const pauseCard=page.locator('.pause-card');
+  if(!await pauseCard.isVisible())await page.locator('[data-action="pause"]').click();
+  await pauseCard.waitFor();
+  await page.goto('http://127.0.0.1:4173/icon.svg');
+  const fixture=structuredClone(state);fixture.paused=true;
+  const stored=await page.evaluate(state=>new Promise((resolve,reject)=>{
+   const req=indexedDB.open('risiko-offline',1);req.onerror=()=>reject(req.error);
+   req.onsuccess=()=>{
+    const db=req.result,tx=db.transaction('game','readwrite'),store=tx.objectStore('game');
+    store.put(state,'current');
+    const check=store.get('current');let saved;
+    check.onsuccess=()=>{saved=check.result;};
+    tx.oncomplete=()=>{db.close();resolve({id:saved.id,phase:saved.phase,players:saved.players.length,remaining:saved.players[0].setupRemaining});};
+    tx.onerror=tx.onabort=()=>{db.close();reject(tx.error??new Error('Salvataggio fixture interrotto'));};
+   };
+  }),fixture);
+  assert.deepEqual(stored,{id:fixture.id,phase:fixture.phase,players:fixture.players.length,remaining:fixture.players[0].setupRemaining},'Fixture salvata correttamente prima di avviare il nuovo Worker');
+  await page.goto('http://127.0.0.1:4173');
+  await page.locator('[data-action="new"]:not([disabled])').waitFor();
+  const loaded=await page.evaluate(()=>new Promise((resolve,reject)=>{
+   const req=indexedDB.open('risiko-offline',1);req.onerror=()=>reject(req.error);
+   req.onsuccess=()=>{
+    const db=req.result,tx=db.transaction('game','readonly'),read=tx.objectStore('game').get('current');let saved;
+    read.onsuccess=()=>{saved=read.result;};
+    tx.oncomplete=()=>{db.close();resolve({id:saved.id,phase:saved.phase,players:saved.players.length,remaining:saved.players[0].setupRemaining});};
+    tx.onerror=tx.onabort=()=>{db.close();reject(tx.error??new Error('Lettura fixture interrotta'));};
+   };
+  }));
+  assert.deepEqual(loaded,stored,'Il nuovo Worker deve caricare la fixture, non il salvataggio precedente');
+  await page.locator('[data-action="resume"]').click();
+  await page.locator(`.game-table[data-phase="${fixture.phase}"]`).waitFor();
+  await page.locator('.pause-card').waitFor({state:'detached'});
+  assert.equal(await page.locator('.player-card').count(),fixture.players.length);
+ }
+ for(const n of [4,5]){
+  const setup=createGame({players:n,name:'Comandante',difficulties:Array(n-1).fill('medio'),turnSeconds:180,seed:41});
+  const owned=setup.board.filter(c=>c.owner===0).length;
+  await loadFixture(setup);await completeSetup(setup.players[0].setupRemaining,owned);
+ }
+ let s=createGame({players:3,name:'Comandante',difficulties:['medio','medio'],turnSeconds:180,seed:17});
+ s.round=5;s.active=0;s.phase='ATTACK';s.players.forEach(p=>p.setupRemaining=0);s.board[0]={owner:0,armies:12};s.board[1]={owner:1,armies:1};
+ // Select a seed with a conquest on the first roll, without mocking dice in the UI.
+ for(let seed=1;seed<1000;seed++){s.rng=seed;if(applyCommand(s,0,{type:'ATTACK',from:0,to:1}).phase==='POST_CONQUEST_MOVE')break;}
+ await loadFixture(s);
+ await page.locator('[data-territory="0"] .territory-hit').click({force:true});await page.locator('[data-territory="1"] .territory-hit').click({force:true});
+ await page.locator('.floating-panel').waitFor();assert.equal(await page.locator('.modal-backdrop').count(),0);
+ const panel=await page.locator('.floating-panel').boundingBox();assert.ok(panel.height<=390*.6+1&&panel.width<=360);
+ await page.locator('[data-action="roll"]').click();await page.locator('.effects-layer.rolling').waitFor();
+ const timer=await page.locator('#timer').innerText();await wait(350);assert.equal(await page.locator('#timer').innerText(),timer);
+ assert.equal(await page.locator('.fx-source').count(),1);assert.equal(await page.locator('.fx-target').count(),1);
+ await page.screenshot({path:'artifacts/browser/dice-rolling.png'});
+ await page.locator('[data-action="confirm-move"]').waitFor();
+ const move=page.locator('.move-panel');
+ const moveRect=await move.boundingBox();assert.ok(moveRect.width<=290&&moveRect.height<=390*.6+1);
+ assert.equal(await move.evaluate(el=>el.scrollHeight<=el.clientHeight+1),true,'Tutti i controlli di spostamento devono essere visibili senza scorrere');
+ assert.equal(await page.locator('#move-range').inputValue(),'0');
+ assert.equal(await page.locator('[data-token="1"] .tank-number').textContent(),'3');
+ assert.equal(await page.locator('.attack-trail,[marker-end]').count(),0);
+ await page.screenshot({path:'artifacts/browser/post-conquest.png'});
+ // Preview additional armies without mutating the stored board.
+ await page.locator('[data-move="+1"]').click();
+ assert.equal(await page.locator('[data-token="1"] .tank-number').textContent(),'4');
+ await page.locator('[data-move="Min"]').click();
+ assert.equal(await page.locator('[data-token="1"] .tank-number').textContent(),'3');
+ await page.locator('[data-action="confirm-move"]').click();
+ await page.waitForSelector('.game-table[data-phase="ATTACK"]');
+ await page.locator('[data-action="next"]').click();await page.waitForSelector('.game-table[data-phase="FORTIFY"]');
+ await page.locator('[data-action="next"]').click();await page.locator('.card-reward').waitFor();await wait(1100);
+ await page.screenshot({path:'artifacts/browser/card-reward.png'});
+ await page.waitForFunction(()=>!document.querySelector('.card-reward'));
+ // Pause is always available; opening cards while paused must still render their real artwork.
+ await page.locator('[data-action="pause"]').click();await page.locator('.pause-card').waitFor();
+ await page.reload();await page.locator('[data-action="resume"]').waitFor();await page.locator('[data-action="resume"]').click();await page.locator('.game-table').waitFor();
+ await page.locator('[data-action="cards"]').click();await page.getByText('LE TUE CARTE',{exact:true}).waitFor();
+ assert.equal(await page.locator('.territory-card').count(),1);assert.equal(await page.locator('.territory-card .military-icon').count()>=1,true);
+ await page.screenshot({path:'artifacts/browser/cards.png'});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Overflow orizzontale');
+ await page.locator('[data-action="close"]').click();
+ await page.setViewportSize({width:1365,height:900});await page.screenshot({path:'artifacts/browser/tablet.png'});
+ // Interrupt a real roll: persistence already contains its outcome; resume must
+ // open the mandatory transfer without replaying dice or losing the result.
+ await loadFixture(s);
+ await page.locator('[data-territory="0"] .territory-hit').click({force:true});await page.locator('[data-territory="1"] .territory-hit').click({force:true});
+ await page.locator('[data-action="roll"]').click();await page.locator('.effects-layer.rolling').waitFor();
+ await page.locator('[data-action="pause"]').click();await page.locator('.pause-card').waitFor();
+ assert.equal(await page.locator('.battle-window').count(),0);
+ await page.reload();await page.locator('[data-action="resume"]').waitFor();await page.locator('[data-action="resume"]').click();
+ await page.locator('[data-action="confirm-move"]').waitFor();assert.equal(await page.locator('.battle-window').count(),0);
+ // A genuine bot attack must not replace or close the consultation DOM.
+ const bot=createGame({players:3,name:'Comandante',difficulties:['facile','facile'],turnSeconds:180,seed:17});
+ bot.order=[0,1,2];bot.active=1;bot.round=5;bot.phase='ATTACK';bot.players.forEach(p=>p.setupRemaining=0);
+ bot.board.forEach(cell=>{cell.owner=0;cell.armies=1;});
+ bot.board[1]={owner:1,armies:20};bot.board[objectives[bot.players[0].objective-1].territories.find(id=>id!==1&&!territories[1].neighbors.includes(id))]={owner:2,armies:1};
+ bot.players[0].cards=[0,3,6,9,12,15,18];bot.deck=bot.deck.filter(c=>!bot.players[0].cards.includes(c));
+ await page.setViewportSize({width:844,height:390});await loadFixture(bot);
+ await page.locator('[data-speed="1"]').click();
+ await page.locator('[data-action="cards"]').click();await page.locator('[data-card="3"]').click();
+ await page.evaluate(()=>{window.__cardsNode=document.querySelector('.cards-window');document.querySelector('.hand').scrollTop=30;window.__cardsScroll=document.querySelector('.hand').scrollTop;});
+ await page.locator('.battle-window').waitFor();
+ assert.equal(await page.evaluate(()=>window.__cardsNode===document.querySelector('.cards-window')),true,'La finestra carte deve rimanere montata');
+ assert.equal(await page.locator('[data-card="3"]').getAttribute('aria-pressed'),'true');
+ assert.equal(await page.evaluate(()=>document.querySelector('.hand').scrollTop===window.__cardsScroll),true);
+ await page.screenshot({path:'artifacts/browser/cards-during-bot-attack.png'});
+ // Close and reopen during the same presentation: UI commands must stay available.
+ await page.locator('[data-action="close"]').click();await page.locator('.cards-window').waitFor({state:'detached'});
+ await page.locator('[data-action="cards"]').click();await page.locator('.cards-window').waitFor();
+ await page.locator('.battle-window').waitFor({state:'detached'});
+ assert.equal(await page.locator('.cards-window').count(),1);
+ await page.locator('[data-action="close"]').click();await page.locator('.cards-window').waitFor({state:'detached'});
+ await page.locator('[data-action="pause"]').click();await page.locator('.pause-card').waitFor();
+ // Explicit turn boundary, retaining the same game ID, using the persisted fixture.
+ bot.active=2;bot.phase='FORTIFY';bot.revision++;await loadFixture(bot);
+ await page.locator('[data-action="cards"]').click();
+ await page.waitForSelector('.game-table[data-active="0"]');
+ assert.equal(await page.locator('.cards-window').count(),1);
+ assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+ console.log('PASS: setup 3/4/5 completo via tocchi, IndexedDB/ripresa anche durante i dadi, obiettivo, finestre compatte, dadi, timer sospeso, conquista, spostamento, pesca e carte; carte persistenti durante attacchi e cambio turno, trasferimento immediato e anteprima aggiuntivi; telefono/tablet; zero richieste esterne.');
+}catch(error){
+ await page?.screenshot({path:'artifacts/browser/failure.png',fullPage:true}).catch(()=>{});
+ throw error;
+}finally{
+ if(page)await page.context().tracing.stop({path:'artifacts/browser/trace.zip'}).catch(()=>{});
+ await browser?.close();server.kill('SIGTERM');
+}
