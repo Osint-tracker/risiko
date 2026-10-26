@@ -1,0 +1,100 @@
+Fonte primaria: MHT fornito dall’utente
+SHA-256: 5ace1a6f219c994e0ad02620e181f5d690be63cb6c11da9fd7a8d7b58775a35f
+
+1. Scopo
+RisiKo! Online �� la versione digitale del famoso gioco da tavolo, pensata per rendere il gioco pi�� rapido e sfidare i migliori giocatori mettendo alla prova le tue abilit�� tattiche. L'obiettivo �� ottenere il maggior numero di punti tramite conquiste, controllo territori e completamento di obiettivi.
+2. Preparazione e Setup
+Il gioco pu�� funzionare in modalit�� a tempo o modalit�� a turni, la cui durata o turni dipendono dalla configurazione iniziale. Le due modalit�� sono denominate rispettivamente "Countdown" e "Regular".
+Il numero di giocatori per ogni game pu�� essere 3, 4 o 5.
+All'inizio del gioco i territori vengono distribuiti in modo casuale.
+Ad ogni giocatore viene assegnato un obiettivo, anche questo assegnato in modo casuale.
+Le armate iniziali dipendono dal numero di giocatori: 35 per 3 giocatori, 30 per 4 giocatori, 25 per 5 giocatori.
+Durante la fase di preparazione, ogni giocatore non pu�� ottenere pi�� del 50% di un continente
+3. Struttura del Turno
+Ogni turno di gioco �� composto da diverse fasi:
+Rinforzi
+: posizionamento immediato delle armate.
+Attacchi
+: opzionali, da territori con almeno 2 armate verso territori adiacenti.
+Spostamento
+: un movimento finale tra due territori collegati. se uno stato confina con uno stato nemico, la guarnigione minima da tenere �� di due carri armati nello stato da cui si intende spostare le armate.
+Ogni turno �� soggetto al limite di tempo stabilito dal torneo.
+4. Rinforzi
+All'inizio del proprio turno un giocatore ha diritto a posizionare delle nuove truppe in base al numero di territori posseduti pi�� un bonus per ogni continenti completemente occupato all'inizio del proprio turno secondo questo schema:
+Oceania: 2
+Europa: 5
+Sud America: 2
+Nord America: 5
+Africa: 3
+Asia: 7
+5. Regole di Attacco (Dadi)
+Per ogni turno vengono lanciati fino a 3 dadi in base alla disponibilit�� di armate. Se ad esempio un attacco viene portato da un territorio con 10 armate verso uno con 5, allora per entrambi i giocatori vengono lanciati 3 dadi per volta. Al contrario se in difesa ci sono meno di 3 armate allora viene lanciato un dado per ogni armata disponibile.
+I dadi vengono confrontati dal pi�� alto al pi�� basso.
+Chi ottiene il numero pi�� basso perde un'armata. In caso di parit�� viene favorito l'attaccato.
+Se un territorio viene conquistato, l'attaccante deve spostare almeno le armate usate per attaccare. Ed ottiene una carta (max 1 per turno, ogni volta che si conquista un territorio).
+6. Carte da gioco
+Ogni volta che durante il suo turno un giocatore conquista un territorio, alla fine dello stesso turno gli viene assegnata una nuova carta.
+Ogni carta ha nell'angolo alto un simbolo, che pu�� essere uno tra Cannone, Fante o cavallo, o Jolly.
+All'inizio del turno se un giocatore possiede 3 carte con 3 simboli uguali o diversi pu�� riscattare rinforzi aggiunivi che pu�� immediatamente posizionare. Il numero di truppe ricevute in base alle combinazioni di carte sono:
+Jolly + due carte uguali = 12 armate.
+Tre carte differenti = 10 armate.
+3 cavalli = 8 armate.
+3 fanti = 8 armate.
+3 cannoni = 8 armate.
+7. Funzionamento punteggio
+Ogni territorio vale un certo numero di punti secondo il seguente schema:
+Afghanistan: 4
+Africa del Nord: 6
+Africa del Sud: 3
+Africa Orientale: 5
+Alaska: 3
+Alberta: 4
+America Centrale: 3
+Argentina: 2
+Australia Occidentale: 3
+Australia Orientale: 2
+Brasile: 4
+Cina: 7
+Cita: 4
+Congo: 3
+Egitto: 4
+Europa Meridionale: 6
+Europa Occidentale: 4
+Europa Settentrionale: 5
+Giappone: 2
+Gran Bretagna: 4
+Groenlandia: 4
+India: 3
+Indonesia: 3
+Islanda: 3
+Jacuzia: 3
+Kamchatka: 5
+Madagascar: 2
+Medio Oriente: 6
+Mongolia: 5
+Nuova Guinea: 3
+Ontario: 6
+Per��: 3
+Quebec: 3
+Scandinavia: 4
+Siam: 3
+Siberia: 5
+Stati Uniti Occ.: 4
+Stati Uniti Orient.: 4
+Territori del Nord O.: 4
+Ucraina: 6
+Urali: 4
+Venezuela: 3
+8. Finale della partita
+Se un giocatore raggiunge l'obiettivo si dice che fa RisiKo!, in questo caso il giocatore vince immediatamente.
+Se alla fine dei turni o del tempo di gioco nessun giocatore ha raggiunto il suo obiettivo, il gioco continua con la Sdadata che funziona in questo modo:
+Penultimo e ultimo giro: Quando il tempo prefissato per la partita scade, il giro in corso diventa il "penultimo giro" e quello successivo sar�� l'ultimo.
+Lancio dei dadi per la chiusura: Al termine dell'ultimo giro, ogni giocatore lancia due dadi prima di passare la mano al giocatore successivo. Se il punteggio ottenuto �� uguale o inferiore a 4 (detto "chiusura al 4"), la partita si conclude immediatamente.
+Incremento del valore di chiusura: Se nessuno chiude la partita nel primo giro completo, il valore di chiusura viene aumentato di un punto per ogni giro successivo (chiusura al 5, poi al 6, e infine al 7). ��� Quando si arriva alla "chiusura al 7", il valore non viene pi�� aumentato e si continua fino a che un giocatore non chiude la partita.
+Eccezione: Se un giocatore conquista pi�� di due territori durante il suo turno, non lancer�� i dadi per verificare la chiusura della partita. In questo caso, la partita prosegue automaticamente per almeno un altro turno.
+Conclusione: La procedura di "sdadata" inizia con il giocatore che gioca l'ultimo turno dell'ultimo giro e pu�� concludersi in qualsiasi momento se un giocatore raggiunge il proprio obiettivo segreto.
+Se anche dopo la sdadata nessun giocatore riesce a raggiungere il suo obiettivo allora si passa al conteggio dei punti. In particolare vengono sommati i valori dei territori posseduti da ogni giocatore che fanno parte del suo obiettivo. Il giocatore che raggiunge il punteggio pi�� alto vince la partita.
+9. Fair Play
+Sono vietate alleanze segrete che falsano il match.
+E' vietato l'utilizzo di pi�� account per giocare alla stessa partita da parte di un solo giocatore.
+
