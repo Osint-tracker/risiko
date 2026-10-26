@@ -1,0 +1,38 @@
+RisiKo Offline 1.1 — file nuovi o da sostituire
+
+Copiare questi file mantenendo i percorsi, nella radice del repository.
+Non eliminare gli altri file. Vedi docs/AGGIORNAMENTO-1.1.md.
+
+README.md
+android/app/build.gradle
+android/app/src/main/assets/public/src/ai/BotAI.js
+android/app/src/main/assets/public/src/ai/HumanBot.js
+android/app/src/main/assets/public/src/engine/RisikoRulesEngine.js
+android/app/src/main/assets/public/src/engine/presentation.js
+android/app/src/main/assets/public/src/engine/server.worker.js
+android/app/src/main/assets/public/src/engine/types.js
+android/app/src/main/assets/public/src/gui/App.js
+android/app/src/main/assets/public/src/gui/art.js
+android/app/src/main/assets/public/src/gui/effects.js
+android/app/src/main/assets/public/src/gui/styles.css
+docs/AGGIORNAMENTO-1.1.md
+docs/VERIFICA.md
+docs/board-preview-v1.1.png
+docs/board-preview.png
+docs/board-preview.svg
+docs/test-results.txt
+package.json
+scripts/browser-test.mjs
+src/ai/BotAI.ts
+src/ai/HumanBot.ts
+src/engine/RisikoRulesEngine.ts
+src/engine/presentation.ts
+src/engine/server.worker.ts
+src/engine/types.ts
+src/gui/App.ts
+src/gui/art.ts
+src/gui/effects.ts
+src/gui/styles.css
+tests/playability.test.ts
+tests/ui.test.ts
+tests/worker-presentation.test.ts

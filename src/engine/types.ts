@@ -26,7 +26,11 @@ export type GameEvent = {
   player: number;
   message: string;
   territory?: number;
-  action?: 'reinforce' | 'conquer';
+  action?: 'reinforce' | 'conquer' | 'move' | 'draw' | 'exchange';
+  from?: number;
+  to?: number;
+  count?: number;
+  defender?: number;
   attack?: number[];
   defense?: number[];
   losses?: number[];
@@ -65,6 +69,19 @@ export type GameState = {
   log: GameEvent[];
   beliefs: Record<string, number[]>;
   lastCommandId: string | null;
+  botContexts?: Record<number, BotContext>;
+};
+export type BotContext = {
+  temperament: number;
+  round: number;
+  turns: number;
+  lastEpisode: number;
+  previousArmies: number;
+  cautious: boolean;
+  lostTerritory: number | null;
+  reclaimUntil?: number;
+  logIndex: number;
+  episode: { from: number; to: number; initialArmies: number; rolls: number } | null;
 };
 export type GameConfig = {
   players: number;
@@ -95,6 +112,7 @@ export type Command = {
   type: 'TIMEOUT';
 };
 export type PublicPlayer = Omit<Player, 'difficulty' | 'objective' | 'cards' | 'setupRemaining'> & {
+  setupRemaining: number;
   difficulty: Difficulty | '?';
   objective?: number;
   cards?: number[];
@@ -105,7 +123,7 @@ export type PublicPlayer = Omit<Player, 'difficulty' | 'objective' | 'cards' | '
   points?: number;
   outside?: number;
 };
-export type GameView = Omit<GameState, 'rng' | 'aiRng' | 'deck' | 'discard' | 'beliefs' | 'players' | 'lastCommandId'> & {
+export type GameView = Omit<GameState, 'rng' | 'aiRng' | 'deck' | 'discard' | 'beliefs' | 'players' | 'lastCommandId' | 'botContexts'> & {
   players: PublicPlayer[];
   deckCount: number;
   viewer: number;

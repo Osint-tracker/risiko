@@ -235,7 +235,7 @@ function endTurn(s           ) {
     }
     if (s.deck.length) {
       p.cards.push(s.deck.pop() );
-      event(s, 'onGameStateUpdate', `${p.name} pesca una carta (${p.cards.length}/7).`);
+      event(s, 'onGameStateUpdate', `${p.name} pesca una carta (${p.cards.length}/7).`, {action: 'draw'});
     }
   }
   const index = s.order.indexOf(s.active),
@@ -289,7 +289,7 @@ function place(s           , t        , count        ) {
     observe(s, s.active, t, count * .15);
     event(s, 'onGameStateUpdate', `${p.name} piazza ${count} in ${territories[t].name}.`, {
       territory: t,
-      action: 'reinforce'
+      action: 'reinforce', count
     });
     if (s.setupBatch === 0 || p.setupRemaining === 0) {
       if (s.players.every(p => p.setupRemaining === 0)) {
@@ -314,7 +314,7 @@ function place(s           , t        , count        ) {
   observe(s, s.active, t, count * .2);
   event(s, 'onGameStateUpdate', `${p.name} rinforza ${territories[t].name}: +${count}.`, {
     territory: t,
-    action: 'reinforce'
+    action: 'reinforce', count
   });
   if (!s.reinforcements) s.phase = 'ATTACK';
 }
@@ -338,7 +338,7 @@ export function applyCommand(input           , actor        , command         ) 
         s.discard.push(...command.cards);
         const added = Math.min(value, 130 - total(s, s.active) - s.reinforcements);
         s.reinforcements += added;
-        event(s, 'onGameStateUpdate', `${p.name} cambia un tris: ${added} rinforzi${added < value ? ' (limite carri)' : ''}.`);
+        event(s, 'onGameStateUpdate', `${p.name} cambia un tris: ${added} rinforzi${added < value ? ' (limite carri)' : ''}.`, {action: 'exchange', count: added});
         break;
       }
     case 'NEXT':
@@ -371,7 +371,7 @@ export function applyCommand(input           , actor        , command         ) 
         s.lastBattle = event(s, 'onDiceRolled', `${p.name}: ${territories[from].name} → ${territories[to].name}. Dadi ${ad.join(',')} / ${dd.join(',')}: attacco −${al}, difesa −${dl}.`, {
           attack: ad,
           defense: dd,
-          losses: [al, dl],
+          losses: [al, dl], from, to, defender,
           territory: to
         });
         if (d.armies === 0) {
@@ -422,7 +422,7 @@ export function applyCommand(input           , actor        , command         ) 
         requireRule(Number.isInteger(count) && count >= min && count <= max, 'Spostamento non valido: rispetta la guarnigione minima.');
         s.board[from].armies -= count;
         s.board[to].armies += count;
-        event(s, 'onGameStateUpdate', `${p.name} sposta ${count} carri: ${territories[from].name} → ${territories[to].name}.`);
+        event(s, 'onGameStateUpdate', `${p.name} sposta ${count} carri: ${territories[from].name} → ${territories[to].name}.`, {action: 'move', from, to, count});
         if (s.phase === 'POST_CONQUEST_MOVE') {
           s.pending = null;
           s.phase = 'ATTACK';
@@ -443,6 +443,7 @@ export function applyCommand(input           , actor        , command         ) 
           const m = s.pending ;
           s.board[m.from].armies -= m.min;
           s.board[m.to].armies += m.min;
+          event(s, 'onGameStateUpdate', `${p.name}: spostamento obbligatorio di ${m.min} carri.`, {action:'move',from:m.from,to:m.to,count:m.min});
           s.pending = null;
           s.phase = 'ATTACK';
           checkObjective(s);
@@ -476,6 +477,7 @@ export function project(s           , viewer = 0)           {
     beliefs,
     players,
     lastCommandId,
+    botContexts,
     ...publicState
   } = structuredClone(s);
   return {
@@ -494,6 +496,7 @@ export function project(s           , viewer = 0)           {
         own = owned(s, p.id);
       return {
         ...rest,
+        setupRemaining,
         difficulty: p.blind && s.phase !== 'GAME_OVER' ? '?' : difficulty,
         ...(expose ? {
           objective,

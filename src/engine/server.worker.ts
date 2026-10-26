@@ -1,171 +1,149 @@
-import { createGame, applyCommand, advanceClock, project, random, assertState } from './RisikoRulesEngine.ts';
-import { chooseBotCommand } from '../ai/BotAI.ts';
-import { StorageService } from '../services/StorageService.ts';
-import type { GameConfig, GameState, Command } from './types.ts';
+import {createGame, applyCommand, advanceClock, project, random, assertState} from './RisikoRulesEngine.ts';
+import {humanDecision, decisionDelay} from '../ai/HumanBot.ts';
+import {makeTransition, PresentationGate} from './presentation.ts';
+import {StorageService} from '../services/StorageService.ts';
+import type {GameConfig, GameState, Command, BotContext} from './types.ts';
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 const storage = new StorageService();
-let state: GameState | null = null,
-  speed = 1,
-  lastTick = performance.now(),
-  nextBot = 0,
-  busy = Promise.resolve(),
-  dirtyClock = 0;
-let publishedGameId = '',
-  publishedCount = 0;
+const gate = new PresentationGate();
+let state: GameState | null = null, speed = 1, lastTick = performance.now(), dirtyClock = 0;
+let busy = Promise.resolve(), ticking = false, presentationEnabled = false;
+let publishedGameId = '', publishedCount = 0;
+let previousBot: {actor: number; command: Command} | null = null;
+let planned: {revision: number; actor: number; due: number; command: Command; context: BotContext; aiRng: number} | null = null;
 const post = (message: unknown) => ctx.postMessage(message);
-const publish = () => {
-  if (state) post({
-    type: 'STATE',
-    state: project(state, 0)
-  });
-};
-async function commit(next: GameState) {
+const publish = () => { if (state) post({type: 'STATE', state: project(state, 0)}); };
+function clearPresentation() { gate.clear(); planned = null; lastTick = performance.now(); }
+async function commit(next: GameState, before?: GameState) {
   await storage.save(next);
   state = next;
   const start = publishedGameId === next.id ? publishedCount : 0;
-  for (const event of next.log.slice(start)) post({
-    type: event.type,
-    event
-  });
+  for (const event of next.log.slice(start)) post({type: event.type, event});
   publishedGameId = next.id;
   publishedCount = next.log.length;
-  publish();
+  planned = null;
+  const transition = presentationEnabled && before ? makeTransition(before, next, speed) : null;
+  if (transition) {
+    gate.begin(transition.id, performance.now());
+    lastTick = performance.now();
+    post({type: 'TRANSITION', transition});
+  } else publish();
 }
 function enqueue(f: () => Promise<void>) {
   busy = busy.then(f).catch(e => {
-    if (state) {
-      state.paused = true;
-      publish();
-    }
-    post({
-      type: 'ERROR',
-      message: e instanceof Error ? e.message : String(e)
-    });
+    clearPresentation();
+    if (state) { state.paused = true; publish(); }
+    post({type: 'ERROR', message: e instanceof Error ? e.message : String(e)});
   });
 }
-ctx.onmessage = ({
-  data
-}) => enqueue(async () => {
+ctx.onmessage = ({data}) => enqueue(async () => {
   switch (data.type) {
-    case 'INIT':
-      {
-        post({
-          type: 'PROFILE',
-          profile: await storage.profile()
-        });
-        try {
-          state = await storage.load();
-          if (state) {
-            state.paused = true;
-            publishedGameId = state.id;
-            publishedCount = state.log.length;
-            publish();
-          }
-          post({
-            type: 'READY',
-            hasGame: !!state && state.phase !== 'GAME_OVER'
-          });
-        } catch (e) {
-          state = null;
-          post({
-            type: 'READY',
-            hasGame: true
-          });
-          post({
-            type: 'ERROR',
-            message: 'Il salvataggio non è compatibile o è danneggiato. Puoi sostituirlo creando una nuova partita.'
-          });
+    case 'INIT': {
+      presentationEnabled = data.presentation === true;
+      post({type: 'PROFILE', profile: await storage.profile()});
+      try {
+        state = await storage.load();
+        if (state) {
+          state.paused = true;
+          publishedGameId = state.id;
+          publishedCount = state.log.length;
+          publish();
         }
-        break;
+        post({type: 'READY', hasGame: !!state && state.phase !== 'GAME_OVER'});
+      } catch {
+        state = null;
+        post({type: 'READY', hasGame: true});
+        post({type: 'ERROR', message: 'Il salvataggio non è compatibile o è danneggiato. Puoi sostituirlo creando una nuova partita.'});
       }
-    case 'NEW':
-      {
-        const next = createGame(data.config as GameConfig);
-        await commit(next);
-        await storage.setName(next.players[0].name);
-        lastTick = performance.now();
-        nextBot = 0;
-        break;
-      }
+      break;
+    }
+    case 'NEW': {
+      clearPresentation(); previousBot = null;
+      const next = createGame(data.config as GameConfig);
+      await commit(next);
+      await storage.setName(next.players[0].name);
+      lastTick = performance.now();
+      break;
+    }
+    case 'PRESENTED':
+      if (gate.finish(data.id)) { lastTick = performance.now(); dirtyClock = 0; publish(); }
+      break;
     case 'RESUME':
       if (state) {
-        assertState(state);
-        state.paused = false;
-        lastTick = performance.now();
-        await commit(state);
+        clearPresentation(); assertState(state);
+        await commit({...state, paused: false});
       }
       break;
     case 'PAUSE':
       if (state) {
-        state = advanceClock(state, Math.max(0, performance.now() - lastTick));
-        state.paused = true;
-        await commit(state);
+        const next = gate.pending ? state : advanceClock(state, Math.max(0, performance.now() - lastTick));
+        clearPresentation();
+        await commit({...next, paused: true});
       }
       break;
     case 'SPEED':
       speed = [1, 2, 4, 0].includes(data.speed) ? data.speed : 1;
+      planned = null;
       break;
-    case 'PROFILE':
-      post({
-        type: 'PROFILE',
-        profile: await storage.profile()
-      });
+    case 'PROFILE': post({type: 'PROFILE', profile: await storage.profile()}); break;
+    case 'COMMAND': {
+      if (!state) throw new Error('Nessuna partita attiva.');
+      if (state.lastCommandId === data.id) return;
+      if (gate.pending) return; // UI will unlock only after PRESENTED.
+      if (data.revision !== state.revision) throw new Error('Il turno è cambiato. Riprova.');
+      if (!state.players[state.active].human) throw new Error('Attendi il tuo turno.');
+      const now = performance.now(), before = state;
+      const timed = advanceClock(state, now - lastTick);
+      lastTick = now;
+      if (timed.revision !== state.revision) { await commit(timed, before); break; }
+      const next = applyCommand(timed, 0, data.command as Command);
+      next.lastCommandId = data.id;
+      await commit(next, timed);
       break;
-    case 'COMMAND':
-      {
-        if (!state) throw new Error('Nessuna partita attiva.');
-        if (state.lastCommandId === data.id) return;
-        if (data.revision !== state.revision) throw new Error('Il turno è cambiato. Riprova.');
-        if (!state.players[state.active].human) throw new Error('Attendi il tuo turno.');
-        const now = performance.now();
-        const timed = advanceClock(state, now - lastTick);
-        lastTick = now;
-        if (timed.revision !== state.revision) {
-          await commit(timed);
-          return;
-        }
-        const next = applyCommand(timed, 0, data.command as Command);
-        next.lastCommandId = data.id;
-        await commit(next);
-        break;
-      }
+    }
   }
 });
-let ticking = false;
 setInterval(() => {
   if (ticking) return;
   ticking = true;
   enqueue(async () => {
     try {
-      const now = performance.now(),
-        delta = Math.max(0, now - lastTick);
+      const now = performance.now(), delta = Math.max(0, now - lastTick);
       lastTick = now;
-      if (!state || state.paused || state.phase === 'GAME_OVER') return;
-      const oldRevision = state.revision;
-      state = advanceClock(state, delta);
-      dirtyClock += delta;
-      if (state.revision !== oldRevision) {
-        await commit(state);
-        dirtyClock = 0;
+      if (gate.pending) {
+        if (gate.expired(now)) { clearPresentation(); publish(); }
         return;
       }
+      if (!state || state.paused || state.phase === 'GAME_OVER') return;
+      const before = state;
+      const timed = advanceClock(state, delta);
+      dirtyClock += delta;
+      if (timed.revision !== before.revision) { await commit(timed, before); dirtyClock = 0; return; }
+      state = timed;
       const p = state.players[state.active];
-      if (!p.human && now >= nextBot) {
-        const rngState = {
-          rng: state.aiRng
-        };
-        const command = chooseBotCommand(project(state, p.id), p.difficulty, () => random(rngState));
-        const next = applyCommand(state, p.id, command);
-        next.aiRng = rngState.rng;
-        await commit(next);
-        nextBot = performance.now() + (speed === 0 ? 0 : command.type === 'ATTACK' ? 850 / speed : 260 / speed);
-        dirtyClock = 0;
-      } else if (dirtyClock >= 1000) {
-        await commit(state);
-        dirtyClock = 0;
+      if (!p.human) {
+        if (!planned || planned.revision !== state.revision || planned.actor !== p.id) {
+          const rngState = {rng: state.aiRng};
+          const view = project(state, p.id);
+          const decision = humanDecision(view, p.difficulty, () => random(rngState), state.botContexts?.[p.id]);
+          const delay = decisionDelay(view, decision.command, previousBot?.actor === p.id ? previousBot.command : null, speed, Math.random);
+          planned = {...decision, revision: state.revision, actor: p.id, aiRng: rngState.rng, due: now + delay};
+        }
+        if (now >= planned.due) {
+          const decision = planned;
+          const next = applyCommand(state, p.id, decision.command);
+          next.aiRng = decision.aiRng;
+          next.botContexts = {...state.botContexts, [p.id]: decision.context};
+          await commit(next, state);
+          previousBot = {actor: p.id, command: decision.command};
+          dirtyClock = 0;
+          return;
+        }
       }
-    } finally {
-      ticking = false;
-    }
+      if (dirtyClock >= 1000) {
+        // Clock saves must not restart a bot's pending thinking interval.
+        await storage.save(state); publish(); dirtyClock = 0;
+      }
+    } finally { ticking = false; }
   });
 }, 50);

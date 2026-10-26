@@ -1,13 +1,22 @@
-# RisiKo Offline — Regular per Android
+# RisiKo Offline 1.1 — Regular per Android
 
 Gioco single-player in italiano con 2–4 avversari IA, 20 giri e sdadata. Il tavolo e la mappa SVG sono ricostruiti seguendo lo screenshot fornito dall’utente: oceano turchese, coste e isole, giocatori a sinistra, comandi a destra e fase/timer in alto. È una ricostruzione indipendente, non l’app ufficiale e non una replica pixel per pixel.
 
+## Aggiornamento 1.1
+
+- Animazioni direzionali di attacco, dadi tridimensionali con pallini e risultati effettivi; timer fermo durante la presentazione.
+- Finestre compatte trascinabili per attacco e spostamento; nuovi pannelli carte e obiettivo, simboli militari e animazione della pesca.
+- Carri colorati con numero interno, colori dei territori rivisti e texture statiche leggere.
+- Setup con contatori espliciti, territori illuminati e «+»; mani iniziali da massimo tre, quantità rapide per i rinforzi normali.
+- Bot con tempi contestuali casuali, temperamento, prudenza, riconquista e rare sortite disperate; velocità 2×/4×/rapida opzionali.
+
+Istruzioni di aggiornamento, tempi e limiti: [AGGIORNAMENTO-1.1.md](docs/AGGIORNAMENTO-1.1.md).
+
 ## Stato della consegna
 
-- Implementati motore, dati, tre strategie IA, modalità cieca, timer, interfaccia, log, salvataggio e profilo locale.
-- Build web locale prodotta e controllata; test automatici del motore e del rendering eseguiti. Vedi [rapporto di verifica](docs/VERIFICA.md).
-- **APK non prodotto in questo ambiente:** SDK Android e dipendenze npm/Gradle non sono disponibili; accesso di rete e avvio del browser sono stati bloccati dall’ambiente. Il progetto Android e la procedura di build sono inclusi, ma non vengono presentati come collaudati su dispositivo.
-- La build React/Vite e il controllo completo TypeScript richiedono `npm install`; non sono stati eseguiti qui. La build locale indipendente dalle dipendenze usa lo stesso motore, Worker e interfaccia.
+La versione precedente è stata compilata con successo su GitHub e provata su Android dall’utente. La **nuova versione 1.1** ha superato 53 test locali e la build web senza dipendenze. Sono inclusi controlli Playwright ampliati per setup, animazioni, finestre, pesca e ripresa, da eseguire nella CI.
+
+In questo ambiente SDK Android e pacchetti npm non sono disponibili; rete verso il proxy e avvio di Chromium sono bloccati. **Il nuovo APK, il typecheck completo e il collaudo visivo nel browser non sono stati eseguiti qui.** Vedi [rapporto di verifica](docs/VERIFICA.md).
 
 ## Prova locale senza installare pacchetti
 

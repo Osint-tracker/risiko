@@ -71,7 +71,8 @@ export function inferObjectiveWeights(v          , p        )           {
     sum = raw.reduce((a, b) => a + b, 0);
   return raw.map(x => x / sum);
 }
-export function chooseBotCommand(v          , level            , rng              )          {
+                                                                                    
+export function chooseBotCommand(v          , level            , rng              , mood          )          {
   const p = v.players[v.active],
     own = owned(v, v.active),
     goal = objectives[p.objective  - 1].territories;
@@ -136,7 +137,7 @@ export function chooseBotCommand(v          , level            , rng            
       const attack = v.board[from].armies,
         defense = v.board[to].armies;
       if (easy) {
-        if (attack / defense >= 1.5) candidates.push({
+        if (attack / defense >= 1.5 + (mood?.riskBias ?? 0)) candidates.push({
           from,
           to,
           utility: rng()
@@ -145,7 +146,7 @@ export function chooseBotCommand(v          , level            , rng            
       }
       if (leading && v.conquests >= 1) continue;
       const odds = conquestOdds(attack, defense),
-        threshold = leading ? .9 : hard ? v.round >= 17 ? .6 : .75 : .65;
+        threshold = Math.max(.4, Math.min(.95, (leading ? .9 : hard ? v.round >= 17 ? .6 : .75 : .65) + (mood?.riskBias ?? 0)));
       if (odds <= threshold) continue;
       const owner = v.board[to].owner,
         goalValue = goal.includes(to) ? territories[to].points : 0;
@@ -153,7 +154,7 @@ export function chooseBotCommand(v          , level            , rng            
         full = territories.filter(t => t.continent === c).every(t => v.board[t.id].owner === owner);
       const continentBonus = full ? continents.find(x => x.id === c) .bonus : 0;
       const denial = hard ? (weights.get(owner) ?? []).reduce((n, w, i) => n + w * (objectives[i].territories.includes(to) ? territories[to].points : 0), 0) : 0;
-      const utility = goalValue * 3 + (v.conquests === 0 ? 8 : 0) + continentBonus * 4 + denial - defense * 1.6 - (1 - odds) * 10;
+      const utility = (goalValue * 3 + (v.conquests === 0 ? 8 : 0) + continentBonus * 4 + denial - defense * 1.6 - (1 - odds) * 10 + (mood?.reclaim === to ? 2 : 0)) * (1 + (mood ? (rng() * 2 - 1) * mood.variation : 0));
       if (utility > 0 && (!leading || v.conquests < 2)) candidates.push({
         from,
         to,

@@ -214,3 +214,24 @@ test('results reveal blind difficulty and all objectives only after conclusion',
 test('background pause during compulsory conquest never traps the resume controls',()=>{
  const f=fixture();f.click({action:'new'});const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});s.phase='POST_CONQUEST_MOVE';s.round=5;s.active=0;s.pending={from:0,to:1,min:3};s.board[0]={owner:0,armies:5};s.board[1]={owner:0,armies:0};f.worker.emit({type:'STATE',state:project(s)});assert.match(f.root.innerHTML,/Conferma spostamento/);s.paused=true;f.worker.emit({type:'STATE',state:project(s)});assert.match(f.root.innerHTML,/pause-card/);assert.doesNotMatch(f.root.innerHTML,/role="dialog"/);s.paused=false;f.worker.emit({type:'STATE',state:project(s)});assert.match(f.root.innerHTML,/Conferma spostamento/);f.cleanup();
 });
+
+test('setup UI distingue schierati, riserva e mano, evidenzia solo i propri territori',()=>{
+ const f=fixture();f.click({action:'new'});const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});s.active=0;
+ f.worker.emit({type:'STATE',state:project(s)});
+ assert.match(f.root.innerHTML,/SCHIERATI/);assert.match(f.root.innerHTML,/Da piazzare <b>21<\/b>/);assert.match(f.root.innerHTML,/Questa mano: <b>3<\/b>/);
+ assert.equal((f.root.innerHTML.match(/class="placement-plus"/g)??[]).length,14);
+ assert.equal((f.root.innerHTML.match(/class="tank-token"/g)??[]).length,42);
+ assert.doesNotMatch(f.root.innerHTML,/class="point-badge"/);f.cleanup();
+});
+test('carte militari selezionabili: invia solo il tris scelto e mostra il bonus',()=>{
+ const f=fixture();f.click({action:'new'});const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});s.active=0;s.phase='TRIS_EXCHANGE';s.round=5;s.players[0].cards=[0,3,6];
+ f.worker.emit({type:'STATE',state:project(s)});f.click({action:'cards'});
+ assert.match(f.root.innerHTML,/LE TUE CARTE/);assert.doesNotMatch(f.root.innerHTML,/[♜♟♞]/);
+ for(const id of [0,3,6])f.click({card:String(id)});
+ assert.equal((f.root.innerHTML.match(/aria-pressed="true"/g)??[]).length,3);
+ f.click({action:'exchange-selected'});assert.deepEqual(f.worker.messages.at(-1).command,{type:'EXCHANGE',cards:[0,3,6]});f.cleanup();
+});
+test('spostamento obbligatorio usa finestra flottante senza oscurare la plancia',()=>{
+ const f=fixture();f.click({action:'new'});const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});s.active=0;s.phase='POST_CONQUEST_MOVE';s.round=5;s.pending={from:0,to:1,min:3};s.board[0]={owner:0,armies:8};s.board[1]={owner:0,armies:0};
+ f.worker.emit({type:'STATE',state:project(s)});assert.match(f.root.innerHTML,/floating-panel/);assert.match(f.root.innerHTML,/aria-modal="false"/);assert.doesNotMatch(f.root.innerHTML,/class="modal-backdrop"/);f.cleanup();
+});
