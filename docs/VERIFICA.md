@@ -1,10 +1,22 @@
 # Rapporto di verifica
 
-La versione precedente ha superato la CI GitHub ed è stata installata e provata dall’utente. Questo rapporto distingue le verifiche locali della nuova versione 1.1 dai collaudi ancora da eseguire sulla nuova build.
+Correzione grafica 1.2.1: 14 test di UI/animazione ripetuti con successo; build web locale e import verificati. Font numerico incorporato, cifra 1 ridisegnata e silhouette ricalcata. Output in `test-results-token-1.2.1.txt`. Verifica browser del font e nuovo APK demandati alla CI GitHub. Le verifiche complete sotto si riferiscono alla base 1.2.
+
+La versione precedente ha superato la CI GitHub ed è stata installata e provata dall’utente. Questo rapporto distingue le verifiche locali della nuova versione 1.2 dai collaudi ancora da eseguire sulla nuova build.
+
+## Verifiche specifiche della 1.2
+
+- Conquista con 1/2/3 dadi: minimo trasferito subito e nessun territorio lasciato a zero; chiusura automatica se non ci sono carri aggiuntivi disponibili.
+- Scelta aggiuntivi: zero, massimo, rifiuto di valori negativi/non interi/eccessivi; guarnigioni e conservazione dei carri.
+- Timeout, vittoria immediata, decisioni dei bot e conversione idempotente dei salvataggi precedenti.
+- Carte/selezione e obiettivo conservati durante una transizione e al cambio di turno nel renderer simulato.
+- Callback reali della presentazione eseguiti con orologio e SVG simulati: conteggi prima/dopo, nessun fotogramma a zero, assenza frecce, cancellazione degli effetti.
+- Test browser ampliati per verificare dimensioni e assenza di scorrimento della finestra di conquista, anteprima aggiuntivi, persistenza del nodo delle carte e scorrimento durante un attacco reale del bot, apertura/chiusura durante gli effetti e cambio turno. Non eseguiti localmente: Chromium termina con `setsockopt: Operation not permitted`.
+- Anteprime `board-preview-v1.2.png` e `token-preview-v1.2.png`: render SVG statici, non schermate Android/browser. Le transizioni richiedono il collaudo browser/Android.
 
 ## Eseguito nell’ambiente di lavoro
 
-- 53 test automatici: 3 sui dati, 20 sul motore/IA originale, 9 sul rendering e le interazioni, 13 su presentazione e comportamento umano, 2 sul Worker con persistenza simulata e 6 sugli script CI.
+- 64 test automatici: 3 sui dati, 20 sul motore/IA originale, 11 sul rendering e le interazioni, 13 su presentazione e comportamento umano, 6 su conquista/migrazione, 3 sulla timeline SVG, 2 sul Worker con persistenza simulata e 6 sugli script CI. La suite completa da 61 test e i 3 nuovi test SVG sono stati eseguiti separatamente; gli ultimi 14 test di UI/animazione sono stati ripetuti dopo il ritocco tipografico.
 - Script CI: conservazione di stdout/stderr e del codice di uscita, licenze con chiusura anticipata di stdin, propagazione degli errori di licenze/installazione, diagnostica per SDK assente. Questi test usano uno `sdkmanager` simulato, non scaricano l’SDK. Sintassi Bash e struttura YAML controllate localmente.
 - Diciotto partite complete simulate (nove con IA originale e nove con personalità): ogni difficoltà su ciascun tavolo da 3, 4 e 5 giocatori. Tutte giungono a una conclusione legale; gli invarianti vengono controllati dopo ogni azione.
 - Setup verificato su 60 distribuzioni iniziali e 30 schieramenti completi con passaggi di mano. Confermati 35/30/25 carri finali e massimo tre piazzamenti per mano; verificato anche un rinforzo normale di 30 carri.
@@ -22,7 +34,7 @@ La versione precedente ha superato la CI GitHub ed è stata installata e provata
 - Controllo statico del manifest sorgente: landscape, backup disabilitato e rimozione del permesso Internet.
 - Anteprima SVG/PNG della plancia prodotta dal renderer dell’app e ispezionata. Non è una schermata del browser né una prova su Android.
 
-Output dei test: `test-results.txt`. I test del renderer usano un DOM minimo simulato e non dimostrano layout, pinch o comportamento del browser.
+Output dei test: `test-results.txt` (suite da 61) e `test-results-ui-1.2.txt` (14 test di UI/animazione, inclusi i 3 nuovi). I test del renderer usano un DOM minimo simulato e non dimostrano layout, pinch o comportamento del browser.
 
 ## Non eseguito / non verificato per la versione 1.1
 

@@ -1,5 +1,5 @@
 import type { GameState } from '../engine/types.ts';
-import { assertState, ranks } from '../engine/RisikoRulesEngine.ts';
+import { assertState, ranks, upgradeConquestSave } from '../engine/RisikoRulesEngine.ts';
 export type ResultRecord = {
   id: string;
   date: number;
@@ -63,8 +63,10 @@ export class StorageService {
   }
   async load(): Promise<GameState | null> {
     const s = await this.get<GameState>('game', 'current');
-    if (s) assertState(s);
-    return s;
+    if (!s) return null;
+    const upgraded = upgradeConquestSave(s);
+    if (upgraded !== s) await this.save(upgraded);
+    return upgraded;
   }
   async profile(): Promise<Profile> {
     const db = await this.open();

@@ -1,5 +1,5 @@
                                                     
-import { assertState, ranks } from '../engine/RisikoRulesEngine.js';
+import { assertState, ranks, upgradeConquestSave } from '../engine/RisikoRulesEngine.js';
                             
              
                
@@ -63,8 +63,10 @@ export class StorageService {
   }
   async load()                            {
     const s = await this.get           ('game', 'current');
-    if (s) assertState(s);
-    return s;
+    if (!s) return null;
+    const upgraded = upgradeConquestSave(s);
+    if (upgraded !== s) await this.save(upgraded);
+    return upgraded;
   }
   async profile()                   {
     const db = await this.open();

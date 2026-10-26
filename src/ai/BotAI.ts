@@ -117,7 +117,7 @@ export function chooseBotCommand(v: GameView, level: Difficulty, rng: () => numb
       b = moveBounds(v, m.from, m.to);
     let count = b.min;
     if (border(v, m.to)) {
-      if (!border(v, m.from)) count = b.max;else count = Math.max(b.min, Math.min(b.max, Math.round((v.board[m.from].armies + v.board[m.to].armies) / 2)));
+      if (!border(v, m.from)) count = b.max;else count = Math.max(b.min, Math.min(b.max, Math.round((v.board[m.from].armies + v.board[m.to].armies) / 2) - v.board[m.to].armies));
     }
     return {
       type: 'MOVE',

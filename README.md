@@ -1,22 +1,28 @@
-# RisiKo Offline 1.1 — Regular per Android
+# RisiKo Offline 1.2.1 — Regular per Android
 
 Gioco single-player in italiano con 2–4 avversari IA, 20 giri e sdadata. Il tavolo e la mappa SVG sono ricostruiti seguendo lo screenshot fornito dall’utente: oceano turchese, coste e isole, giocatori a sinistra, comandi a destra e fase/timer in alto. È una ricostruzione indipendente, non l’app ufficiale e non una replica pixel per pixel.
 
-## Aggiornamento 1.1
+## Correzione grafica 1.2.1
 
-- Animazioni direzionali di attacco, dadi tridimensionali con pallini e risultati effettivi; timer fermo durante la presentazione.
-- Finestre compatte trascinabili per attacco e spostamento; nuovi pannelli carte e obiettivo, simboli militari e animazione della pesca.
-- Carri colorati con numero interno, colori dei territori rivisti e texture statiche leggere.
-- Setup con contatori espliciti, territori illuminati e «+»; mani iniziali da massimo tre, quantità rapide per i rinforzi normali.
-- Bot con tempi contestuali casuali, temperamento, prudenza, riconquista e rare sortite disperate; velocità 2×/4×/rapida opzionali.
+Silhouette ricalcata dal nuovo dettaglio: corpo più pieno, canna larga e profilo superiore compatto. Cifre dritte e spesse, con carattere incorporato offline: il numero 1 è stato ridisegnato dal riferimento; gli altri numeri derivano da Open Sans ExtraBold. Il font originale non è identificabile con certezza dalla sola immagine sfocata. Anteprima: [token-preview-v1.2.1.png](docs/token-preview-v1.2.1.png).
 
-Istruzioni di aggiornamento, tempi e limiti: [AGGIORNAMENTO-1.1.md](docs/AGGIORNAMENTO-1.1.md).
+Verifica della correzione: 14 test di rendering/animazione superati, build web locale e import verificati. Il controllo browser del caricamento del carattere è incluso nella CI, da eseguire su GitHub. Versione Android 1.2.1, versionCode 4.
+
+## Aggiornamento 1.2
+
+- Carte e obiettivo rimangono aperti durante attacchi e cambi di turno dei bot, con selezione e scorrimento conservati.
+- Alla conquista vengono trasferiti subito i carri obbligatori (numero di dadi dell’ultimo attacco). La finestra compatta da 280–290 px permette di scegliere soltanto gli aggiuntivi, partendo da zero.
+- Nessuna freccia sulla mappa: impulsi coordinati sui territori, indicatori colorati +N/−N e transizioni dei contatori. I dadi restano quelli della versione 1.1.
+- Carro armato ridisegnato seguendo la foto, con numero interno adattato fino a tre cifre.
+- Ripresa dei vecchi salvataggi post-conquista con trasferimento del minimo una sola volta.
+
+Istruzioni: [AGGIORNAMENTO-1.2.md](docs/AGGIORNAMENTO-1.2.md). Rimangono tutte le funzioni della [versione 1.1](docs/AGGIORNAMENTO-1.1.md), compresi setup corretto e tempi umani dei bot.
 
 ## Stato della consegna
 
-La versione precedente è stata compilata con successo su GitHub e provata su Android dall’utente. La **nuova versione 1.1** ha superato 53 test locali e la build web senza dipendenze. Sono inclusi controlli Playwright ampliati per setup, animazioni, finestre, pesca e ripresa, da eseguire nella CI.
+La versione 1.1 è stata compilata su GitHub e provata su Android dall’utente. La nuova **1.2 ha superato 64 test locali**: 61 nella suite completa e 3 nuovi test della timeline delle animazioni eseguiti separatamente. Dopo l’adattamento dei numeri a tre cifre, ripetuti con successo i 14 test di rendering/animazione interessati. Build web locale senza dipendenze e verifica degli import completate.
 
-In questo ambiente SDK Android e pacchetti npm non sono disponibili; rete verso il proxy e avvio di Chromium sono bloccati. **Il nuovo APK, il typecheck completo e il collaudo visivo nel browser non sono stati eseguiti qui.** Vedi [rapporto di verifica](docs/VERIFICA.md).
+In questo ambiente SDK Android e pacchetti npm non sono disponibili; l’accesso al proxy e l’avvio di Chromium sono bloccati. **Il nuovo APK, il typecheck semantico e il collaudo browser devono essere verificati dal workflow GitHub.** Il test browser è stato esteso con controlli su finestre, trasferimenti e carte durante gli attacchi. Vedi il [rapporto di verifica](docs/VERIFICA.md).
 
 ## Prova locale senza installare pacchetti
 

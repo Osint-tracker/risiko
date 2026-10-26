@@ -1,7 +1,7 @@
 import {territories} from '../data/mapGraph.ts';
 import {effectDuration, sequenceScale} from '../engine/presentation.ts';
 import type {Transition, VisualEffect} from '../engine/presentation.ts';
-import {armyToken, cardFace, dieMarkup, escapeHtml} from './art.ts';
+import {armyToken, counterFontSize, tankShape, cardFace, dieMarkup, escapeHtml} from './art.ts';
 
 export function effectMarkup(e: VisualEffect, t: Transition) {
   const player = t.before.players[e.player];
@@ -58,10 +58,41 @@ export function playTransition(root: HTMLElement, t: Transition, finished: () =>
   let stopped=false;
   const later=(f:()=>void, ms:number)=>timers.push(setTimeout(()=>{if(!stopped)f();},ms));
   const clearMap=()=>{
-    root.querySelectorAll('.fx-source,.fx-target,.fx-place').forEach(el=>el.classList.remove('fx-source','fx-target','fx-place'));
+    root.querySelectorAll('.fx-source,.fx-target,.fx-place,.fx-conquer').forEach(el=>el.classList.remove('fx-source','fx-target','fx-place','fx-conquer'));
+    root.querySelectorAll('.count-changing').forEach(el=>el.classList.remove('count-changing'));
+    root.querySelectorAll('.count-before').forEach(el=>el.remove());
     root.querySelector('#map-fx')?.remove();
   };
   const reduced = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const board=t.before.board.map(cell=>({...cell}));
+  function badge(id:number, delta:number, owner:number, duration:number) {
+    if(!delta)return;
+    const point=territories[id], color=t.before.players[owner].color;
+    root.querySelector('#map-fx')?.insertAdjacentHTML('beforeend',`<g class="army-delta ${delta<0?'army-loss':''}" transform="translate(${point.x-19} ${point.y-34})" style="--counter-ms:${duration}ms"><g class="delta-rise"><path d="${tankShape}" fill="${color}"/><text x="17" y="20" style="font-size:${counterFontSize(delta,true)}px">${delta>0?'+':'−'}${Math.abs(delta)}</text></g></g>`);
+  }
+  function changeArmy(id:number, delta:number, owner:number, duration:number) {
+    if(!delta && board[id].owner===owner)return;
+    board[id].armies+=delta;board[id].owner=owner;
+    const token=root.querySelector<SVGElement>(`[data-token="${id}"]`);
+    const number=token?.querySelector<SVGTextElement>('.tank-number');
+    if(token && number) {
+      token.querySelector('.count-before')?.remove();
+      const old=number.cloneNode(true) as SVGTextElement;
+      old.classList.remove('tank-number');old.classList.add('count-before');
+      number.parentElement?.append(old);
+      number.textContent=String(board[id].armies);
+      number.style.fontSize=`${counterFontSize(board[id].armies)}px`;
+      token.querySelector('.tank-token')?.setAttribute('fill',t.before.players[owner].color);
+      token.style.setProperty('--counter-ms',`${duration}ms`);
+      token.classList.remove('count-changing');
+      // Restart just the small SVG counter; the map and open windows stay mounted.
+      token.getBoundingClientRect();token.classList.add('count-changing');
+      later(()=>{old.remove();token.classList.remove('count-changing');},duration);
+    }
+    const cell=root.querySelector(`[data-territory="${id}"]`);
+    cell?.setAttribute('aria-label',`${territories[id].name}: ${board[id].armies} armate, ${t.before.players[owner].name}`);
+    badge(id,delta,owner,duration);
+  }
   function run(index:number) {
     if(stopped)return;
     clearMap();
@@ -76,20 +107,34 @@ export function playTransition(root: HTMLElement, t: Transition, finished: () =>
     if('to' in e) {
       root.querySelector(`[data-territory="${e.to}"]`)?.classList.add(e.kind==='place'?'fx-place':'fx-target');
       if('from' in e)root.querySelector(`[data-territory="${e.from}"]`)?.classList.add('fx-source');
-      const svg=root.querySelector('#world-map');
-      const target=territories[e.to];
-      let path='';
-      if('from' in e) {
-        const source=territories[e.from];
-        path=e.from===0&&e.to===29?`M${source.x} ${source.y}L0 ${source.y}M1240 ${target.y}L${target.x} ${target.y}`:
-          e.from===29&&e.to===0?`M${source.x} ${source.y}L1240 ${source.y}M0 ${target.y}L${target.x} ${target.y}`:
-          `M${source.x} ${source.y}Q${(source.x+target.x)/2} ${Math.min(source.y,target.y)-20} ${target.x} ${target.y}`;
+      root.querySelector('#world-map')?.insertAdjacentHTML('beforeend', '<g id="map-fx" pointer-events="none"></g>');
+      if(e.kind==='place')later(()=>changeArmy(e.to,e.count,e.player,duration*.75),duration*.15);
+      if(e.kind==='move')later(()=>{
+        changeArmy(e.from,-e.count,e.player,duration*.75);
+        changeArmy(e.to,e.count,e.player,duration*.75);
+      },duration*.15);
+      if(e.kind==='battle') {
+        later(()=>{
+          changeArmy(e.from,-e.losses[0],e.player,duration*.28);
+          // A conquered territory swaps directly to its compulsory garrison;
+          // never show the intermediate empty territory to the player.
+          if(!e.conquered)changeArmy(e.to,-e.losses[1],e.defender,duration*.28);
+          else badge(e.to,-e.losses[1],e.defender,duration*.19);
+        },duration*.64);
+        if(e.conquered)later(()=>{
+          const target=root.querySelector(`[data-territory="${e.to}"]`);
+          target?.classList.add('fx-conquer');
+          target?.classList.remove('fx-target');
+          board[e.to].armies=0;
+          changeArmy(e.from,-e.transferred,e.player,duration*.23);
+          changeArmy(e.to,e.transferred,e.player,duration*.23);
+        },duration*.77);
       }
-      svg?.insertAdjacentHTML('beforeend',`<g id="map-fx" pointer-events="none" style="--effect-ms:${duration}ms"><defs><marker id="attack-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#fff9ba"/></marker></defs>${path?`<path class="attack-trail" d="${path}" marker-end="url(#attack-arrow)"/>`:''}<circle class="attack-ring" cx="${target.x}" cy="${target.y}" r="18"/>${e.kind==='place'?`<text class="floating-add" x="${target.x}" y="${target.y-22}">+${e.count}</text>`:''}</g>`);
     }
     later(()=>host!.classList.add('rolling'),duration*.12);
     later(()=>{host!.classList.remove('rolling');host!.classList.add('resolved');},duration*.64);
     later(()=>host!.classList.add('show-losses'),duration*.78);
+    later(()=>host!.classList.add('effect-leaving'),Math.max(duration*.8,duration-160));
     later(()=>run(index+1),duration);
   }
   run(0);

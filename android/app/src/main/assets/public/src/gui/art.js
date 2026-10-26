@@ -1,8 +1,12 @@
 import {cards, territories, objectives} from '../data/mapGraph.js';
 export const escapeHtml = (value         ) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}                         )[c]);
-export const tankShape = 'M2 11L7 7H17V3H27V6H40V9H27L31 12H39L42 17L38 24H6L1 19Z';
+export const tankShape = 'M1.8 16.5Q1.7 12 4.3 10.2Q6.8 8.3 8.9 8.3L9.2 6.4Q10.6 3.6 13 3.2H17.4Q18.6 3.2 19.1 4.8L38.5 5.3Q41.3 5.4 41.4 8V10Q41.1 12 39.4 12.3L35.1 12.8L34.9 19.4Q34.5 23.7 30.2 24H7.4Q2 23.8 1.8 19.1Z';
+export function counterFontSize(count        , signed = false)         {
+  const digits=String(Math.abs(count)).length+(signed?1:0);
+  return digits<=2?15:digits===3?12:10;
+}
 export function armyToken(count        , color        ) {
-  return `<svg class="army-token" viewBox="0 0 44 27" aria-label="${count} carri"><path d="${tankShape}" fill="${color}" stroke="#e9f7e9" stroke-width="1.5"/><text x="21" y="20" text-anchor="middle">${count}</text></svg>`;
+  return `<svg class="army-token" viewBox="0 0 44 27" aria-label="${count} carri"><path d="${tankShape}" fill="${color}" stroke="#dfe2d2" stroke-width="1.15"/><text x="17" y="20" text-anchor="middle" style="font-size:${counterFontSize(count)}px">${count}</text></svg>`;
 }
 export const territoryColors = [
   '#a77d37','#956536','#b77519','#af994e','#b76631','#b08744','#a8391e','#a45128','#b96c24',

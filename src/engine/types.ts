@@ -20,6 +20,8 @@ export type PendingMove = {
   from: number;
   to: number;
   min: number;
+  /** Compulsory armies already moved. Absent only in legacy saves. */
+  transferred?: number;
 };
 export type GameEvent = {
   type: 'onGameStateUpdate' | 'onDiceRolled' | 'onTurnChanged' | 'onSdadataRoll' | 'onGameOver';

@@ -3,6 +3,7 @@ import {mkdir} from 'node:fs/promises';
 import {setTimeout as wait} from 'node:timers/promises';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
+import {objectives,territories} from '../src/data/mapGraph.ts';
 import {createGame,applyCommand,assertState} from '../src/engine/RisikoRulesEngine.ts';
 await mkdir('artifacts/browser',{recursive:true});
 const server=spawn(process.execPath,['scripts/serve.mjs'],{stdio:'pipe',env:{...process.env,PORT:'4173'}});
@@ -23,6 +24,7 @@ try{
  await page.locator('[data-action="blind-all"]').click();assert.equal(await page.getByText('Bot ? · livello segreto',{exact:true}).count(),3);
  await page.locator('[data-count="3"]').click();await page.locator('[data-action="new"]').click();
  await page.locator('.game-table').waitFor();assert.equal(await page.locator('[data-territory]').count(),42);
+ assert.equal(await page.evaluate(async()=>{await document.fonts.load('900 15px RisikoCounter','0123456789');return document.fonts.check('900 15px RisikoCounter','0123456789');}),true,'Il carattere dei carri deve essere incorporato e caricato');
  async function completeSetup(expected,territoryCount){
   await page.locator('.game-table[data-phase="SETUP_PLACEMENT"]').waitFor();
   await page.locator('[data-speed="0"]').click();
@@ -103,7 +105,18 @@ try{
  assert.equal(await page.locator('.fx-source').count(),1);assert.equal(await page.locator('.fx-target').count(),1);
  await page.screenshot({path:'artifacts/browser/dice-rolling.png'});
  await page.locator('[data-action="confirm-move"]').waitFor();
+ const move=page.locator('.move-panel');
+ const moveRect=await move.boundingBox();assert.ok(moveRect.width<=290&&moveRect.height<=390*.6+1);
+ assert.equal(await move.evaluate(el=>el.scrollHeight<=el.clientHeight+1),true,'Tutti i controlli di spostamento devono essere visibili senza scorrere');
+ assert.equal(await page.locator('#move-range').inputValue(),'0');
+ assert.equal(await page.locator('[data-token="1"] .tank-number').textContent(),'3');
+ assert.equal(await page.locator('.attack-trail,[marker-end]').count(),0);
  await page.screenshot({path:'artifacts/browser/post-conquest.png'});
+ // Preview additional armies without mutating the stored board.
+ await page.locator('[data-move="+1"]').click();
+ assert.equal(await page.locator('[data-token="1"] .tank-number').textContent(),'4');
+ await page.locator('[data-move="Min"]').click();
+ assert.equal(await page.locator('[data-token="1"] .tank-number').textContent(),'3');
  await page.locator('[data-action="confirm-move"]').click();
  await page.waitForSelector('.game-table[data-phase="ATTACK"]');
  await page.locator('[data-action="next"]').click();await page.waitForSelector('.game-table[data-phase="FORTIFY"]');
@@ -128,8 +141,35 @@ try{
  assert.equal(await page.locator('.battle-window').count(),0);
  await page.reload();await page.locator('[data-action="resume"]').waitFor();await page.locator('[data-action="resume"]').click();
  await page.locator('[data-action="confirm-move"]').waitFor();assert.equal(await page.locator('.battle-window').count(),0);
+ // A genuine bot attack must not replace or close the consultation DOM.
+ const bot=createGame({players:3,name:'Comandante',difficulties:['facile','facile'],turnSeconds:180,seed:17});
+ bot.order=[0,1,2];bot.active=1;bot.round=5;bot.phase='ATTACK';bot.players.forEach(p=>p.setupRemaining=0);
+ bot.board.forEach(cell=>{cell.owner=0;cell.armies=1;});
+ bot.board[1]={owner:1,armies:20};bot.board[objectives[bot.players[0].objective-1].territories.find(id=>id!==1&&!territories[1].neighbors.includes(id))]={owner:2,armies:1};
+ bot.players[0].cards=[0,3,6,9,12,15,18];bot.deck=bot.deck.filter(c=>!bot.players[0].cards.includes(c));
+ await page.setViewportSize({width:844,height:390});await loadFixture(bot);
+ await page.locator('[data-speed="1"]').click();
+ await page.locator('[data-action="cards"]').click();await page.locator('[data-card="3"]').click();
+ await page.evaluate(()=>{window.__cardsNode=document.querySelector('.cards-window');document.querySelector('.hand').scrollTop=30;window.__cardsScroll=document.querySelector('.hand').scrollTop;});
+ await page.locator('.battle-window').waitFor();
+ assert.equal(await page.evaluate(()=>window.__cardsNode===document.querySelector('.cards-window')),true,'La finestra carte deve rimanere montata');
+ assert.equal(await page.locator('[data-card="3"]').getAttribute('aria-pressed'),'true');
+ assert.equal(await page.evaluate(()=>document.querySelector('.hand').scrollTop===window.__cardsScroll),true);
+ await page.screenshot({path:'artifacts/browser/cards-during-bot-attack.png'});
+ // Close and reopen during the same presentation: UI commands must stay available.
+ await page.locator('[data-action="close"]').click();await page.locator('.cards-window').waitFor({state:'detached'});
+ await page.locator('[data-action="cards"]').click();await page.locator('.cards-window').waitFor();
+ await page.locator('.battle-window').waitFor({state:'detached'});
+ assert.equal(await page.locator('.cards-window').count(),1);
+ await page.locator('[data-action="close"]').click();await page.locator('.cards-window').waitFor({state:'detached'});
+ await page.locator('[data-action="pause"]').click();await page.locator('.pause-card').waitFor();
+ // Explicit turn boundary, retaining the same game ID, using the persisted fixture.
+ bot.active=2;bot.phase='FORTIFY';bot.revision++;await loadFixture(bot);
+ await page.locator('[data-action="cards"]').click();
+ await page.waitForSelector('.game-table[data-active="0"]');
+ assert.equal(await page.locator('.cards-window').count(),1);
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
- console.log('PASS: setup 3/4/5 completo via tocchi, IndexedDB/ripresa anche durante i dadi, obiettivo, finestre compatte, dadi, timer sospeso, conquista, spostamento, pesca e carte; telefono/tablet; zero richieste esterne.');
+ console.log('PASS: setup 3/4/5 completo via tocchi, IndexedDB/ripresa anche durante i dadi, obiettivo, finestre compatte, dadi, timer sospeso, conquista, spostamento, pesca e carte; carte persistenti durante attacchi e cambio turno, trasferimento immediato e anteprima aggiuntivi; telefono/tablet; zero richieste esterne.');
 }catch(error){
  await page?.screenshot({path:'artifacts/browser/failure.png',fullPage:true}).catch(()=>{});
  throw error;

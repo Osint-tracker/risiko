@@ -23,9 +23,10 @@ class MockWorker {
     });
   }
 }
-function fixture() {
+function fixture(holdEffects=false) {
   const callbacks: Record<string, Function> = {};
   let html = '';
+  const effects={innerHTML:'',className:'',style:{setProperty(){}},classList:{add(){},remove(){}},querySelector(){return null;}};
   const root = {
     set innerHTML(v: string) {
       html = v;
@@ -33,9 +34,10 @@ function fixture() {
     get innerHTML() {
       return html;
     },
-    querySelector() {
-      return null;
+    querySelector(selector:string) {
+      return holdEffects&&selector==='#effects'?effects:null;
     },
+    querySelectorAll(){return [];},
     addEventListener(type: string, f: Function) {
       callbacks[type] = f;
     },
@@ -234,4 +236,30 @@ test('carte militari selezionabili: invia solo il tris scelto e mostra il bonus'
 test('spostamento obbligatorio usa finestra flottante senza oscurare la plancia',()=>{
  const f=fixture();f.click({action:'new'});const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});s.active=0;s.phase='POST_CONQUEST_MOVE';s.round=5;s.pending={from:0,to:1,min:3};s.board[0]={owner:0,armies:8};s.board[1]={owner:0,armies:0};
  f.worker.emit({type:'STATE',state:project(s)});assert.match(f.root.innerHTML,/floating-panel/);assert.match(f.root.innerHTML,/aria-modal="false"/);assert.doesNotMatch(f.root.innerHTML,/class="modal-backdrop"/);f.cleanup();
+});
+
+test('carte e selezione restano aperte tra attacchi e cambi di turno dei bot',()=>{
+ const f=fixture(true);f.click({action:'new'});
+ const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});
+ s.phase='ATTACK';s.active=1;s.players[0].cards=[0,3,6];
+ f.worker.emit({type:'STATE',state:project(s)});f.click({action:'cards'});f.click({card:'3'});
+ const before=project(s),after=project({...s,revision:s.revision+1});
+ f.worker.emit({type:'TRANSITION',transition:{id:'cards:1',before,after,effects:[{kind:'draw',player:1}],speed:1}});
+ assert.match(f.root.innerHTML,/LE TUE CARTE/);assert.match(f.root.innerHTML,/data-card="3" aria-pressed="true"/);
+ s.active=2;s.revision++;
+ f.worker.emit({type:'STATE',state:project(s)});
+ assert.match(f.root.innerHTML,/LE TUE CARTE/);assert.match(f.root.innerHTML,/data-card="3" aria-pressed="true"/);
+ f.click({action:'close'});assert.doesNotMatch(f.root.innerHTML,/LE TUE CARTE/);
+ f.click({action:'objective'});s.active=0;s.revision++;f.worker.emit({type:'STATE',state:project(s)});
+ assert.match(f.root.innerHTML,/IL TUO OBIETTIVO/);f.cleanup();
+});
+test('finestra conquista mostra minimo trasferito e selettore aggiuntivi a zero',()=>{
+ const f=fixture();f.click({action:'new'});
+ const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});
+ s.active=0;s.phase='POST_CONQUEST_MOVE';s.pending={from:0,to:1,min:3,transferred:3};
+ s.board[0]={owner:0,armies:9};s.board[1]={owner:0,armies:3};
+ f.worker.emit({type:'STATE',state:project(s)});
+ assert.match(f.root.innerHTML,/3 carri già trasferiti/);assert.match(f.root.innerHTML,/Carri aggiuntivi/);
+ assert.match(f.root.innerHTML,/id="move-range" min="0" max="\d+" value="0"/);
+ f.click({action:'confirm-move'});assert.equal(f.worker.messages.at(-1).command.count,0);f.cleanup();
 });

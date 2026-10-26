@@ -184,7 +184,7 @@ export function moveBounds(s                                                    
     min: 1,
     max: 0
   };
-  const min = s.phase === 'POST_CONQUEST_MOVE' && s.pending?.from === from && s.pending?.to === to ? s.pending.min : 1;
+  const min = s.phase === 'POST_CONQUEST_MOVE' && s.pending?.from === from && s.pending?.to === to ? (s.pending.transferred === undefined ? s.pending.min : 0) : 1;
   const max = a.armies - (border(s, from) ? 2 : 1);
   // Only the compulsory conquest transfer may leave one on an enemy border.
   return {
@@ -380,13 +380,16 @@ export function applyCommand(input           , actor        , command         ) 
           s.pending = {
             from,
             to,
-            min: ad.length
+            min: ad.length,
+            transferred: ad.length
           };
+          a.armies -= ad.length;
+          d.armies += ad.length;
           s.phase = 'POST_CONQUEST_MOVE';
           observe(s, s.active, to, 2);
           event(s, 'onGameStateUpdate', `${p.name} conquista ${territories[to].name}.`, {
             territory: to,
-            action: 'conquer'
+            action: 'conquer', from, to, count: ad.length
           });
           if (owned(s, defender).length === 0) {
             s.players[defender].eliminated = true;
@@ -398,10 +401,11 @@ export function applyCommand(input           , actor        , command         ) 
             event(s, 'onGameStateUpdate', `${s.players[defender].name} eliminato; ${p.name} riceve ${take.length} carte.`);
           }
           if (objectives[p.objective - 1].territories.every(t => s.board[t].owner === s.active)) {
-            a.armies -= ad.length;
-            d.armies += ad.length;
             s.pending = null;
             finish(s, 'risiko', s.active);
+          } else if (moveBounds(s, from, to).max === 0) {
+            s.pending = null;
+            s.phase = 'ATTACK';
           }
         }
         break;
@@ -422,7 +426,7 @@ export function applyCommand(input           , actor        , command         ) 
         requireRule(Number.isInteger(count) && count >= min && count <= max, 'Spostamento non valido: rispetta la guarnigione minima.');
         s.board[from].armies -= count;
         s.board[to].armies += count;
-        event(s, 'onGameStateUpdate', `${p.name} sposta ${count} carri: ${territories[from].name} → ${territories[to].name}.`, {action: 'move', from, to, count});
+        if (count > 0) event(s, 'onGameStateUpdate', `${p.name} sposta ${count} carri: ${territories[from].name} → ${territories[to].name}.`, {action: 'move', from, to, count});
         if (s.phase === 'POST_CONQUEST_MOVE') {
           s.pending = null;
           s.phase = 'ATTACK';
@@ -441,9 +445,11 @@ export function applyCommand(input           , actor        , command         ) 
         }
         if (s.phase === 'POST_CONQUEST_MOVE') {
           const m = s.pending ;
-          s.board[m.from].armies -= m.min;
-          s.board[m.to].armies += m.min;
-          event(s, 'onGameStateUpdate', `${p.name}: spostamento obbligatorio di ${m.min} carri.`, {action:'move',from:m.from,to:m.to,count:m.min});
+          if (m.transferred === undefined) {
+            s.board[m.from].armies -= m.min;
+            s.board[m.to].armies += m.min;
+            event(s, 'onGameStateUpdate', `${p.name}: spostamento obbligatorio di ${m.min} carri.`, {action:'move',from:m.from,to:m.to,count:m.min});
+          }
           s.pending = null;
           s.phase = 'ATTACK';
           checkObjective(s);
@@ -512,13 +518,34 @@ export function project(s           , viewer = 0)           {
     })
   };
 }
+export function upgradeConquestSave(input           )            {
+  assertState(input);
+  if (input.phase !== 'POST_CONQUEST_MOVE' || !input.pending || input.pending.transferred !== undefined) return input;
+  const s = structuredClone(input), m = s.pending ;
+  requireRule(s.board[m.to].armies === 0 && s.board[m.from].armies > m.min &&
+    s.board[m.from].owner === s.active && s.board[m.to].owner === s.active &&
+    Number.isInteger(m.min) && m.min >= 1 && m.min <= 3, 'Spostamento salvato non valido.');
+  s.board[m.from].armies -= m.min;
+  s.board[m.to].armies += m.min;
+  m.transferred = m.min;
+  if (moveBounds(s, m.from, m.to).max === 0) { s.pending = null; s.phase = 'ATTACK'; }
+  s.revision++;
+  assertState(s);
+  return s;
+}
 export function assertState(s           ) {
   requireRule(s.version === 1 && s.board.length === 42, 'Salvataggio incompatibile.');
   requireRule([3, 4, 5].includes(s.players.length), 'Numero giocatori non valido.');
   requireRule(new Set(s.order).size === s.players.length && s.order.every(id => s.players[id]), 'Ordine di gioco non valido.');
   for (let i = 0; i < 42; i++) {
     const t = s.board[i];
-    requireRule(s.players[t.owner] && Number.isInteger(t.armies) && t.armies >= (s.phase === 'POST_CONQUEST_MOVE' && s.pending?.to === i ? 0 : 1), 'Stato territorio non valido.');
+    requireRule(s.players[t.owner] && Number.isInteger(t.armies) && t.armies >= (s.phase === 'POST_CONQUEST_MOVE' && s.pending?.to === i && s.pending.transferred === undefined ? 0 : 1), 'Stato territorio non valido.');
+  }
+  if(s.pending?.transferred !== undefined) {
+    const m=s.pending;
+    requireRule(s.phase==='POST_CONQUEST_MOVE' && Number.isInteger(m.transferred) && m.transferred===m.min && m.min>=1 && m.min<=3 &&
+      !!s.board[m.from] && !!s.board[m.to] && territories[m.from].neighbors.includes(m.to) &&
+      s.board[m.from].owner===s.active && s.board[m.to].owner===s.active && s.board[m.to].armies>=m.min, 'Conquista pendente non valida.');
   }
   for (const p of s.players) {
     requireRule(total(s, p.id) <= 130 && p.cards.length <= 7 && objectives[p.objective - 1], 'Limiti giocatore non validi.');

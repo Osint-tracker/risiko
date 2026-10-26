@@ -1,7 +1,7 @@
 import { territories, continents, objectives, seaLinks, cards, colors } from '../data/mapGraph.ts';
 import { canAttack, moveBounds, validTris, exchangeValue } from '../engine/RisikoRulesEngine.ts';
 import type { GameView, Command, GameConfig } from '../engine/types.ts';
-import {armyToken, tankShape, territoryColors, cardFace, objectiveMap, dieMarkup} from './art.ts';
+import {armyToken, counterFontSize, tankShape, territoryColors, cardFace, objectiveMap, dieMarkup} from './art.ts';
 import {playTransition, positionPanel, bindPanelDrag} from './effects.ts';
 import type {Transition} from '../engine/presentation.ts';
 import type { Profile } from '../services/StorageService.ts';
@@ -67,6 +67,9 @@ export function mountGame(root: HTMLElement): () => void {
   let showNames = true;
   let placementCount = 1;
   let lastPresentedId = '';
+  let dialogMarkup = '';
+  let dialogExit: ReturnType<typeof setTimeout> | null = null;
+  const consulting = () => modal === 'cards' || modal === 'objective';
   let panelKey = '';
   let panelPosition: {x:number;y:number} | null = null;
   let presenting: Transition | null = null;
@@ -143,7 +146,7 @@ export function mountGame(root: HTMLElement): () => void {
         dim = !preview && objectiveView && !goal.includes(t.id),
         legal = !preview && selected !== null && s?.phase === 'ATTACK' && canAttack(s!, selected, t.id);
       const placeable = !preview && humanTurn() && !presenting && cell?.owner === 0 && ['SETUP_PLACEMENT','REINFORCEMENT'].includes(s!.phase);
-      if (!preview) labels.push(`<g class="territory-label ${dim ? 'dim' : ''}" pointer-events="none"><text class="territory-name" x="${t.x}" y="${t.y - 16}">${escape(t.short)}</text><g transform="translate(${t.x-19} ${t.y-10}) scale(.9)"><path class="tank-token" d="${tankShape}" fill="${p?.color??'#899'}"/><text class="tank-number" x="21" y="20">${cell?.armies??0}</text></g></g>`);
+      if (!preview) labels.push(`<g data-token="${t.id}" class="territory-label ${dim ? 'dim' : ''}" pointer-events="none"><text class="territory-name" x="${t.x}" y="${t.y - 16}">${escape(t.short)}</text><g transform="translate(${t.x-19} ${t.y-10}) scale(.9)"><path class="tank-token" d="${tankShape}" fill="${p?.color??'#899'}"/><text class="tank-number" x="17" y="20" style="font-size:${counterFontSize(cell?.armies??0)}px">${cell?.armies??0}</text></g></g>`);
       return `<g data-territory="${t.id}" class="territory ${placeable ? 'placeable' : ''} ${dim ? 'dim' : ''} ${selected === t.id && !preview ? 'selected' : ''} ${target === t.id && !preview ? 'target' : ''} ${legal ? 'attackable' : ''} ${objectiveView && goal.includes(t.id) && !preview ? 'goal' : ''}" tabindex="${preview ? -1 : 0}" role="button" aria-label="${escape(t.name)}: ${t.points} punti${p ? `, ${escape(p.name)}, ${cell!.armies} armate` : ''}"><title>${escape(t.name)} · ${t.points} punti${p ? ` · ${escape(p.name)} · ${cell!.armies} carri` : ''}</title><path class="land" d="${t.path}" fill="${territoryColors[t.id]??c.color}"/><path d="${t.path}" fill="url(#land-grain)" pointer-events="none"/><circle class="territory-hit" cx="${t.x}" cy="${t.y}" r="17" fill="transparent"/>${placeable?`<g class="placement-plus" transform="translate(${t.x+23} ${t.y-5})"><circle r="9"/><path d="M-5 0H5M0-5V5"/></g>`:''}</g>`;
     }).join('')}</g></g>${labels.join('')}<g class="compass" transform="translate(537 526)"><circle r="37" fill="none" stroke="#4bbed0" stroke-width="2"/><circle r="31" fill="none" stroke="#4bbed0" stroke-width=".7"/><path d="M-25-25L0-10L25-25L10 0L25 25L0 10L-25 25L-10 0Z"/><path d="M0-43L9-9L43 0L9 9L0 43L-9 9L-43 0L-9-9Z"/><path d="M0-43L0 0L9-9ZM43 0L0 0L9 9ZM0 43L0 0L-9 9ZM-43 0L0 0L-9-9Z" style="fill:#6ad8df;stroke:none"/><text x="0" y="-49">N</text><text x="49" y="4">E</text><text x="0" y="59">S</text><text x="-49" y="4">W</text></g></svg>`;
   }
@@ -255,13 +258,45 @@ export function mountGame(root: HTMLElement): () => void {
     if (modal === 'move' && selected !== null && target !== null) {
       const bounds = moveBounds(s!, selected, target);
       moveCount = Math.max(bounds.min, Math.min(bounds.max, moveCount));
-      content = `<span class="eyebrow">${s!.phase === 'POST_CONQUEST_MOVE' ? 'CONQUISTA COMPLETATA' : 'SPOSTAMENTO STRATEGICO'}</span><h2>${escape(territories[target].name)}</h2><p>Da ${escape(territories[selected].name)} · minimo ${bounds.min}, massimo ${bounds.max}</p><div class="move-number" id="move-number">${moveCount}</div><input type="range" id="move-range" min="${bounds.min}" max="${bounds.max}" value="${moveCount}" aria-label="Armate da spostare"/><div class="move-shortcuts">${['Min', '−1', '+1', '+5', 'Max'].map(x => `<button class="secondary" data-move="${x}">${x}</button>`).join('')}</div><button class="primary full" data-action="confirm-move">Conferma spostamento →</button><p class="muted">La guarnigione minima è già inclusa nei limiti.</p>`;
+      const conquest=s!.phase==='POST_CONQUEST_MOVE';
+      cls='move-panel';
+      content = `<div class="move-heading"><small>${conquest?'TERRITORIO CONQUISTATO':'SPOSTAMENTO STRATEGICO'}</small><h2>${escape(territories[target].name)}</h2><p>Da ${escape(territories[selected].name)}</p></div>${conquest?`<p class="transferred-note">${s!.pending!.transferred??0} carri già trasferiti</p>`:''}<label class="move-label" for="move-range">${conquest?'Carri aggiuntivi':'Carri da spostare'} <strong id="move-number">${moveCount}</strong></label><input type="range" id="move-range" min="${bounds.min}" max="${bounds.max}" value="${moveCount}" aria-label="${conquest?'Carri aggiuntivi':'Armate da spostare'}"/><div class="move-shortcuts">${['Min','−1','+1','+5','Max'].map(x=>`<button class="secondary" data-move="${x}" aria-label="${x==='Min'?'Minimo':x==='Max'?'Massimo':x}">${x}</button>`).join('')}</div><button class="primary full" data-action="confirm-move">Conferma spostamento</button>`;
     }
     const floating=modal==='combat'||modal==='move';
-    return `<div class="${floating?'floating-wrap':'modal-backdrop'}"><section class="modal ${cls} ${floating?'floating-panel':''}" ${floating?'data-floating':''} role="dialog" aria-modal="${!floating}">${floating?'<header data-drag-handle>Trascina per spostare la finestra</header>':''}${modal==='move'&&s?.phase === 'POST_CONQUEST_MOVE' ? '' : '<button class="close-button" data-action="close" aria-label="Chiudi">×</button>'}${content}</section></div>`;
+    return `<div class="${floating?'floating-wrap':consulting()?'modal-backdrop consultation':'modal-backdrop'}"><section class="modal ${cls} ${floating?'floating-panel':''}" ${floating?'data-floating':''} role="dialog" aria-modal="${!floating}">${floating?'<header data-drag-handle>Trascina per spostare la finestra</header>':''}${modal==='move'&&s?.phase === 'POST_CONQUEST_MOVE' ? '' : '<button class="close-button" data-action="close" aria-label="Chiudi">×</button>'}${content}</section></div>`;
+  }
+  function refreshDialogs() {
+    const host=root.querySelector<HTMLElement>('#dialogs');
+    if(!host)return;
+    const markup=presenting&&!consulting()?'':modalMarkup();
+    if(markup===dialogMarkup)return;
+    if(dialogExit){clearTimeout(dialogExit);dialogExit=null;}
+    if(!markup && host.firstElementChild?.classList.contains('consultation') && !state?.paused && screen==='table'){
+      dialogMarkup='';host.firstElementChild.classList.add('dialog-leaving');
+      dialogExit=setTimeout(()=>{if(!dialogMarkup)host.innerHTML='';dialogExit=null;},160);
+      return;
+    }
+    const hand=host.querySelector<HTMLElement>('.hand');
+    const scroll=hand?.scrollTop??0;
+    const active=document.activeElement as HTMLElement | null;
+    const focus=active&&host.contains(active)?active:null;
+    const card=focus?.dataset.card, action=focus?.dataset.action;
+    host.innerHTML=markup;dialogMarkup=markup;
+    const newHand=host.querySelector<HTMLElement>('.hand');if(newHand)newHand.scrollTop=scroll;
+    if(card!==undefined)host.querySelector<HTMLElement>(`[data-card="${card}"]`)?.focus({preventScroll:true});
+    else if(action)host.querySelector<HTMLElement>(`[data-action="${action}"]`)?.focus({preventScroll:true});
+  }
+  function previewMove() {
+    if(!state || presenting || modal!=='move' || selected===null || target===null)return;
+    for(const [id,delta] of [[selected,-moveCount],[target,moveCount]]) {
+      const token=root.querySelector<SVGElement>(`[data-token="${id}"]`);
+      const number=token?.querySelector<SVGTextElement>('.tank-number');
+      if(number){number.textContent=String(state.board[id].armies+delta);number.style.fontSize=`${counterFontSize(state.board[id].armies+delta)}px`;}
+      token?.classList.toggle('move-preview',delta!==0);
+    }
   }
   function render(force=false) {
-    if(presenting&&!force)return;
+    if(presenting&&!force){refreshDialogs();return;}
     const key=`${modal}:${selected}:${target}`;
     const oldPanel=root.querySelector<HTMLElement>('.floating-panel');
     if(oldPanel&&panelKey===key){const r=oldPanel.getBoundingClientRect();panelPosition={x:r.left,y:r.top};}
@@ -274,8 +309,15 @@ export function mountGame(root: HTMLElement): () => void {
       profile: '/app/gui/profile/local'
     };
     history.replaceState(null, '', '#' + routes[screen]);
-    root.innerHTML = `<div class="app-shell">${screen === 'home' ? home() : screen === 'profile' ? profilePage() : screen === 'results' ? results() : state ? table() : home()}${presenting?'':modalMarkup()}<div id="effects" class="effects-layer"></div><div id="toast" role="status" class="toast"></div><div class="portrait-notice"><span>↻</span><h2>Ruota il dispositivo</h2><p>La tua strategia merita tutta la plancia.<br>Gioca in orizzontale.</p></div></div>`;
+    const sceneMarkup=screen === 'home' ? home() : screen === 'profile' ? profilePage() : screen === 'results' ? results() : state ? table() : home();
+    const scene=root.querySelector<HTMLElement>('#scene');
+    if(scene){scene.innerHTML=sceneMarkup;refreshDialogs();}
+    else {
+      dialogMarkup=presenting&&!consulting()?'':modalMarkup();
+      root.innerHTML = `<div class="app-shell"><div id="scene">${sceneMarkup}</div><div id="dialogs">${dialogMarkup}</div><div id="effects" class="effects-layer"></div><div id="toast" role="status" class="toast"></div><div class="portrait-notice"><span>↻</span><h2>Ruota il dispositivo</h2><p>La tua strategia merita tutta la plancia.<br>Gioca in orizzontale.</p></div></div>`;
+    }
     bindMap();
+    previewMove();
     const panel=root.querySelector<HTMLElement>('[data-floating]');
     if(panel){
       if(panelPosition){panel.style.left=`${Math.max(6,Math.min(innerWidth-panel.offsetWidth-6,panelPosition.x))}px`;panel.style.top=`${Math.max(6,Math.min(innerHeight-panel.offsetHeight-6,panelPosition.y))}px`;panel.style.transform='none';}
@@ -423,7 +465,7 @@ export function mountGame(root: HTMLElement): () => void {
   function click(e: MouseEvent) {
     const el = (e.target as Element).closest<HTMLElement>('button');
     if (!el || el.hasAttribute('disabled')) return;
-    if(presenting && !['pause','home','blitz','zoom-in','zoom-out','reset-map'].includes(el.dataset.action??''))return;
+    if(presenting && el.dataset.card===undefined && !['cards','objective','objective-map','close','pause','home','blitz','zoom-in','zoom-out','reset-map'].includes(el.dataset.action??''))return;
     if(el.dataset.placeCount){placementCount=Number(el.dataset.placeCount);render();return;}
     if (el.dataset.count) {
       config.players = Number(el.dataset.count);
@@ -527,7 +569,13 @@ export function mountGame(root: HTMLElement): () => void {
         render();
         break;
       case 'close':
-        if (state?.phase !== 'POST_CONQUEST_MOVE') modal = null;
+        if(consulting() && (state?.phase!=='POST_CONQUEST_MOVE'||!humanTurn())){
+          modal=null;blitz=false;
+          if(root.querySelector('#dialogs'))refreshDialogs();else render();
+          break;
+        }
+        if (state?.phase !== 'POST_CONQUEST_MOVE' || !humanTurn()) modal = null;
+        else if(consulting()) modal = 'move';
         blitz = false;
         render();
         break;
@@ -609,6 +657,7 @@ export function mountGame(root: HTMLElement): () => void {
       moveCount = Number(el.value);
       const label = root.querySelector('#move-number');
       if (label) label.textContent = String(moveCount);
+      previewMove();
     }
   }
   function visibility() {
@@ -622,8 +671,8 @@ export function mountGame(root: HTMLElement): () => void {
   root.addEventListener('click', click);
   root.addEventListener('input', change);
   root.addEventListener('keydown', e => {
-    if(presenting)return;
-    if (e.key === 'Escape' && state?.phase !== 'POST_CONQUEST_MOVE') {
+    if(presenting&&!consulting())return;
+    if (e.key === 'Escape' && (state?.phase !== 'POST_CONQUEST_MOVE' || !humanTurn())) {
       modal = null;
       blitz = false;
       render();
@@ -695,8 +744,11 @@ export function mountGame(root: HTMLElement): () => void {
         if (previous?.active !== state!.active) {
           selected = null;
           target = null;
-          modal = null;
+          if(!consulting())modal = null;
           blitz = false;
+        }
+        if(modal==='combat' && target!==null && state!.phase==='ATTACK' && state!.board[target].owner===0){
+          selected=target;target=null;modal=null;blitz=false;
         }
         if (state!.phase === 'GAME_OVER' && screen === 'table') {
           screen = 'results';
@@ -709,8 +761,8 @@ export function mountGame(root: HTMLElement): () => void {
         if (screen==='table' && !state!.paused && state!.phase === 'POST_CONQUEST_MOVE' && state!.active === 0) {
           selected = state!.pending!.from;
           target = state!.pending!.to;
-          moveCount = state!.pending!.min;
-          modal = 'move';
+          if(previous?.pending?.from!==state!.pending!.from || previous?.pending?.to!==state!.pending!.to || previous?.phase!=='POST_CONQUEST_MOVE' || previous?.paused)moveCount = moveBounds(state!,selected,target).min;
+          if(!consulting())modal = 'move';
           blitz = false;
         }
         if (state!.lastBattle?.message !== lastBattleMessage) {
@@ -743,6 +795,7 @@ export function mountGame(root: HTMLElement): () => void {
     type: 'INIT', presentation: true
   });
   return () => {
+    if(dialogExit)clearTimeout(dialogExit);
     cancelPresentation();
     worker.terminate();
     root.removeEventListener('click', click);
