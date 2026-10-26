@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+set -eu
+# Source-only bootstrap: the standard wrapper JAR is not vendored.
+# Downloads occur on the build machine, never inside the installed game.
+TASK_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+TASK_CACHE="${GRADLE_USER_HOME:-$TASK_DIR/.gradle}/offline-bootstrap"
+TASK_VERSION=8.14.3
+TASK_DIST="$TASK_CACHE/gradle-$TASK_VERSION"
+if [ ! -x "$TASK_DIST/bin/gradle" ]; then
+ command -v curl >/dev/null || { echo 'Installa curl per scaricare Gradle.' >&2; exit 1; }
+ command -v unzip >/dev/null || { echo 'Installa unzip per estrarre Gradle.' >&2; exit 1; }
+ mkdir -p "$TASK_CACHE"
+ TASK_URL="https://services.gradle.org/distributions/gradle-$TASK_VERSION-bin.zip"
+ curl --fail --location --connect-timeout 10 --max-time 300 "$TASK_URL" -o "$TASK_CACHE/gradle.zip"
+ curl --fail --location --connect-timeout 10 --max-time 30 "$TASK_URL.sha256" -o "$TASK_CACHE/gradle.sha256"
+ TASK_EXPECTED=$(cat "$TASK_CACHE/gradle.sha256")
+ TASK_ACTUAL=$(sha256sum "$TASK_CACHE/gradle.zip" | cut -d ' ' -f 1)
+ [ "$TASK_ACTUAL" = "$TASK_EXPECTED" ] || { echo 'Checksum Gradle non valido.' >&2; exit 1; }
+ unzip -q "$TASK_CACHE/gradle.zip" -d "$TASK_CACHE"
+fi
+cd "$TASK_DIR"
+exec "$TASK_DIST/bin/gradle" "$@"
