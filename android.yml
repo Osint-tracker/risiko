@@ -1,0 +1,56 @@
+name: Build e verifica Android
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Prepara SDK Android 36
+        run: bash scripts/ci-run.sh android-sdk bash scripts/ci-android-sdk.sh
+      - name: Installa dipendenze npm
+        run: bash scripts/ci-run.sh npm-install npm install
+      - name: Controlla TypeScript
+        run: bash scripts/ci-run.sh typecheck npm run typecheck
+      - name: Verifica regole e componenti
+        run: bash scripts/ci-run.sh tests npm test
+      - name: Compila interfaccia web
+        run: bash scripts/ci-run.sh web-build npm run build
+      - name: Installa Chromium per i test
+        run: bash scripts/ci-run.sh chromium npx playwright install --with-deps chromium
+      - name: Verifica interfaccia nel browser
+        run: bash scripts/ci-run.sh browser npm run test:ui
+      - name: Sincronizza progetto Android
+        run: bash scripts/ci-run.sh capacitor npx cap sync android
+      - name: Compila APK debug
+        run: bash scripts/ci-run.sh gradle sh android/gradlew assembleDebug --stacktrace --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: risiko-offline-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Carica log completi anche in caso di errore
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: log-compilazione
+          path: artifacts/logs/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verifica-interfaccia
+          path: artifacts/browser/
+          if-no-files-found: ignore
