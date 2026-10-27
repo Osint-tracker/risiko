@@ -1,8 +1,13 @@
+import {diceHistogram} from './TournamentStats.ts';
+import {objectivePoints} from '../data/mapGraph.ts';
+import {owned} from '../engine/RisikoRulesEngine.ts';
 import {botPolicy} from '../ai/policy.ts';
 import type { GameState } from '../engine/types.ts';
 import { assertState, ranks, upgradeConquestSave } from '../engine/RisikoRulesEngine.ts';
 export type ResultRecord = {
   antarctica?: boolean;
+  objectivePoints?: number;
+  dice?: number[];
   id: string;
   date: number;
   name: string;
@@ -53,6 +58,8 @@ export class StorageService {
           name: state.players[0].name,
           rank: rank + 1,
           points: ranking[rank].points,
+          objectivePoints: objectivePoints(state.players[0].objective,owned(state,0)),
+          dice: diceHistogram(state),
           reason: state.reason!,
           duration: state.elapsedMs,
           players: state.players.length
@@ -70,6 +77,7 @@ export class StorageService {
     const upgraded = upgradeConquestSave(s);
     if (upgraded !== s) await this.save(upgraded);
     let changed=false;
+    if(!upgraded.manualReinforcement){upgraded.manualReinforcement=true;changed=true;}
     for(const player of upgraded.players)if(!player.botPolicy){player.botPolicy=botPolicy();changed=true;}
     if(upgraded.turnReinforcements===undefined){
       let start=upgraded.log.length-1;while(start>=0&&upgraded.log[start].type!=='onTurnChanged')start--;

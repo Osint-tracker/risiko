@@ -18,13 +18,15 @@ export type Transition = {
 // Only public data or the viewer's own cards enter this transport.
 export function makeTransition(before: GameState, after: GameState, speed = 1, viewer = 0): Transition | null {
   if (before.id !== after.id || before.revision === after.revision) return null;
+  if(!before.players[before.active].human && speed===0)return null;
+  if(before.players[before.active].human)speed=1;
   const effects: VisualEffect[] = [];
   for (const e of after.log.slice(before.log.length)) {
     if (e.type === 'onDiceRolled' && e.from !== undefined && e.to !== undefined) {
       effects.push({kind: 'battle', player: e.player, defender: e.defender!, from: e.from, to: e.to,
         attack: e.attack!, defense: e.defense!, losses: e.losses!, conquered: after.board[e.to].owner !== before.board[e.to].owner,
         transferred: after.log.slice(before.log.length).find(x=>x.action==='conquer'&&x.to===e.to)?.count ?? 0});
-    } else if (e.action === 'reinforce') {
+    } else if ((e.action === 'reinforce'||e.action==='undo')) {
       effects.push({kind: 'place', player: e.player, to: e.territory!, count: e.count!});
     } else if (e.action === 'move') {
       effects.push({kind: 'move', player: e.player, from: e.from!, to: e.to!, count: e.count!});
@@ -36,7 +38,7 @@ export function makeTransition(before: GameState, after: GameState, speed = 1, v
       effects.push({kind: 'draw', player: e.player, ...(e.player === viewer ? {
         card: after.players[e.player].cards.find(c => !before.players[e.player].cards.includes(c))
       } : {})});
-    } else if (e.type === 'onSdadataRoll') {
+    } else if (e.type === 'onSdadataRoll' && e.attack?.length) {
       effects.push({kind: 'sdadata', player: e.player, dice: e.attack!, threshold: before.sdadata?.threshold ?? 4});
     }
   }

@@ -1,0 +1,22 @@
+RisiKo Offline 1.4.0 — verifiche del 27 ottobre 2026
+
+PASS: npm run typecheck (TypeScript 5.9.3).
+PASS: npm test — 96 test, 0 errori, 0 saltati.
+Comprende antarctica, playability, strategy, ui, animation, engine,
+audio, Worker/presentazioni, CI, hit testing e nuovi casi tournament.
+PASS: npm run benchmark:ai — 90 partite concluse, nessuno stato illegale.
+Medio: 31/45 vittorie. Difficile: 39/45. Report: benchmark-ai-1.4.json.
+PASS: npm run android:sync — build Vite pulita e sincronizzazione Capacitor.
+PASS: node scripts/verify-package.mjs — import e risorse locali verificati.
+PASS: sintassi Node dei test browser e helper.
+PASS: XML risorse Android e copia byte-identica della foto 2 per l’icona.
+
+NON ESEGUITO FINO AL TERMINE: npm run test:ui.
+Il server locale è bloccato da listen EPERM (0.0.0.0:4173).
+La suite Playwright resta attiva e obbligatoria nel workflow GitHub.
+NON COMPILATO LOCALMENTE: APK, SDK Android non disponibile.
+La build APK viene eseguita nel workflow Android dopo i test browser.
+
+Le anteprime HTML sono statiche, non sessioni di gioco o screenshot browser.
+L’aspetto ufficiale non è stato confrontato pixel per pixel: riferimento
+RisikoPlay non accessibile dall’ambiente per restrizione geografica.

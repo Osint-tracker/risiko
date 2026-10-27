@@ -17,6 +17,7 @@ function clearPresentation() { gate.clear(); planned = null; lastTick = performa
 async function commit(next: GameState, before?: GameState) {
   await storage.save(next);
   state = next;
+  post({type:'LOCAL_SAVE',state:next});
   const start = publishedGameId === next.id ? publishedCount : 0;
   for (const event of next.log.slice(start)) post({type: event.type, event});
   publishedGameId = next.id;
@@ -43,6 +44,7 @@ ctx.onmessage = ({data}) => enqueue(async () => {
       post({type: 'PROFILE', profile: await storage.profile()});
       try {
         state = await storage.load();
+        if(!state&&data.snapshot){assertState(data.snapshot);await storage.save(data.snapshot);state=await storage.load();}
         if (state) {
           state.paused = true;
           publishedGameId = state.id;
@@ -60,6 +62,7 @@ ctx.onmessage = ({data}) => enqueue(async () => {
     case 'NEW': {
       clearPresentation(); previousBot = null;
       const next = createGame(data.config as GameConfig);
+      speed=[0,1,2,4].includes(data.config.botSpeed)?data.config.botSpeed:1;
       await commit(next);
       await storage.setName(next.players[0].name);
       lastTick = performance.now();
@@ -142,7 +145,7 @@ setInterval(() => {
       }
       if (dirtyClock >= 1000) {
         // Clock saves must not restart a bot's pending thinking interval.
-        await storage.save(state); publish(); dirtyClock = 0;
+        await storage.save(state); post({type:'LOCAL_SAVE',state});publish(); dirtyClock = 0;
       }
     } finally { ticking = false; }
   });

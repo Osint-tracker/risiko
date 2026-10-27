@@ -1,4 +1,5 @@
-export type BotPolicy = { weakBorders: boolean; continents: boolean; defend: boolean; disruptGrowth: boolean; breakBonus: boolean; containLeader: boolean; eliminate: boolean; reserve: boolean; graceRounds: number };
+export type BotPersonality = 'equilibrato' | 'stratega' | 'incursore' | 'conquistatore';
+export type BotPolicy = { personality?: BotPersonality; weakBorders: boolean; continents: boolean; defend: boolean; disruptGrowth: boolean; breakBonus: boolean; containLeader: boolean; eliminate: boolean; reserve: boolean; graceRounds: number };
 export type Difficulty = 'facile' | 'medio' | 'difficile';
 export type Phase = 'SETUP_PLACEMENT' | 'TRIS_EXCHANGE' | 'REINFORCEMENT' | 'ATTACK' | 'POST_CONQUEST_MOVE' | 'FORTIFY' | 'CARD_DRAW' | 'SDADATA_CHECK' | 'GAME_OVER';
 export type Player = {
@@ -30,7 +31,7 @@ export type GameEvent = {
   player: number;
   message: string;
   territory?: number;
-  action?: 'reinforce' | 'conquer' | 'move' | 'draw' | 'exchange';
+  action?: 'reinforce' | 'conquer' | 'move' | 'draw' | 'exchange' | 'undo';
   from?: number;
   to?: number;
   count?: number;
@@ -41,6 +42,11 @@ export type GameEvent = {
 };
 export type GameState = {
   version: 1;
+  manualReinforcement?: boolean;
+  placementHistory?: {territory:number;count:number;belief:number[]|null}[];
+  scoreHistory?: {round:number;player:number;points:number[]}[];
+  endMode?: 'regular' | 'countdown';
+  matchRemainingMs?: number;
   antarctica?: boolean;
   id: string;
   revision: number;
@@ -70,7 +76,7 @@ export type GameState = {
   remainingMs: number;
   elapsedMs: number;
   paused: boolean;
-  reason: 'risiko' | 'sdadata' | null;
+  reason: 'risiko' | 'sdadata' | 'countdown' | null;
   winner: number | null;
   log: GameEvent[];
   beliefs: Record<string, number[]>;
@@ -92,6 +98,10 @@ export type BotContext = {
   episode: { from: number; to: number; initialArmies: number; rolls: number } | null;
 };
 export type GameConfig = {
+  manualReinforcement?: boolean;
+  endMode?: 'regular' | 'countdown';
+  countdownMinutes?: number;
+  botSpeed?: number;
   antarctica?: boolean;
   players: number;
   name: string;
@@ -109,6 +119,8 @@ export type Command = {
   cards: number[];
 } | {
   type: 'NEXT';
+} | {
+  type: 'UNDO_PLACE';
 } | {
   type: 'ATTACK';
   from: number;
@@ -133,7 +145,9 @@ export type PublicPlayer = Omit<Player, 'difficulty' | 'objective' | 'cards' | '
   points?: number;
   outside?: number;
 };
-export type GameView = Omit<GameState, 'rng' | 'aiRng' | 'deck' | 'discard' | 'beliefs' | 'players' | 'lastCommandId' | 'botContexts'> & {
+export type GameView = Omit<GameState, 'rng' | 'aiRng' | 'deck' | 'discard' | 'beliefs' | 'players' | 'lastCommandId' | 'botContexts' | 'placementHistory' | 'scoreHistory'> & {
+  undoAvailable?: boolean;
+  scoreHistory?: {round:number;player:number;points:(number|null)[]}[];
   players: PublicPlayer[];
   deckCount: number;
   viewer: number;

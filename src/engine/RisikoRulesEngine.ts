@@ -85,9 +85,16 @@ export function createGame(config: GameConfig): GameState {
   requireRule(config.difficulties.length === config.players - 1 && config.difficulties.every(d => ['facile', 'medio', 'difficile', 'casuale'].includes(d)), 'Difficoltà non valida.');
   requireRule(config.antarctica===undefined||typeof config.antarctica==='boolean', 'Modalità non valida.');
   const {territories,continents,cards}=mapFor(config);
+  requireRule(!config.endMode||['regular','countdown'].includes(config.endMode),'Fine partita non valida.');
+  requireRule(config.countdownMinutes===undefined||[30,45,60].includes(config.countdownMinutes),'Durata Countdown non valida.');
   const rng = (config.seed ?? Math.floor(Math.random() * 4294967295)) >>> 0 || 1;
   const s: GameState = {
     version: 1,
+    manualReinforcement: config.manualReinforcement===true,
+    endMode: config.endMode??'regular',
+    matchRemainingMs: (config.countdownMinutes??45)*60000,
+    placementHistory: [],
+    scoreHistory: [],
     antarctica: config.antarctica===true,
     id: `${Date.now().toString(36)}-${rng.toString(36)}`,
     revision: 0,
@@ -212,18 +219,26 @@ export function ranks(s: GameState) {
     };
   }).sort((a, b) => b.points - a.points || b.outside - a.outside || s.order.indexOf(b.player) - s.order.indexOf(a.player));
 }
-function finish(s: GameState, reason: 'risiko' | 'sdadata', winner: number | null = null) {
+function recordScore(s:GameState){
+ const points=s.players.map(p=>objectivePoints(p.objective,owned(s,p.id))),last=s.scoreHistory?.at(-1);
+ if(last?.round===s.round&&last.player===s.active&&last.points.every((n,i)=>n===points[i]))return;
+ (s.scoreHistory??=[]).push({round:s.round,player:s.active,points});
+}
+function finish(s: GameState, reason: 'risiko' | 'sdadata' | 'countdown', winner: number | null = null) {
+  recordScore(s);
+  s.placementHistory=[];
   s.reason = reason;
   s.winner = winner;
   s.phase = 'GAME_OVER';
   s.pending = null;
   if (winner === null) s.winner = ranks(s)[0].player;
-  event(s, 'onGameOver', `${s.players[s.winner!].name} vince ${reason === 'risiko' ? 'per RisiKo!' : 'alla sdadata'}.`);
+  event(s, 'onGameOver', `${s.players[s.winner!].name} vince ${reason === 'risiko' ? 'per RisiKo!' : reason==='countdown'?'al termine del Countdown':'alla sdadata'}.`);
 }
 function checkObjective(s: GameState) {
   if (s.phase !== 'SETUP_PLACEMENT' && s.phase !== 'GAME_OVER' && objectives[s.players[s.active].objective - 1].territories.every(t => s.board[t].owner === s.active)) finish(s, 'risiko', s.active);
 }
 function startTurn(s: GameState) {
+  s.placementHistory=[];
   s.phase = 'TRIS_EXCHANGE';
   s.conquests = 0;
   s.pending = null;
@@ -234,6 +249,8 @@ function startTurn(s: GameState) {
   checkObjective(s);
 }
 function endTurn(s: GameState) {
+  recordScore(s);
+  s.placementHistory=[];
   s.phase = 'CARD_DRAW';
   const p = s.players[s.active];
   if (s.conquests > 0 && p.cards.length < 7) {
@@ -248,7 +265,7 @@ function endTurn(s: GameState) {
   }
   const index = s.order.indexOf(s.active),
     hasLater = s.order.slice(index + 1).some(id => !s.players[id].eliminated);
-  if (!s.sdadata && s.round >= 20 && !hasLater) s.sdadata = {
+  if (s.endMode!=='countdown' && !s.sdadata && s.round >= 20 && !hasLater) s.sdadata = {
     started: true,
     anchor: s.active,
     threshold: 4
@@ -317,6 +334,7 @@ function place(s: GameState, t: number, count: number) {
   }
   requireRule(s.phase === 'REINFORCEMENT', 'Il piazzamento non è disponibile in questa fase.');
   requireRule(count <= s.reinforcements, 'Rinforzi insufficienti.');
+  if(p.human)(s.placementHistory??=[]).push({territory:t,count,belief:s.beliefs[s.active]?[...s.beliefs[s.active]]:null});
   s.board[t].armies += count;
   s.reinforcements -= count;
   observe(s, s.active, t, count * .2);
@@ -324,7 +342,7 @@ function place(s: GameState, t: number, count: number) {
     territory: t,
     action: 'reinforce', count
   });
-  if (!s.reinforcements) s.phase = 'ATTACK';
+  if (!s.reinforcements && !(s.manualReinforcement&&p.human)) {s.phase = 'ATTACK';s.placementHistory=[];}
 }
 export function applyCommand(input: GameState, actor: number, command: Command): GameState {
   requireRule(input.phase !== 'GAME_OVER', 'La partita è conclusa.');
@@ -336,6 +354,15 @@ export function applyCommand(input: GameState, actor: number, command: Command):
     case 'PLACE':
       place(s, command.territory, command.count);
       break;
+    case 'UNDO_PLACE': {
+      requireRule(p.human&&s.phase==='REINFORCEMENT'&&!!s.placementHistory?.length,'Non puoi annullare questo piazzamento.');
+      const last=s.placementHistory!.pop()!;
+      requireRule(Number.isInteger(last.count)&&last.count>0&&s.board[last.territory]?.owner===actor&&s.board[last.territory].armies>last.count,'Piazzamento non più annullabile.');
+      s.board[last.territory].armies-=last.count;s.reinforcements+=last.count;
+      if(last.belief)s.beliefs[actor]=last.belief;else delete s.beliefs[actor];
+      event(s,'onGameStateUpdate',`${p.name} annulla ${last.count} carri in ${territories[last.territory].name}.`,{action:'undo',territory:last.territory,count:-last.count});
+      break;
+    }
     case 'EXCHANGE':
       {
         requireRule(s.phase === 'TRIS_EXCHANGE', 'Il tris va giocato prima di piazzare i rinforzi.');
@@ -351,10 +378,12 @@ export function applyCommand(input: GameState, actor: number, command: Command):
         break;
       }
     case 'NEXT':
-      if (s.phase === 'TRIS_EXCHANGE') s.phase = s.reinforcements ? 'REINFORCEMENT' : 'ATTACK';else if (s.phase === 'ATTACK') s.phase = 'FORTIFY';else if (s.phase === 'FORTIFY') endTurn(s);else throw new RuleError('Completa prima la fase corrente.');
+      if(s.phase==='REINFORCEMENT'){requireRule(s.reinforcements===0,'Piazza tutti i rinforzi prima di attaccare.');s.placementHistory=[];s.phase='ATTACK';}
+      else if (s.phase === 'TRIS_EXCHANGE') s.phase = s.reinforcements ? 'REINFORCEMENT' : 'ATTACK';else if (s.phase === 'ATTACK') s.phase = 'FORTIFY';else if (s.phase === 'FORTIFY') endTurn(s);else throw new RuleError('Completa prima la fase corrente.');
       break;
     case 'ATTACK':
       {
+        s.placementHistory=[];
         requireRule(s.phase === 'ATTACK', 'Non puoi attaccare in questa fase.');
         const {
           from,
@@ -472,10 +501,18 @@ export function applyCommand(input: GameState, actor: number, command: Command):
   return s;
 }
 export function advanceClock(input: GameState, delta: number): GameState {
-  if (input.paused || input.phase === 'GAME_OVER' || delta <= 0) return input;
+  if (input.paused || input.phase === 'GAME_OVER' || !Number.isFinite(delta) || delta <= 0) return input;
   const s = structuredClone(input);
   s.elapsedMs += delta;
   if (s.phase !== 'SETUP_PLACEMENT') {
+    if(s.endMode==='countdown'){
+      s.matchRemainingMs=Math.max(0,(s.matchRemainingMs??45*60000)-delta);
+      if(!s.matchRemainingMs){
+        // Old pending saves may not yet have transferred the compulsory garrison.
+        if(s.pending&&s.pending.transferred===undefined){s.board[s.pending.from].armies-=s.pending.min;s.board[s.pending.to].armies+=s.pending.min;}
+        finish(s,'countdown');s.revision++;assertState(s);return s;
+      }
+    }
     s.remainingMs = Math.max(0, s.remainingMs - delta);
     if (!s.remainingMs) return applyCommand(s, s.active, {
       type: 'TIMEOUT'
@@ -493,10 +530,13 @@ export function project(s: GameState, viewer = 0): GameView {
     players,
     lastCommandId,
     botContexts,
+    placementHistory,scoreHistory,
     ...publicState
   } = structuredClone(s);
   return {
     ...publicState,
+    undoAvailable: s.active===viewer && s.phase==='REINFORCEMENT' && !!placementHistory?.length,
+    scoreHistory: scoreHistory?.map(row=>({...row,points:row.points.map((n,i)=>i===viewer||s.phase==='GAME_OVER'?n:null)})),
     viewer,
     deckCount: deck.length,
     players: players.map(p => {
@@ -543,6 +583,9 @@ export function upgradeConquestSave(input: GameState): GameState {
   return s;
 }
 export function assertState(s: GameState) {
+  requireRule(s.endMode===undefined||['regular','countdown'].includes(s.endMode),'Fine partita salvata non valida.');
+  requireRule(s.matchRemainingMs===undefined||(Number.isFinite(s.matchRemainingMs)&&s.matchRemainingMs>=0),'Countdown salvato non valido.');
+  requireRule(s.manualReinforcement===undefined||typeof s.manualReinforcement==='boolean','Fase rinforzi salvata non valida.');
   requireRule(s.antarctica===undefined||typeof s.antarctica==='boolean', 'Modalità salvata non valida.');
   const {territories,cards}=mapFor({antarctica:s.antarctica===true});
   requireRule(s.version === 1 && s.board.length === territories.length, 'Salvataggio incompatibile.');

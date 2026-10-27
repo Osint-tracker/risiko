@@ -38,6 +38,7 @@ try{
  await page.locator('#antarctica-mode').check();assert.equal(await page.locator('[data-territory]').count(),44);
  await page.screenshot({path:'artifacts/browser/lobby-antarctica.png'});
  await page.locator('#antarctica-mode').uncheck();assert.equal(await page.locator('[data-territory]').count(),42);
+ await page.locator('.classic-settings').evaluate(panel=>panel.scrollTop=0);
  const startRect=await page.locator('[data-action="new"]').boundingBox();assert.ok(startRect.y+startRect.height<=390);
  await page.locator('[data-strategy="0"]').click();await page.locator('.strategy-window').waitFor();
  assert.equal(await page.locator('[data-policy]').count(),8);
@@ -82,7 +83,7 @@ try{
  await page.reload();await page.locator('[data-action="resume"]').waitFor();await page.locator('[data-action="resume"]').click();await page.locator('.game-table').waitFor();
  await page.locator('[data-action="objective"]').click();await page.getByText('IL TUO OBIETTIVO',{exact:true}).waitFor();
  await page.screenshot({path:'artifacts/browser/objective.png'});await page.locator('[data-action="close"]').click();
- await page.locator('[data-action="objective-view"]').click();assert.ok(await page.locator('.territory.goal').count()>0);
+ await page.locator('.reference-eye').click();assert.ok(await page.locator('.territory.goal').count()>0);
 
  // Load through real IndexedDB with the previous game's Worker already gone.
  // Reloading an active game after writing the fixture can trigger visibility
@@ -125,6 +126,26 @@ try{
   await page.locator('.pause-card').waitFor({state:'detached'});
   assert.equal(await page.locator('.player-card').count(),fixture.players.length);
  }
+ // Exercise new reinforcement undo through the real UI and persisted Worker.
+ const undo=createGame({players:3,name:'Comandante',difficulties:['medio','medio'],turnSeconds:180,seed:17,manualReinforcement:true,endMode:'countdown'});
+ undo.active=0;undo.phase='REINFORCEMENT';undo.round=5;undo.reinforcements=1;undo.players.forEach(p=>p.setupRemaining=0);
+ const ownId=undo.board.findIndex(c=>c.owner===0),ownBefore=undo.board[ownId].armies;
+ await loadFixture(undo);await clickTerritory(page,ownId);
+ await page.locator('#effects > *').waitFor({state:'detached'});
+ await page.locator('[data-action="undo-place"]:not([disabled])').waitFor();
+ assert.equal(await page.locator('.game-table').getAttribute('data-phase'),'REINFORCEMENT');
+ assert.equal(await page.locator(`[data-token="${ownId}"] .tank-number`).textContent(),String(ownBefore+1));
+ await page.locator('[data-action="undo-place"]').click();
+ await page.waitForFunction(({id,n})=>document.querySelector(`[data-token="${id}"] .tank-number`)?.textContent===String(n),{id:ownId,n:ownBefore});
+ await page.locator('#effects > *').waitFor({state:'detached'});
+ await clickTerritory(page,ownId);await page.locator('[data-action="next"]:not([disabled])').waitFor();
+ await page.locator('[data-action="next"]').click();await page.locator('.game-table[data-phase="ATTACK"]').waitFor();
+ assert.equal(await page.locator('[data-action="undo-place"]').count(),0);
+ await page.locator('[data-action="objective-widget"]').click();await page.locator('.objective-widget.expanded').waitFor();
+ if(await page.locator('.objective-points').count()===0)await page.locator('.objective-widget [data-action="objective-view"]').click();assert.equal(await page.locator('.objective-points').count(),42);
+ await page.locator('[data-action="objective-widget"]').click();
+ const hit=await page.locator('.territory-hit').first().boundingBox();assert.ok(hit.width>=43.9&&hit.height>=43.9);
+ await page.screenshot({path:'artifacts/browser/countdown-objective-points.png'});
  for(const n of [4,5]){
   const setup=createGame({players:n,name:'Comandante',difficulties:Array(n-1).fill('medio'),turnSeconds:180,seed:41});
   const owned=setup.board.filter(c=>c.owner===0).length;
@@ -140,7 +161,8 @@ try{
  const panel=await page.locator('.floating-panel').boundingBox();assert.ok(panel.height<=390*.6+1&&panel.width<=360);
  await page.locator('[data-action="roll"]').click();await page.locator('.effects-layer.rolling').waitFor();
  assert.equal(await page.locator('.clash-origin').count(),1);assert.equal(await page.locator('.clash-impact').count(),1);
- const timer=await page.locator('#timer').innerText();await wait(350);assert.equal(await page.locator('#timer').innerText(),timer);
+ const timer=await page.locator('#timer').innerText();await wait(100);assert.equal(await page.locator('#timer').innerText(),timer);
+ assert.equal(await page.locator('.attack-vector').count(),1);
  assert.equal(await page.locator('.fx-source').count(),1);assert.equal(await page.locator('.fx-target').count(),1);
  await page.screenshot({path:'artifacts/browser/dice-rolling.png'});
  await page.locator('#map-fx.impact-now').waitFor();await page.screenshot({path:'artifacts/browser/clash.png'});
@@ -150,7 +172,7 @@ try{
  assert.equal(await move.evaluate(el=>el.scrollHeight<=el.clientHeight+1),true,'Tutti i controlli di spostamento devono essere visibili senza scorrere');
  assert.equal(await page.locator('#move-range').inputValue(),'0');
  assert.equal(await page.locator('[data-token="1"] .tank-number').textContent(),'3');
- assert.equal(await page.locator('.attack-trail,[marker-end]').count(),0);
+ assert.equal(await page.locator('.attack-vector').count(),0,'Il vettore termina insieme alla presentazione');
  await page.screenshot({path:'artifacts/browser/post-conquest.png'});
  // Preview additional armies without mutating the stored board.
  await page.locator('[data-move="+1"]').click();

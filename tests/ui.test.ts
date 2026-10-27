@@ -222,7 +222,7 @@ test('setup UI distingue schierati, riserva e mano, evidenzia solo i propri terr
  f.worker.emit({type:'STATE',state:project(s)});
  assert.match(f.root.innerHTML,/SCHIERATI/);assert.match(f.root.innerHTML,/Da piazzare <b>21<\/b>/);assert.match(f.root.innerHTML,/Questa mano: <b>3<\/b>/);
  assert.equal((f.root.innerHTML.match(/class="placement-plus"/g)??[]).length,14);
- assert.equal((f.root.innerHTML.match(/class="tank-token"/g)??[]).length,42);
+ assert.equal((f.root.innerHTML.match(/data-token="\d+"/g)??[]).length,42);
  assert.doesNotMatch(f.root.innerHTML,/class="point-badge"/);f.cleanup();
 });
 test('carte militari selezionabili: invia solo il tris scelto e mostra il bonus',()=>{
@@ -293,4 +293,29 @@ test('Antartide facoltativa: menu, plancia completa e ripresa con inquadratura e
  f.callbacks.input({target:{id:'antarctica-mode',dataset:{},checked:false}});
  assert.match(f.root.innerHTML,/42 TERRITORI/);assert.doesNotMatch(f.root.innerHTML,/data-territory="42"/);
  writeFileSync('artifacts/previews/home.html',f.root.innerHTML);f.cleanup();
+});
+
+test('Home Torneo: Countdown 45 minuti, Antartide off, velocità e personalità personalizzabili',()=>{
+ const f=fixture();assert.match(f.root.innerHTML,/30 armate iniziali/);assert.match(f.root.innerHTML,/Statistiche Torneo/);
+ f.callbacks.input({target:{id:'end-mode',dataset:{},value:'countdown'}});
+ assert.match(f.root.innerHTML,/value="45" selected/);
+ f.callbacks.input({target:{id:'bot-speed',dataset:{},value:'2'}});
+ f.click({strategy:'0'});assert.match(f.root.innerHTML,/personality/);
+ f.callbacks.input({target:{id:'bot-personality',dataset:{},value:'incursore'}});
+ f.click({action:'close'});f.click({action:'new'});
+ const config=f.worker.messages.find(m=>m.type==='NEW').config;
+ assert.equal(config.countdownMinutes,45);assert.equal(config.endMode,'countdown');assert.equal(config.antarctica,false);assert.equal(config.botSpeed,2);assert.equal(config.manualReinforcement,true);
+ assert.equal(config.botPolicies[0].personality,'incursore');f.cleanup();
+});
+
+test('Widget obiettivo mostra punti, mappa punti e bonus; Undo passa attraverso il protocollo dei comandi',()=>{
+ const f=fixture();f.click({action:'new'});
+ let s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3,manualReinforcement:true});
+ s.active=0;s.phase='REINFORCEMENT';s.round=5;s.reinforcements=1;
+ s=applyCommand(s,0,{type:'PLACE',territory:owned(s,0)[0],count:1});
+ f.worker.emit({type:'STATE',state:project(s)});
+ assert.match(f.root.innerHTML,/Inizia attacco/);f.click({action:'objective-widget'});
+ assert.match(f.root.innerHTML,/Punti attuali:/);assert.match(f.root.innerHTML,/Mostra Punti su Mappa/);assert.match(f.root.innerHTML,/continent-bonuses/);
+ f.click({action:'objective-view'});assert.equal((f.root.innerHTML.match(/class="objective-points"/g)??[]).length,42);
+ f.click({action:'undo-place'});assert.deepEqual(f.worker.messages.at(-1).command,{type:'UNDO_PLACE'});f.cleanup();
 });

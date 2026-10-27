@@ -10,5 +10,5 @@ export const policyOptions = [
  ['reserve','Conserva una riserva','Evita di lasciare scoperti i confini.']
 ] as const;
 export function botPolicy(value?: Partial<BotPolicy>): BotPolicy {
- return {...Object.fromEntries(policyOptions.map(([key])=>[key,typeof value?.[key]==='boolean'?value[key]:true])),graceRounds:Number.isInteger(value?.graceRounds)?Math.max(0,Math.min(3,value!.graceRounds!)):0} as BotPolicy;
+ return {personality:['equilibrato','stratega','incursore','conquistatore'].includes(value?.personality??'')?value!.personality:'equilibrato',...Object.fromEntries(policyOptions.map(([key])=>[key,typeof value?.[key]==='boolean'?value[key]:true])),graceRounds:Number.isInteger(value?.graceRounds)?Math.max(0,Math.min(3,value!.graceRounds!)):0} as BotPolicy;
 }

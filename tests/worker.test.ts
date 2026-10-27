@@ -8,7 +8,7 @@ test('Worker integration: persist before publish, private projection, duplicate 
  const original={save:StorageService.prototype.save,load:StorageService.prototype.load,profile:StorageService.prototype.profile,setName:StorageService.prototype.setName,interval:globalThis.setInterval};
  let durable:GameState|null=null,fail=false,writes=0;
  const messages:any[]=[];
- const ctx:{postMessage:(v:any)=>void;onmessage?:Function}={postMessage:(v:any)=>{if(v.type==='STATE')assert.ok(durable,'State published before durable write');messages.push(structuredClone(v));}};
+ const ctx:{postMessage:(v:any)=>void;onmessage?:Function}={postMessage:(v:any)=>{if(v.type==='STATE'||v.type==='LOCAL_SAVE')assert.ok(durable,'State published before durable write');messages.push(structuredClone(v));}};
  StorageService.prototype.save=async function(s){if(fail)throw new Error('Quota simulata');durable=structuredClone(s);writes++;};
  StorageService.prototype.load=async()=>durable;
  StorageService.prototype.profile=async()=>({name:'Test',results:[]});
@@ -23,6 +23,7 @@ test('Worker integration: persist before publish, private projection, duplicate 
   ctx.onmessage!({data:{type:'NEW',config:{players:3,name:'Test',difficulties:['casuale','casuale'],turnSeconds:180,seed}}});await drain();
   let view=messages.filter(m=>m.type==='STATE').at(-1).state;assert.ok(!('rng'in view));assert.equal(view.players[1].difficulty,'?');assert.equal(view.players[1].cards,undefined);
   assert.ok(messages.some(m=>m.type==='onGameStateUpdate'));
+  assert.deepEqual(messages.filter(m=>m.type==='LOCAL_SAVE').at(-1).state,durable);
   const t=owned(view,0)[0],previous=view.board[t].armies;
   const packet={type:'COMMAND',command:{type:'PLACE',territory:t,count:1},revision:view.revision,id:'request-1'};
   ctx.onmessage!({data:packet});await drain();view=messages.filter(m=>m.type==='STATE').at(-1).state;assert.equal(view.board[t].armies,previous+1);const beforeWrites=writes;

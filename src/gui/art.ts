@@ -5,8 +5,19 @@ export function counterFontSize(count: number, signed = false): number {
   const digits=String(Math.abs(count)).length+(signed?1:0);
   return digits<=2?15:digits===3?12:10;
 }
+export function tankModel(color:string){
+ return `<g class="tank-model" style="color:${color}"><ellipse cx="24" cy="31" rx="22" ry="5" fill="#000" opacity=".35"/><path d="M3 18L15 10L42 17L43 26L31 33L3 25Z" fill="#17202c"/><path d="M5 20L30 27L30 31L5 24ZM33 26L41 21L41 25L33 30Z" fill="#66717d"/>${[9,16,23].map(x=>`<circle cx="${x}" cy="${21+(x-9)*.27}" r="2.2" fill="#111827" stroke="#8a949b" stroke-width=".7"/>`).join('')}<path class="tank-token" d="M3 16L16 7L43 14L30 24L3 18Z" fill="${color}"/><path d="M3 18L30 24L30 28L3 21ZM30 24L43 14L43 20L30 28Z" fill="currentColor"/><path d="M30 24L43 14L43 20L30 28Z" fill="#000" opacity=".28"/><path d="M12 13L21 7L33 11L24 18L12 16Z" fill="currentColor" stroke="#151b25" stroke-width=".6"/><path d="M12 13L24 18V21L12 16Z" fill="#000" opacity=".25"/><path d="M24 12L47 5L49 8L26 16Z" fill="currentColor" stroke="#1a2330" stroke-width=".8"/><path d="M16 11L22 8L29 10L23 12ZM7 16L16 10L18 11L10 17Z" fill="#fff" opacity=".36"/><path d="M28 12L47 6" stroke="#fff" opacity=".4" stroke-width="1.1"/></g>`;
+}
+export function armyBadge(count:number,color:string){
+ const tier=count>=10?'gold':count>=5?'silver':'standard';
+ return `<g class="army-shield tier-${tier}" data-tier="${tier}"><circle class="shield-rim" cx="48" cy="29" r="13" fill="#111827" stroke="${count>=10?'#e7ba50':count>=5?'#c4d0dd':color}" stroke-width="2"/><circle cx="48" cy="29" r="10.5" fill="none" stroke="${color}" stroke-width="1"/><text class="tank-number" x="48" y="34" text-anchor="middle" style="font-size:${counterFontSize(count)-1}px">${count}</text>${count>=10?'<path class="prestige-star" d="M48 12L49.4 15L53 15.3L50.2 17.5L51 21L48 19.3L45 21L45.8 17.5L43 15.3L46.6 15Z" fill="#f6d97a"/>':''}${count>=12?'<path class="army-strength" d="M37 43H59" stroke="#f8ce5b" stroke-width="2"/>':''}</g>`;
+}
 export function armyToken(count: number, color: string) {
-  return `<svg class="army-token" viewBox="0 0 44 27" aria-label="${count} carri"><path d="${tankShape}" fill="${color}" stroke="#dfe2d2" stroke-width="1.15"/><text x="17" y="20" text-anchor="middle" style="font-size:${counterFontSize(count)}px">${count}</text></svg>`;
+ return `<svg class="army-token" viewBox="0 0 64 46" aria-label="${count} carri">${tankModel(color)}${armyBadge(count,color)}</svg>`;
+}
+export function scoreChart(history:{round:number;points:(number|null)[]}[]|undefined,players:{color:string;name:string}[]){
+ if(!history?.length)return '<p class="muted">Andamento disponibile dalle nuove partite.</p>';
+ return `<figure class="score-chart"><figcaption>Andamento punti obiettivo</figcaption><svg viewBox="0 0 600 150" role="img" aria-label="Andamento punti obiettivo da 0 a 86"><path d="M30 10V125H590" fill="none" stroke="#748297"/><text x="4" y="18">86</text><text x="12" y="128">0</text>${players.map((p,i)=>`<polyline fill="none" stroke="${p.color}" stroke-width="2.5" points="${history.flatMap((row,j)=>row.points[i]===null?[]:[`${30+j*560/Math.max(1,history.length-1)},${125-Math.min(86,row.points[i]!)*110/86}`]).join(' ')}"/>`).join('')}</svg><div>${players.map(p=>`<span style="color:${p.color}">● ${escapeHtml(p.name)}</span>`).join(' ')}</div></figure>`;
 }
 export const territoryColors = [
   '#a77d37','#956536','#b77519','#af994e','#b76631','#b08744','#a8391e','#a45128','#b96c24',

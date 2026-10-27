@@ -21,3 +21,29 @@ test('audio: sblocco dal gesto, un impatto per volta, mute, preferenze e rilasci
   audio.dispose();assert.equal(stopped,2);assert.equal(closed,1);
  }finally{Object.assign(globalThis,{AudioContext:original.context,fetch:original.fetch,localStorage:original.storage});}
 });
+
+test('audio procedurale senza campioni: effetti, mute, aptica opt-in e cancellazione dei suoni programmati',async()=>{
+ const originals={context:globalThis.AudioContext,fetch:globalThis.fetch,storage:globalThis.localStorage,navigator:Object.getOwnPropertyDescriptor(globalThis,'navigator')};
+ let starts=0,stops=0,closed=0;const vibrations:unknown[]=[];
+ const param=()=>({value:0,setValueAtTime(){},exponentialRampToValueAtTime(){}});
+ class Context{
+  state='running';currentTime=5;destination={};
+  createGain(){return {gain:param(),connect(){},disconnect(){}};}
+  createOscillator(){return {frequency:param(),onended:null,connect(){},disconnect(){},start(){starts++;},stop(){stops++;}};}
+  async close(){closed++;}
+ }
+ Object.assign(globalThis,{AudioContext:Context,localStorage:{getItem:()=>null,setItem(){}},fetch:async()=>{throw Error('campione non disponibile');}});
+ Object.defineProperty(globalThis,'navigator',{configurable:true,value:{vibrate:(pattern:unknown)=>{vibrations.push(pattern);return true;}}});
+ try{
+  const audio=new GameAudio();await audio.unlock();assert.equal(audio.ready,false);
+  audio.playDeploy();audio.playDiceRoll();audio.playConquest();audio.playCardDraw();audio.playCardTrade();audio.playTurnStart();
+  assert.equal(starts,24);assert.equal(vibrations.length,0);
+  audio.haptics=true;audio.playDiceRoll();assert.deepEqual(vibrations,[[12,28,12]]);
+  const before=starts;audio.muted=true;audio.playDeploy();audio.playCardTrade();audio.playTurnStart();assert.equal(starts,before);
+  const scheduledStops=stops;audio.stop();assert.equal(stops,scheduledStops+starts);
+  audio.dispose();assert.equal(closed,1);
+ }finally{
+  Object.assign(globalThis,{AudioContext:originals.context,fetch:originals.fetch,localStorage:originals.storage});
+  if(originals.navigator)Object.defineProperty(globalThis,'navigator',originals.navigator);else delete (globalThis as any).navigator;
+ }
+});

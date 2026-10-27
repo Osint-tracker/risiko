@@ -49,16 +49,16 @@ function conquest(){
  }
  throw Error('No conquest');
 }
-test('animazione conquista: conteggi autentici, nessun fotogramma a zero, nessuna freccia',()=>{
+test('animazione conquista: conteggi autentici, nessun fotogramma a zero, vettore e marcia',()=>{
  const {s,n}=conquest();
  timeline(makeTransition(s,n)!, (run,_cancel,dom)=>{
-  run(1600);assert.equal(dom.tokens[1].number.textContent,'1');
+  run(300);assert.equal(dom.tokens[1].number.textContent,'1');
   run();assert.equal(dom.finished,1);
   assert.equal(dom.clashes,1);assert.match(dom.marks.join(''),/clash-origin/);assert.match(dom.marks.join(''),/clash-impact/);
   assert.equal(dom.tokens[1].number.textContent,'3');assert.equal(dom.tokens[0].number.textContent,'9');
   assert.ok(!dom.tokens[1].seen.includes('0'));
   assert.match(dom.marks.join(''),/>\+3</);assert.match(dom.marks.join(''),/>−3</);
-  assert.doesNotMatch(dom.marks.join(''),/marker-end|attack-arrow|attack-trail/);
+  assert.match(dom.marks.join(''),/attack-vector/);assert.match(dom.marks.join(''),/march-tank/);
  });
 });
 test('animazione aggiuntivi: aggiorna entrambi i contatori una sola volta',()=>{
@@ -72,7 +72,21 @@ test('animazione aggiuntivi: aggiorna entrambi i contatori una sola volta',()=>{
 test('interruzione animazioni cancella i callback e non invia un secondo completamento',()=>{
  const {s,n}=conquest();
  timeline(makeTransition(s,n)!, (run,cancel,dom)=>{
-  run(500);cancel();run();assert.equal(dom.finished,0);assert.equal(dom.clashes,0);assert.equal(dom.host.innerHTML,'');
+  run(200);cancel();run();assert.equal(dom.finished,0);assert.equal(dom.clashes,0);assert.equal(dom.host.innerHTML,'');
   assert.deepEqual(dom.tokens[1].seen,['1']);
  });
+});
+
+test('I dadi si fermano a 350 ms; l’esito appare dopo il rotolamento e una sola volta',()=>{
+ const {s,n}=conquest();timeline(makeTransition(s,n)!, (run,_cancel,dom)=>{
+  run(349);assert.equal(dom.host.classList.contains('rolling'),true);assert.equal(dom.host.classList.contains('resolved'),false);assert.equal(dom.clashes,0);
+  run(350);assert.equal(dom.host.classList.contains('rolling'),false);assert.equal(dom.host.classList.contains('resolved'),true);assert.equal(dom.clashes,1);
+  run();assert.equal(dom.finished,1);assert.equal(dom.clashes,1);
+ });
+});
+
+test('Velocità Istantaneo salta gli effetti dei bot, preservando la presentazione per l’umano',()=>{
+ const {s,n}=conquest();assert.equal(makeTransition(s,n,0)!.speed,1);
+ s.players[0].human=false;n.players[0].human=false;
+ assert.equal(makeTransition(s,n,0),null);assert.equal(makeTransition(s,n,2)!.speed,2);
 });

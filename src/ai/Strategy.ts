@@ -36,6 +36,9 @@ function gain(v:GameView,from:number,to:number,p:BotPolicy):number {
  const missing=members.filter(id=>v.board[id].owner!==v.active);
  const enemy=v.board[to].owner,enemyMembers=members.filter(id=>v.board[id].owner===enemy).length;
  let value=(ownGoal.includes(to)?territories[to].points*1.4:0)+(v.conquests===0?5:1);
+ if(p.personality==='stratega'&&ownGoal.includes(to))value+=territories[to].points*.15;
+ if(p.personality==='conquistatore'&&v.conquests===0)value+=1;
+ if(p.personality==='incursore'&&enemyMembers===members.length)value+=bonus*.5;
  if(p.weakBorders)value+=Math.max(0,4-v.board[to].armies)*1.1;
  if(p.continents){
   if(missing.length===1)value+=bonus*9;
@@ -85,6 +88,7 @@ export function strategicCommand(v:GameView,level:Difficulty,rng:()=>number,mood
   if(combos.length&&v.players[v.active].totalArmies+v.reinforcements<130)return {type:'EXCHANGE',cards:combos[0].cards};
   return {type:'NEXT'};
  }
+ if(v.phase==='REINFORCEMENT'&&v.reinforcements===0)return {type:'NEXT'};
  if(v.phase==='SETUP_PLACEMENT'||v.phase==='REINFORCEMENT'){
   const ranked=own.map(id=>{
    const army=v.board[id].armies,threat=pressure(v,id),deficit=Math.max(0,reserveTarget(v,id)-army);
