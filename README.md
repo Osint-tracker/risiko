@@ -1,6 +1,17 @@
-# RisiKo Offline 1.4.0 — Torneo per Android
+# RisiKo Offline 1.4.1 — Torneo per Android
 
 Gioco single-player in italiano: un umano contro 2–4 bot. Solo obiettivi Torneo da 86 punti, difesa fino a tre dadi, distribuzione iniziale con limite continentale del 50%. Antartide facoltativa, disattivata di default. Il badge da 12 carri è una soglia grafica, non un nuovo limite.
+
+## Aggiornamento 1.4.1 — leggibilità e fluidità
+
+- Carri e nomi seguono lo zoom della mappa. Restano i “+” di piazzamento e le animazioni.
+- Barra giocatori, plancia, comandi e velocità hanno spazi separati. Zoom orizzontale distinto da Cronologia; il menu laterale scorre sui display bassi.
+- Home azzurra con griglia e triangoli, pannelli blu, profilo con emblema e pulsante GIOCA arancione, seguendo l’ultimo riferimento fornito.
+- Trascinamento calcolato con la trasformazione SVG effettiva, aggiornamenti raggruppati per fotogramma, meno filtri e ridisegni.
+- Timer senza clonazione continua della cronologia, messaggi compatti ogni secondo, salvataggio di ogni azione invariato e checkpoint del solo tempo ogni cinque secondi.
+- Presentazioni più brevi: piazzamento 360 ms, attacco 1,8 s a ritmo Normale; a Veloce/Istantaneo anche le mosse umane sono accelerate.
+
+[Anteprima statica home 1.4.1](docs/home-preview-1.4.1.html) · [Note e verifiche](docs/AGGIORNAMENTO-1.4.1.md)
 
 ## Aggiornamento 1.4
 

@@ -1,0 +1,12 @@
+RisiKo Offline 1.4.1 — progetto completo aggiornato
+
+Estrai lo ZIP e sovrascrivi i file negli STESSI percorsi della radice
+GitHub che contiene package.json. Non aggiungere una sottocartella.
+Conserva .github/workflows/android.yml: esegue test e build dell’APK.
+
+Inclusi: leggibilità della mappa, comandi senza sovrapposizioni,
+home azzurra con pulsanti arancioni, ottimizzazioni e tempi più brevi.
+Restano icona con cane, Antartide opzionale e regole Torneo.
+
+98 test superati, TypeScript e build/Capacitor riusciti.
+Vedi docs/AGGIORNAMENTO-1.4.1.md.
