@@ -1,6 +1,22 @@
-# RisiKo Offline 1.3.1 — Regular e Antartide per Android
+# RisiKo Offline 1.4.0 — Torneo per Android
 
-Gioco single-player in italiano con 2–4 avversari IA, 20 giri e sdadata. Il tavolo e la mappa SVG sono ricostruiti seguendo lo screenshot fornito dall’utente: oceano turchese, coste e isole, giocatori a sinistra, comandi a destra e fase/timer in alto. È una ricostruzione indipendente, non l’app ufficiale e non una replica pixel per pixel.
+Gioco single-player in italiano: un umano contro 2–4 bot. Solo obiettivi Torneo da 86 punti, difesa fino a tre dadi, distribuzione iniziale con limite continentale del 50%. Antartide facoltativa, disattivata di default. Il badge da 12 carri è una soglia grafica, non un nuovo limite.
+
+## Aggiornamento 1.4
+
+- Plancia blu profondo, pannelli antracite/ambra, carri isometrici e scudo numerico separato; confini continentali e rotte curve con ancoraggi costieri.
+- Home con impostazioni a tutta larghezza sui telefoni, statistiche locali, ripresa con numero del giro e selettore Regular/Countdown (30/45/60 minuti, default 45).
+- Barra giocatori superiore, widget obiettivo espandibile, punti sulla mappa, preview Tris e Undo dei rinforzi prima di iniziare l’attacco.
+- Dadi rossi/blu, rotolamento di 350 ms, confronti ordinati, probabilità di conquista, Blitz con soglia di arresto, vettore d’attacco e marcia dei carri.
+- Audio locale e procedurale, feedback aptico opzionale, tre velocità dei bot e personalità configurabili.
+- Auto-save IndexedDB con copia completa in localStorage, statistiche dadi e andamento dei punti obiettivo.
+- Nuova icona Android e browser: la seconda immagine fornita dall’utente, con logo RisiKo! e cane.
+
+[Note, regole e verifiche della 1.4](docs/AGGIORNAMENTO-1.4.md) · [Anteprima statica della home](docs/home-preview-1.4.html)
+
+L’interfaccia è una ricostruzione indipendente basata sulle specifiche e sui riferimenti forniti. Il sito ufficiale non era consultabile da questo ambiente (restrizione geografica); non è stata verificata un’identità pixel per pixel.
+
+Le sezioni seguenti conservano la cronologia degli aggiornamenti precedenti; per grafica e funzionalità correnti fa fede la sezione 1.4.
 
 ## Correzione home 1.3.1
 

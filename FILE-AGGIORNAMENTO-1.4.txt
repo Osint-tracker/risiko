@@ -1,0 +1,137 @@
+RisiKo Offline 1.4.0 — progetto completo aggiornato
+
+Questo ZIP contiene i file direttamente alla radice, senza una cartella
+risiko-offline aggiuntiva. Estraili e SOVRASCRIVI i file negli stessi
+percorsi del repository GitHub che contiene già package.json.
+Non creare risiko/risiko-offline né caricare lo ZIP come file sorgente.
+
+Mantieni .github/workflows/android.yml e le sottocartelle src, tests,
+public, scripts, android. Non servono node_modules o un SDK nel repository.
+Dopo il commit, il workflow Build e verifica Android esegue test e build;
+l’APK è nell’artifact risiko-offline-debug, se tutti i passaggi riescono.
+
+La foto 2 richiesta è già inclusa come icona Android e favicon.
+Antartide facoltativa (default off), 12 carri solo soglia grafica,
+Countdown 30/45/60 minuti (default 45).
+
+Verifiche: 96 test passati, TypeScript e build/Capacitor riusciti.
+Playwright locale bloccato dal sandbox (listen EPERM): deve passare in CI.
+APK non compilato localmente.
+
+Dettagli in docs/AGGIORNAMENTO-1.4.md e docs/VERIFICHE-1.4.txt.
+
+FILE INCLUSI
+.github/workflows/android.yml
+.gitignore
+FILE-AGGIORNAMENTO-1.1.txt
+FILE-AGGIORNAMENTO-1.3.1.txt
+FILE-AGGIORNAMENTO-1.3.txt
+README.md
+android/app/build.gradle
+android/app/src/main/AndroidManifest.xml
+android/app/src/main/java/it/local/risiko/MainActivity.java
+android/app/src/main/res/drawable/ic_launcher.xml
+android/app/src/main/res/drawable/ic_launcher_foreground.xml
+android/app/src/main/res/drawable-nodpi/app_icon_art.jpg
+android/app/src/main/res/drawable-v26/ic_launcher.xml
+android/app/src/main/res/values/colors.xml
+android/app/src/main/res/values/styles.xml
+android/app/src/main/res/xml/config.xml
+android/build.gradle
+android/gradle/wrapper/gradle-wrapper.properties
+android/gradle.properties
+android/gradlew
+android/settings.gradle
+android/variables.gradle
+capacitor.config.json
+docs/AGGIORNAMENTO-1.1.md
+docs/AGGIORNAMENTO-1.2.md
+docs/AGGIORNAMENTO-1.3.md
+docs/AGGIORNAMENTO-1.4.md
+docs/CORREZIONE-CARRO-1.2.1.md
+docs/CORREZIONE-CI.md
+docs/CORREZIONE-HOME-1.3.1.md
+docs/CORREZIONE-TEST-ANTARTIDE-1.3.1.md
+docs/FONTI.md
+docs/REGOLE.md
+docs/VERIFICA-1.3.md
+docs/VERIFICA.md
+docs/VERIFICHE-1.4.txt
+docs/antarctica-preview.html
+docs/antarctica-preview.png
+docs/antarctica-preview.svg
+docs/benchmark-ai-1.3.json
+docs/benchmark-ai-1.4.json
+docs/board-preview-v1.1.png
+docs/board-preview-v1.2.png
+docs/board-preview.png
+docs/board-preview.svg
+docs/home-preview-1.3.1.html
+docs/home-preview-1.4.html
+docs/home-preview.html
+docs/regole-mht.txt
+docs/test-results-1.3.txt
+docs/test-results-hit-1.3.1.txt
+docs/test-results-home-1.3.1.txt
+docs/test-results-token-1.2.1.txt
+docs/test-results-ui-1.2.txt
+docs/test-results.txt
+docs/token-preview-v1.2.1.png
+docs/token-preview-v1.2.1.svg
+docs/token-preview-v1.2.png
+docs/token-preview-v1.2.svg
+index.html
+package-lock.json
+package.json
+public/app-icon.jpg
+public/audio/clash.wav
+public/fonts/LICENSE-counter.txt
+public/fonts/risiko-counter.ttf
+public/icon.svg
+scripts/benchmark-ai.mjs
+scripts/browser-input.mjs
+scripts/browser-test.mjs
+scripts/build.mjs
+scripts/ci-android-sdk.sh
+scripts/ci-run.sh
+scripts/prepare-android.sh
+scripts/serve.mjs
+scripts/verify-package.mjs
+src/ai/BotAI.ts
+src/ai/HumanBot.ts
+src/ai/Strategy.ts
+src/ai/policy.ts
+src/data/mapGraph.ts
+src/data/referenceGeometry.ts
+src/engine/RisikoRulesEngine.ts
+src/engine/presentation.ts
+src/engine/server.worker.ts
+src/engine/types.ts
+src/gui/App.ts
+src/gui/AudioService.ts
+src/gui/art.ts
+src/gui/effects.ts
+src/gui/mapGeometry.ts
+src/gui/styles.css
+src/main.ts
+src/react.ts
+src/services/LocalSnapshot.ts
+src/services/StorageService.ts
+src/services/TournamentStats.ts
+tests/animation.test.ts
+tests/antarctica.test.ts
+tests/audio.test.ts
+tests/browser-input.test.ts
+tests/ci.test.ts
+tests/data.test.ts
+tests/engine.test.ts
+tests/fixtures/LegacyAI.ts
+tests/fixtures/LegacyHumanBot.ts
+tests/playability.test.ts
+tests/refinement.test.ts
+tests/strategy.test.ts
+tests/tournament.test.ts
+tests/ui.test.ts
+tests/worker-presentation.test.ts
+tests/worker.test.ts
+tsconfig.json
