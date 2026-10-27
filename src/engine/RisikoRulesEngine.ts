@@ -502,12 +502,15 @@ export function applyCommand(input: GameState, actor: number, command: Command):
 }
 export function advanceClock(input: GameState, delta: number): GameState {
   if (input.paused || input.phase === 'GAME_OVER' || !Number.isFinite(delta) || delta <= 0) return input;
-  const s = structuredClone(input);
+  // Ordinary ticks change only counters. Clone the board/log only when expiry
+  // performs a real game action; long histories must not be copied 20 times/s.
+  let s = {...input};
   s.elapsedMs += delta;
   if (s.phase !== 'SETUP_PLACEMENT') {
     if(s.endMode==='countdown'){
       s.matchRemainingMs=Math.max(0,(s.matchRemainingMs??45*60000)-delta);
       if(!s.matchRemainingMs){
+        s=structuredClone(s);
         // Old pending saves may not yet have transferred the compulsory garrison.
         if(s.pending&&s.pending.transferred===undefined){s.board[s.pending.from].armies-=s.pending.min;s.board[s.pending.to].armies+=s.pending.min;}
         finish(s,'countdown');s.revision++;assertState(s);return s;

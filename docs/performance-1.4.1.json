@@ -1,0 +1,6 @@
+{
+  "case": "4000 eventi, 500 tick da 50ms",
+  "beforeMs": 1610.740453,
+  "afterMs": 0.22264599999999746,
+  "note": "Microbenchmark del solo timer in Node; non misura FPS o tempi Android"
+}

@@ -141,7 +141,7 @@ export function mountGame(root: HTMLElement): () => void {
     return `<svg id="world-map" class="world-map ${preview ? 'preview' : ''}" viewBox="${preview ? `0 0 1240 ${height}` : `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`}" role="img" aria-label="Plancia interattiva: ${territories.length} territori"><defs><pattern id="ocean-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#9addcc" stroke-width=".5" opacity=".25"/></pattern><radialGradient id="ocean"><stop stop-color="#0f1c2e"/><stop offset="1" stop-color="#070d17"/></radialGradient><filter id="continent-rim"><feMorphology in="SourceAlpha" operator="dilate" radius="2.8" result="outer"/><feComposite in="outer" in2="SourceAlpha" operator="out"/><feFlood flood-color="#d49b35" flood-opacity=".65"/><feComposite in2="outer" operator="in"/></filter><pattern id="triangles" width="18" height="16" patternUnits="userSpaceOnUse"><path d="M0 0L9 16L18 0ZM0 16L9 0L18 16Z" fill="none" stroke="#011f2d" stroke-width="2" opacity=".32"/></pattern><linearGradient id="pattern-fade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="white"/><stop offset=".35" stop-color="black"/><stop offset=".65" stop-color="black"/><stop offset="1" stop-color="white"/></linearGradient><mask id="ocean-pattern"><rect width="1240" height="${height}" fill="url(#pattern-fade)"/></mask><pattern id="land-grain" width="17" height="19" patternUnits="userSpaceOnUse"><path d="M1 3L4 2M7 8L11 7M3 15L5 17M14 1L16 5M12 16L16 14" stroke="#ffe9ad" stroke-width=".7" opacity=".14"/><path d="M2 7L5 10M9 1L11 2M9 13L8 17" stroke="#173d25" stroke-width="1" opacity=".2"/></pattern><filter id="terrain"><feTurbulence type="fractalNoise" baseFrequency=".4" numOctaves="3" seed="8" result="noise"/><feColorMatrix in="noise" type="matrix" values=".33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 .28 0"/><feComposite in2="SourceGraphic" operator="in"/><feBlend in="SourceGraphic" mode="soft-light"/></filter><filter id="land-shadow"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-opacity=".35"/></filter><symbol id="tank" viewBox="0 0 34 22">${tank}</symbol></defs><rect x="-4000" y="-4000" width="9200" height="9200" fill="#070d17"/><rect width="1240" height="${height}" fill="url(#ocean)"/><rect width="1240" height="${height}" fill="url(#triangles)" mask="url(#ocean-pattern)"/><rect x="0" y="0" width="1240" height="${height}" fill="url(#ocean-grid)"/><g class="map-decoration"><circle cx="620" cy="345" r="290"/><circle cx="620" cy="345" r="190"/><path d="M0 345H1240M620 0V690"/><text x="80" y="450">OCEANO PACIFICO</text><text x="410" y="290">ATLANTICO</text><text x="809" y="580">OCEANO INDIANO</text></g><g class="sea-links">${seaLinks.map(([a, b]) => {
       const route=seaRoute(territories[a],territories[b]);
       return `<path d="${route.path}"/>${route.anchors.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="2.3"/>`).join('')}`;
-    }).join('')}</g><g class="continent-outlines" pointer-events="none">${continents.map(c=>`<g filter="url(#continent-rim)">${territories.filter(t=>t.continent===c.id).map(t=>`<path d="${t.path}" fill="#d49b35"/>`).join('')}</g>`).join('')}</g><g filter="url(#land-shadow)"><g>${territories.map(t => {
+    }).join('')}</g><g class="continent-outlines" pointer-events="none">${continents.map(c=>`<g stroke="#d49b35" stroke-width="5.6" stroke-linejoin="round">${territories.filter(t=>t.continent===c.id).map(t=>`<path d="${t.path}" fill="#d49b35"/>`).join('')}</g>`).join('')}</g><g><g>${territories.map(t => {
       const cell = s?.board[t.id],
         p = cell ? s!.players[cell.owner] : null,
         c = continents.find(c => c.id === t.continent)!,
@@ -159,7 +159,7 @@ export function mountGame(root: HTMLElement): () => void {
     return `<section class="tournament-stats"><h2>Statistiche Torneo</h2><div class="tournament-stat-grid">${[[stats.played,'Partite'],[stats.wins,'Vittorie'],[stats.winRate+'%','Vittorie %'],[stats.average,'Media punti tavolo'],[stats.risiko,'RisiKo!'],[stats.sdadata,'Vinte in Sdadata']].map(([n,label])=>`<div><strong>${n}</strong><small>${label}</small></div>`).join('')}</div><h3>I tuoi dadi · attacco e difesa</h3><div class="dice-histogram">${stats.dice.map((n,i)=>`<div><span style="height:${4+n/max*48}px"></span><b>${i+1}</b><small>${n}</small></div>`).join('')}</div></section>`;
   }
   function home() {
-    return `<main class="classic-home"><header class="classic-header"><div class="classic-brand">RisiKo<span>!</span><small>TORNEO · OFFLINE · Regular / Countdown</small></div><nav><button data-action="audio" aria-label="Impostazioni audio">♫ Audio</button><button data-action="profile">${escape(profile.name)} · Profilo</button><button data-action="rules">Regole</button></nav></header><section class="classic-lobby"><aside class="box-art">${statsMarkup()}<div class="box-map">${mapMarkup(true)}</div><div class="box-caption">${config.antarctica?44:42} TERRITORI · 3–5 GIOCATORI</div></aside><section class="classic-settings"><div class="settings-title"><h1>Prepara la partita <small class="initial-armies">${({3:35,4:30,5:25} as Record<number,number>)[config.players]} armate iniziali</small></h1><div class="settings-actions">${hasGame?`<button class="resume-button" data-action="resume">RIPRENDI PARTITA · Turno ${state?.round??0} ▶</button>`:''}<button class="primary start-button" data-action="new" ${ready?'':'disabled'}>${ready?'GIOCA':'CARICAMENTO…'} <span>▶</span></button></div></div><div class="settings-scroll"><section class="lobby-basics" aria-label="Impostazioni partita"><label class="field-label" for="player-name">IL TUO NOME</label><input id="player-name" maxlength="24" value="${escape(config.name)}" autocomplete="off"/><div class="lobby-row"><div><span class="field-label">GIOCATORI</span><div class="segmented">${[3,4,5].map(n=>`<button data-count="${n}" class="${config.players===n?'active':''}">${n}</button>`).join('')}</div></div><div><label class="field-label" for="turn-time">TEMPO PER TURNO</label><select id="turn-time">${[60,120,180,240,300,600].map(n=>`<option value="${n}" ${config.turnSeconds===n?'selected':''}>${n/60} minuti</option>`).join('')}</select></div></div><div class="lobby-row"><div><label class="field-label" for="end-mode">FINE PARTITA TORNEO</label><select id="end-mode"><option value="regular" ${config.endMode!=='countdown'?'selected':''}>Regular · 20 giri + Sdadata</option><option value="countdown" ${config.endMode==='countdown'?'selected':''}>Countdown · a tempo</option></select></div><div>${config.endMode==='countdown'?`<label class="field-label" for="countdown-minutes">DURATA PARTITA</label><select id="countdown-minutes">${[30,45,60].map(n=>`<option value="${n}" ${config.countdownMinutes===n?'selected':''}>${n} minuti</option>`).join('')}</select>`:`<label class="field-label" for="bot-speed">VELOCITÀ BOT</label><select id="bot-speed">${[[1,'Normale'],[2,'Veloce'],[0,'Istantaneo']].map(([n,label])=>`<option value="${n}" ${config.botSpeed===n?'selected':''}>${label}</option>`).join('')}</select>`}</div></div>${config.endMode==='countdown'?`<label class="field-label" for="bot-speed">VELOCITÀ BOT</label><select id="bot-speed">${[[1,'Normale'],[2,'Veloce'],[0,'Istantaneo']].map(([n,label])=>`<option value="${n}" ${config.botSpeed===n?'selected':''}>${label}</option>`).join('')}</select>`:''}<label class="antarctica-option"><input id="antarctica-mode" type="checkbox" ${config.antarctica?'checked':''}/><span><b>Modalità Antartide</b><small>2 territori · +2 armate per turno se controlli entrambi</small></span></label></section><section class="lobby-opponents" aria-label="Avversari"><div class="opponents-heading"><span class="field-label">AVVERSARI</span><button data-action="blind-all" class="text-button">Tutti casuali ↻</button></div><div class="bot-slots">${config.difficulties.map((d,i)=>`<div class="bot-slot" style="--player:${colors[i+1]}"><span class="bot-avatar">${armyToken(i+1,colors[i+1])}</span><div class="bot-info"><strong>${['Falco','Vega','Atlas','Ombra'][i]}</strong><small>${d==='casuale'?'Bot ? · livello segreto':'BOT IA'}</small></div><select data-bot="${i}" aria-label="Difficoltà ${['Falco','Vega','Atlas','Ombra'][i]}">${['facile','medio','difficile','casuale'].map(l=>`<option value="${l}" ${l===d?'selected':''}>${levelNames[l]}</option>`).join('')}</select><button class="strategy-button" data-strategy="${i}">Strategia</button></div>`).join('')}</div></section></div><small class="classic-footnote">Salvataggio automatico · Nessuna connessione richiesta</small><details class="mobile-tournament-stats"><summary>Statistiche Torneo ▾</summary>${statsMarkup()}</details></section></section></main>`;
+    return `<main class="classic-home"><header class="classic-header"><div class="classic-brand"><b>RisiKo<span>!</span></b><small>TORNEO · OFFLINE</small></div><nav><button data-action="audio" aria-label="Impostazioni audio">♫ Audio</button><button data-action="profile">${escape(profile.name)} · Profilo</button><button data-action="rules">Regole</button></nav></header><section class="classic-lobby"><aside class="box-art">${statsMarkup()}<div class="box-map">${mapMarkup(true)}</div><div class="box-caption">${config.antarctica?44:42} TERRITORI · 3–5 GIOCATORI</div></aside><section class="classic-settings"><div class="home-player-strip"><span class="home-player-emblem">R</span><div><strong>${escape(profile.name)}</strong><small>IL TUO TAVOLO · TORNEO</small></div><button data-action="profile">${profile.results.length} partite · ${profile.results.filter(r=>r.rank===1).length} vittorie ›</button></div><div class="settings-title"><h1>Prepara la partita <small class="initial-armies">${({3:35,4:30,5:25} as Record<number,number>)[config.players]} armate iniziali</small></h1><div class="settings-actions">${hasGame?`<button class="resume-button" data-action="resume">RIPRENDI PARTITA · Turno ${state?.round??0} ▶</button>`:''}<button class="primary start-button" data-action="new" ${ready?'':'disabled'}><span>▶</span><span class="play-caption">${ready?'GIOCA':'CARICAMENTO…'}<small>ENTRA IN BATTAGLIA</small></span></button></div></div><div class="settings-scroll"><section class="lobby-basics" aria-label="Impostazioni partita"><label class="field-label" for="player-name">IL TUO NOME</label><input id="player-name" maxlength="24" value="${escape(config.name)}" autocomplete="off"/><div class="lobby-row"><div><span class="field-label">GIOCATORI</span><div class="segmented">${[3,4,5].map(n=>`<button data-count="${n}" class="${config.players===n?'active':''}">${n}</button>`).join('')}</div></div><div><label class="field-label" for="turn-time">TEMPO PER TURNO</label><select id="turn-time">${[60,120,180,240,300,600].map(n=>`<option value="${n}" ${config.turnSeconds===n?'selected':''}>${n/60} minuti</option>`).join('')}</select></div></div><div class="lobby-row"><div><label class="field-label" for="end-mode">FINE PARTITA TORNEO</label><select id="end-mode"><option value="regular" ${config.endMode!=='countdown'?'selected':''}>Regular · 20 giri + Sdadata</option><option value="countdown" ${config.endMode==='countdown'?'selected':''}>Countdown · a tempo</option></select></div><div>${config.endMode==='countdown'?`<label class="field-label" for="countdown-minutes">DURATA PARTITA</label><select id="countdown-minutes">${[30,45,60].map(n=>`<option value="${n}" ${config.countdownMinutes===n?'selected':''}>${n} minuti</option>`).join('')}</select>`:`<label class="field-label" for="bot-speed">VELOCITÀ BOT</label><select id="bot-speed">${[[1,'Normale'],[2,'Veloce'],[0,'Istantaneo']].map(([n,label])=>`<option value="${n}" ${config.botSpeed===n?'selected':''}>${label}</option>`).join('')}</select>`}</div></div>${config.endMode==='countdown'?`<label class="field-label" for="bot-speed">VELOCITÀ BOT</label><select id="bot-speed">${[[1,'Normale'],[2,'Veloce'],[0,'Istantaneo']].map(([n,label])=>`<option value="${n}" ${config.botSpeed===n?'selected':''}>${label}</option>`).join('')}</select>`:''}<label class="antarctica-option"><input id="antarctica-mode" type="checkbox" ${config.antarctica?'checked':''}/><span><b>Modalità Antartide</b><small>2 territori · +2 armate per turno se controlli entrambi</small></span></label></section><section class="lobby-opponents" aria-label="Avversari"><div class="opponents-heading"><span class="field-label">AVVERSARI</span><button data-action="blind-all" class="text-button">Tutti casuali ↻</button></div><div class="bot-slots">${config.difficulties.map((d,i)=>`<div class="bot-slot" style="--player:${colors[i+1]}"><span class="bot-avatar">${armyToken(i+1,colors[i+1])}</span><div class="bot-info"><strong>${['Falco','Vega','Atlas','Ombra'][i]}</strong><small>${d==='casuale'?'Bot ? · livello segreto':'BOT IA'}</small></div><select data-bot="${i}" aria-label="Difficoltà ${['Falco','Vega','Atlas','Ombra'][i]}">${['facile','medio','difficile','casuale'].map(l=>`<option value="${l}" ${l===d?'selected':''}>${levelNames[l]}</option>`).join('')}</select><button class="strategy-button" data-strategy="${i}">Strategia</button></div>`).join('')}</div></section></div><small class="classic-footnote">Salvataggio automatico · Nessuna connessione richiesta</small><details class="mobile-tournament-stats"><summary>Statistiche Torneo ▾</summary>${statsMarkup()}</details></section></section></main>`;
   }
   function playerCards() {
     return `<aside class="players-row" aria-label="Giocatori">${state!.order.map(id => {
@@ -215,7 +215,7 @@ export function mountGame(root: HTMLElement): () => void {
         ${s.paused?'<div class="pause-shade"><div class="pause-card"><span class="eyebrow">POSIZIONE SALVATA</span><h2>Partita in pausa</h2><button class="primary" data-action="resume">Riprendi la partita →</button><button class="text-button" data-action="home">Torna al menu</button></div></div>':''}
       </section>
       <section class="command-deck"><div class="phase-section"><div class="phase-steps">${phases.map((p,i)=>`<span class="${i===step?'current':''}"><b>${i+1}</b> ${p}</span>`).join('<i>›</i>')}</div><p id="instruction">${instructions()}</p>${humanTurn()&&s.phase==='REINFORCEMENT'?`<div class="placement-amounts" aria-label="Quantità da piazzare">${[1,3,5,10,130].map(n=>`<button data-place-count="${n}" class="${placementCount===n?'active':''}">${n===130?'Tutti':'+'+n}</button>`).join('')}</div>`:''}</div><div class="command-buttons">${humanTurn()&&s.phase==='REINFORCEMENT'?`<button class="secondary undo-placement" data-action="undo-place" ${!s.undoAvailable||pendingCommand?'disabled':''}>↶ Annulla ultimo piazzamento</button>`:''}<button class="primary" data-action="next" ${!humanTurn()||!['TRIS_EXCHANGE','REINFORCEMENT','ATTACK','FORTIFY'].includes(s.phase)||(s.phase==='REINFORCEMENT'&&s.reinforcements>0)||pendingCommand?'disabled':''}>${s.phase==='TRIS_EXCHANGE'?'Piazza rinforzi':s.phase==='REINFORCEMENT'?'Inizia attacco →':s.phase==='ATTACK'?'Spostamento →':'Fine turno →'}</button></div></section>
-      <div class="table-footer"><span>${s.endMode==='countdown'?'COUNTDOWN':'REGULAR'} · OFFLINE</span><div><span class="muted">BOT</span>${[1,2,0].map(n=>`<button class="speed-button ${speed===n?'active':''}" data-speed="${n}">${n===1?'Normale':n===2?'Veloce':'Istantaneo'}</button>`).join('')}<button class="text-button" data-action="sound">${muted?'Audio off':'Audio on'}</button><button class="text-button" data-action="pause">Ⅱ Pausa</button></div></div>
+      <div class="table-footer"><span>${s.endMode==='countdown'?'COUNTDOWN':'REGULAR'} · OFFLINE</span><div><span class="muted">RITMO</span>${[1,2,0].map(n=>`<button class="speed-button ${speed===n?'active':''}" data-speed="${n}">${n===1?'Normale':n===2?'Veloce':'Istantaneo'}</button>`).join('')}<button class="text-button" data-action="sound">${muted?'Audio off':'Audio on'}</button><button class="text-button" data-action="pause">Ⅱ Pausa</button></div></div>
       ${showLog?`<aside class="game-log"><button data-action="log" class="close-button">×</button><h3>Cronologia / Log di Guerra</h3>${s.log.slice(-250).reverse().map(e=>`<p><i style="background:${s.players[e.player].color}"></i>${escape(e.message)}</p>`).join('')}</aside>`:''}
     </main>`;
   }
@@ -409,14 +409,19 @@ export function mountGame(root: HTMLElement): () => void {
       }
     }
   }
-  function setZoom(factor: number) {
+  function setZoom(factor: number, deferred=false) {
     const nw = Math.max(380, Math.min(1240, viewport.w * factor)),
       nh = nw * mapFor(state??{}).height / 1240;
     viewport.x += (viewport.w - nw) / 2;
     viewport.y += (viewport.h - nh) / 2;
     viewport.w = nw;
     viewport.h = nh;
-    updateMap();
+    if(deferred)scheduleMapUpdate();else updateMap();
+  }
+  let mapFrame:number|null=null;
+  function scheduleMapUpdate(){
+    if(!globalThis.requestAnimationFrame){updateMap();return;}
+    if(mapFrame===null)mapFrame=requestAnimationFrame(()=>{mapFrame=null;updateMap();});
   }
   function updateMap() {
     viewport.x = Math.max(-100, Math.min(1240 - viewport.w + 100, viewport.x));
@@ -427,10 +432,11 @@ export function mountGame(root: HTMLElement): () => void {
   function fitMapTargets(){
     const svg=root.querySelector<SVGSVGElement>('.game-table #world-map'),matrix=svg?.getScreenCTM?.();
     if(!svg||!matrix)return;
-    const scale=Math.max(.01,Math.hypot(matrix.a,matrix.b)),factor=Math.max(.7,Math.min(3, .68/scale));
+    const scale=Math.max(.01,Math.hypot(matrix.a,matrix.b));
+    const key=scale.toFixed(5);if(svg.dataset.hitScale===key)return;svg.dataset.hitScale=key;
     svg.querySelectorAll<SVGCircleElement>('.territory-hit').forEach(el=>el.setAttribute('r',String(22/scale)));
-    svg.querySelectorAll<SVGGElement>('.army-map-icon').forEach(el=>el.setAttribute('transform',`translate(${Number(el.dataset.x)-25*factor} ${Number(el.dataset.y)-18*factor}) scale(${factor})`));
-    svg.querySelectorAll<SVGTextElement>('.territory-name').forEach(el=>el.style.fontSize=`${Math.min(22,7/scale)}px`);
+    // Only invisible touch targets remain 44 CSS pixels. Artwork and names
+    // stay in map coordinates, so zoom scales them with their territories.
   }
   function territoryAtPoint(svg:SVGSVGElement,x:number,y:number,fallback:number|null){
     const matrix=svg.getScreenCTM?.();if(!matrix||!state)return fallback;
@@ -478,14 +484,17 @@ export function mountGame(root: HTMLElement): () => void {
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()],
           dist = Math.hypot(a.x - b.x, a.y - b.y);
-        if (lastDistance) setZoom(lastDistance / dist);
+        if (lastDistance) setZoom(lastDistance / dist,true);
         lastDistance = dist;
         moved = true;
       } else if (moved) {
-        const r = svg.getBoundingClientRect();
-        viewport.x -= dx * viewport.w / r.width;
-        viewport.y -= dy * viewport.h / r.height;
-        updateMap();
+        // SVG preserveAspectRatio can add wide letterboxes; element width is
+        // not the drawing scale. Convert the actual screen transform instead.
+        const matrix=svg.getScreenCTM();
+        if(matrix){const determinant=matrix.a*matrix.d-matrix.b*matrix.c;
+          if(Math.abs(determinant)>1e-8){viewport.x-=(matrix.d*dx-matrix.c*dy)/determinant;viewport.y-=(-matrix.b*dx+matrix.a*dy)/determinant;}
+        }
+        scheduleMapUpdate();
       }
     });
     svg.addEventListener('pointerup', e => {
@@ -753,6 +762,15 @@ export function mountGame(root: HTMLElement): () => void {
   worker.onmessage = ({
     data
   }) => {
+    if(data.type==='CLOCK'){
+      if(state&&state.id===data.id&&state.revision===data.revision&&!presenting){
+        state={...state,remainingMs:data.remainingMs,matchRemainingMs:data.matchRemainingMs,elapsedMs:data.elapsedMs};
+        const timer=root.querySelector('#timer'),match=root.querySelector('#match-timer');
+        if(timer)timer.textContent=state.phase==='SETUP_PLACEMENT'?'—':duration(state.remainingMs);
+        if(match)match.textContent=duration(state.matchRemainingMs??0);
+      }
+      return;
+    }
     if(data.type==='LOCAL_SAVE'){if(!writeLocalSnapshot(data.state)&&!localSaveWarning){localSaveWarning=true;toast('Copia locale non disponibile; il salvataggio principale resta in IndexedDB.');}return;}
     if (data.type === 'ERROR') {
       pendingCommand = false;
@@ -781,7 +799,10 @@ export function mountGame(root: HTMLElement): () => void {
       if(involved.some(id=>{const p=territories[id];return p.x<viewport.x+35||p.x>viewport.x+viewport.w-35||p.y<viewport.y+35||p.y>viewport.y+viewport.h-35;})) {
         restoreViewport={...viewport};viewport={x:0,y:0,w:1240,h:mapFor(state??{}).height};
       }
-      render(true);
+      // The map already shows transition.before. Keep its SVG mounted while
+      // effects run, instead of reparsing every path twice per action.
+      if(root.querySelector('#world-map')){updateMap();refreshDialogs();}
+      else render(true);
 
       cancelEffects=playTransition(root,t,()=>{
         if(presenting?.id!==t.id)return;
@@ -860,6 +881,7 @@ export function mountGame(root: HTMLElement): () => void {
   });
   return () => {
     globalThis.removeEventListener?.('resize',fitMapTargets);
+    if(mapFrame!==null)cancelAnimationFrame(mapFrame);
     if(dialogExit)clearTimeout(dialogExit);
     cancelPresentation();
     sounds.dispose();

@@ -319,3 +319,13 @@ test('Widget obiettivo mostra punti, mappa punti e bonus; Undo passa attraverso 
  f.click({action:'objective-view'});assert.equal((f.root.innerHTML.match(/class="objective-points"/g)??[]).length,42);
  f.click({action:'undo-place'});assert.deepEqual(f.worker.messages.at(-1).command,{type:'UNDO_PLACE'});f.cleanup();
 });
+
+test('I tick del timer non ricostruiscono la plancia né fanno perdere la finestra carte',()=>{
+ const f=fixture();f.click({action:'new'});const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3,endMode:'countdown'});
+ s.phase='ATTACK';s.active=0;f.worker.emit({type:'STATE',state:project(s)});f.click({action:'cards'});
+ const markup=f.root.innerHTML;
+ f.worker.emit({type:'CLOCK',id:s.id,revision:s.revision,remainingMs:179000,matchRemainingMs:2699000,elapsedMs:1000});
+ assert.equal(f.root.innerHTML,markup,'Nessun rimpiazzo del DOM a ogni secondo');
+ f.worker.emit({type:'CLOCK',id:'altra-partita',revision:0,remainingMs:0,matchRemainingMs:0,elapsedMs:1000});
+ f.click({action:'close'});assert.match(f.root.innerHTML,/2:59/);assert.match(f.root.innerHTML,/44:59/);f.cleanup();
+});

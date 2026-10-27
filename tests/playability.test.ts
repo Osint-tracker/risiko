@@ -35,7 +35,7 @@ test('transizione attacco conserva origine, dadi reali, perdite e stato preceden
  assert.equal(e.from,0);assert.equal(e.to,1);assert.deepEqual(e.attack,n.lastBattle!.attack);assert.deepEqual(e.losses,n.lastBattle!.losses);
  assert.match(effectMarkup(e,t),/Alaska/);assert.match(effectMarkup(e,t),/Territori del Nord Ovest/);
  for(const v of [...e.attack,...e.defense])assert.match(effectMarkup(e,t),new RegExp(`aria-label="Dado ${v}"`));
- assert.equal(effectDuration(e,1),2500);
+ assert.equal(effectDuration(e,1),1800);
 });
 test('pesca: animazione solo dopo conquista; identità carta riservata al destinatario',()=>{
  for(const actor of [0,1])for(const conquests of [0,1]){

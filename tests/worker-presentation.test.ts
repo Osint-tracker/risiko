@@ -16,7 +16,7 @@ test('Worker: salvataggio prima degli effetti, timer fermo, ACK, pausa e watchdo
  globalThis.setInterval=((fn:()=>void)=>{tick=fn;return 0;}) as never;
  const drain=()=>new Promise<void>(r=>setTimeout(r,10));
  const send=async(data:unknown)=>{ctx.onmessage!({data});await drain();};
- const latest=()=>messages.filter(m=>m.type==='STATE').at(-1).state;
+ const latest=()=>{const view=structuredClone(messages.filter(m=>m.type==='STATE').at(-1).state);const clock=messages.filter(m=>m.type==='CLOCK'&&m.id===view.id&&m.revision===view.revision).at(-1);return clock?{...view,remainingMs:clock.remainingMs,matchRemainingMs:clock.matchRemainingMs}:view;};
  try{
   await import('../src/engine/server.worker.ts?presentation');
   await send({type:'INIT',presentation:true});await send({type:'RESUME'});
@@ -36,6 +36,8 @@ test('Worker: salvataggio prima degli effetti, timer fermo, ACK, pausa e watchdo
   await send({type:'COMMAND',revision:2,id:'c',command:{type:'PLACE',territory:0,count:1}});
   now+=10001;tick();await drain();assert.equal(latest().board[0].armies,8);assert.equal(latest().remainingMs,initialMs-1000);assert.equal(latest().matchRemainingMs,initialMatchMs-1000);
   assert.equal(messages.filter(m=>m.type==='ERROR').length,0);
+  assert.ok(messages.some(m=>m.type==='CLOCK'));
+  assert.ok(messages.filter(m=>m.type==='CLOCK').every(m=>!('board' in m)&&!('log' in m)));
  }finally{
   StorageService.prototype.save=original.save;StorageService.prototype.load=original.load;StorageService.prototype.profile=original.profile;StorageService.prototype.setName=original.setName;
   globalThis.setInterval=original.interval;Object.assign(globalThis,{performance:original.performance,self:original.self});

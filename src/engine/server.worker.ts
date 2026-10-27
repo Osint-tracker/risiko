@@ -6,7 +6,7 @@ import type {GameConfig, GameState, Command, BotContext} from './types.ts';
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 const storage = new StorageService();
 const gate = new PresentationGate();
-let state: GameState | null = null, speed = 1, lastTick = performance.now(), dirtyClock = 0;
+let state: GameState | null = null, speed = 1, lastTick = performance.now(), dirtyClock = 0, clockUiMs = 0;
 let busy = Promise.resolve(), ticking = false, presentationEnabled = false;
 let publishedGameId = '', publishedCount = 0;
 let previousBot: {actor: number; command: Command} | null = null;
@@ -17,6 +17,7 @@ function clearPresentation() { gate.clear(); planned = null; lastTick = performa
 async function commit(next: GameState, before?: GameState) {
   await storage.save(next);
   state = next;
+  dirtyClock=0;clockUiMs=0;
   post({type:'LOCAL_SAVE',state:next});
   const start = publishedGameId === next.id ? publishedCount : 0;
   for (const event of next.log.slice(start)) post({type: event.type, event});
@@ -120,7 +121,7 @@ setInterval(() => {
       if (!state || state.paused || state.phase === 'GAME_OVER') return;
       const before = state;
       const timed = advanceClock(state, delta);
-      dirtyClock += delta;
+      dirtyClock += delta;clockUiMs += delta;
       if (timed.revision !== before.revision) { await commit(timed, before); dirtyClock = 0; return; }
       state = timed;
       const p = state.players[state.active];
@@ -143,9 +144,13 @@ setInterval(() => {
           return;
         }
       }
-      if (dirtyClock >= 1000) {
+      if(clockUiMs>=1000){
+        post({type:'CLOCK',id:state.id,revision:state.revision,remainingMs:state.remainingMs,matchRemainingMs:state.matchRemainingMs,elapsedMs:state.elapsedMs});
+        clockUiMs=0;
+      }
+      if (dirtyClock >= 5000) {
         // Clock saves must not restart a bot's pending thinking interval.
-        await storage.save(state); post({type:'LOCAL_SAVE',state});publish(); dirtyClock = 0;
+        await storage.save(state); post({type:'LOCAL_SAVE',state}); dirtyClock = 0;
       }
     } finally { ticking = false; }
   });

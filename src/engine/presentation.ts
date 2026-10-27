@@ -19,7 +19,7 @@ export type Transition = {
 export function makeTransition(before: GameState, after: GameState, speed = 1, viewer = 0): Transition | null {
   if (before.id !== after.id || before.revision === after.revision) return null;
   if(!before.players[before.active].human && speed===0)return null;
-  if(before.players[before.active].human)speed=1;
+  if(before.players[before.active].human)speed=speed===0?2:Math.max(1,speed);
   const effects: VisualEffect[] = [];
   for (const e of after.log.slice(before.log.length)) {
     if (e.type === 'onDiceRolled' && e.from !== undefined && e.to !== undefined) {
@@ -56,7 +56,7 @@ export function sequenceScale(t: Transition) {
   return Math.min(1,8000/Math.max(1,total));
 }
 export function effectDuration(e: VisualEffect, speed: number): number {
-  const base = {battle: 2500, place: 800, move: 800, exchange: 1100, draw: 2200, sdadata: 1800}[e.kind];
+  const base = {battle: 1800, place: 360, move: 520, exchange: 850, draw: 1600, sdadata: 1500}[e.kind];
   return speed === 0 ? Math.min(base, e.kind === 'place' ? 80 : 320) : base / Math.max(1, speed);
 }
 /** One durable action at a time; watchdog prevents a lost UI from freezing play. */

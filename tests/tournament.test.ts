@@ -104,3 +104,14 @@ test('Rotte su entrambe le mappe: punti di costa finiti e distinti dai centri; b
  assert.equal(after.board[t].armies,21);assertState(after);
  assert.match(armyBadge(21,'#ffff00'),/>21</);assert.match(armyBadge(12,'#ffff00'),/army-strength/);
 });
+
+test('Tick ordinari e scadenze conservano gli snapshot precedenti, anche dopo una lunga cronologia',()=>{
+ let s=reinforcement();s.endMode='countdown';s.matchRemainingMs=45000;s.remainingMs=10000;
+ s.log=Array.from({length:4000},()=>({type:'onGameStateUpdate' as const,player:0,message:'Rinforzo'}));
+ const original=structuredClone(s),t=advanceClock(s,50);
+ assert.deepEqual(s,original);assert.equal(t.remainingMs,9950);assert.equal(t.matchRemainingMs,44950);
+ const expired=advanceClock(t,50000);assert.equal(expired.phase,'GAME_OVER');assert.equal(expired.reason,'countdown');
+ assert.equal(t.phase,'REINFORCEMENT');assert.equal(t.log.length,4000);assert.deepEqual(s,original);
+ const timed=advanceClock({...s,endMode:'regular',remainingMs:1},2);
+ assert.notEqual(timed.active,s.active);assert.deepEqual(s,original);
+});

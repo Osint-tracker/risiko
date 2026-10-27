@@ -86,7 +86,7 @@ test('I dadi si fermano a 350 ms; l’esito appare dopo il rotolamento e una sol
 });
 
 test('Velocità Istantaneo salta gli effetti dei bot, preservando la presentazione per l’umano',()=>{
- const {s,n}=conquest();assert.equal(makeTransition(s,n,0)!.speed,1);
+ const {s,n}=conquest();assert.equal(makeTransition(s,n,0)!.speed,2);
  s.players[0].human=false;n.players[0].human=false;
  assert.equal(makeTransition(s,n,0),null);assert.equal(makeTransition(s,n,2)!.speed,2);
 });

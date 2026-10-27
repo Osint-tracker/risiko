@@ -78,6 +78,24 @@ try{
   assert.notEqual(await page.locator('.game-table').getAttribute('data-phase'),'SETUP_PLACEMENT');
  }
  await completeSetup(21,14);
+ // Layout regression: zoom/history and lower commands occupy separate regions.
+ async function checkBoardLayout(){
+  const selectors=['.players-row','.map-stage','.command-deck','.table-footer'];
+  const boxes=await Promise.all(selectors.map(s=>page.locator(s).boundingBox()));
+  for(let i=1;i<boxes.length;i++)assert.ok(boxes[i].y>=boxes[i-1].y+boxes[i-1].height-1,`HUD sovrapposto: ${selectors[i-1]} / ${selectors[i]}`);
+  const zoom=await page.locator('.reference-zoom').boundingBox(),rail=await page.locator('.reference-sidebar').boundingBox();
+  assert.ok(zoom.x+zoom.width<=rail.x,'Zoom e Cronologia devono stare in colonne distinte');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+ }
+ await checkBoardLayout();
+ const token=page.locator('[data-token="0"] .army-map-icon'),map=page.locator('#world-map');
+ const initialWidth=(await token.boundingBox()).width,initialMap=await map.getAttribute('viewBox');
+ await page.locator('[data-action="zoom-in"]').click();
+ const zoomedWidth=(await token.boundingBox()).width;
+ const initialViewWidth=Number(initialMap.split(' ')[2]),zoomedViewWidth=Number((await map.getAttribute('viewBox')).split(' ')[2]);
+ assert.ok(Math.abs(zoomedWidth/initialWidth-initialViewWidth/zoomedViewWidth)<.02,'I carri devono scalare nella stessa proporzione dei territori');
+ await page.locator('[data-action="reset-map"]').click();
+
  await page.locator('[data-action="pause"]').click();await page.locator('.pause-card').waitFor();
  await page.screenshot({path:'artifacts/browser/table.png',fullPage:true});
  await page.reload();await page.locator('[data-action="resume"]').waitFor();await page.locator('[data-action="resume"]').click();await page.locator('.game-table').waitFor();
