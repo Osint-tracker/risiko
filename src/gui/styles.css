@@ -178,3 +178,6 @@
  .classic-settings .settings-scroll{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:22px;align-items:start}
  .classic-settings .lobby-opponents{border-left:1px solid #d6cdbb;padding-left:18px}
 }
+
+/* Informational HUD must not swallow map taps beneath it (notably Antarctica). */
+.reference-topbar,.reference-round{pointer-events:none}

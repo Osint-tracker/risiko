@@ -1,5 +1,6 @@
 import {spawn} from 'node:child_process';
-import {mkdir} from 'node:fs/promises';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {clickTerritory,browserDiagnostics} from './browser-input.mjs';
 import {setTimeout as wait} from 'node:timers/promises';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
@@ -55,15 +56,21 @@ try{
  async function completeSetup(expected,territoryCount){
   await page.locator('.game-table[data-phase="SETUP_PLACEMENT"]').waitFor();
   await page.locator('[data-speed="0"]').click();
+  console.log(`Setup: ${territoryCount} territori umani, ${expected} armate da piazzare`);
   let clicks=0;const deadline=Date.now()+60000;
   while(Date.now()<deadline){
    const phase=await page.locator('.game-table').getAttribute('data-phase');if(phase!=='SETUP_PLACEMENT')break;
    const human=await page.locator('.game-table').getAttribute('data-active')==='0';
    if(human&&await page.locator('#effects > *').count()===0){
     assert.equal(await page.locator('.placement-plus').count(),territoryCount);
-    const revision=await page.locator('.game-table').getAttribute('data-revision');
-    await page.locator('[data-territory][aria-label*="Comandante,"] .territory-hit').first().click({force:true});
-    await page.waitForFunction(r=>document.querySelector('.game-table')?.getAttribute('data-revision')!==r,revision);clicks++;
+    const revision=Number(await page.locator('.game-table').getAttribute('data-revision'));
+    const id=Number(await page.locator('.territory.placeable').first().getAttribute('data-territory'));
+    const before=Number(await page.locator(`[data-token="${id}"] .tank-number`).textContent());
+    await clickTerritory(page,id);
+    await page.waitForFunction(({revision,id,before})=>{
+     const table=document.querySelector('.game-table'),number=document.querySelector(`[data-token="${id}"] .tank-number`);
+     return table&&Number(table.getAttribute('data-revision'))>revision&&Number(number?.textContent)===before+1;
+    },{revision,id,before},{timeout:5000});clicks++;
    }else await wait(100);
   }
   assert.equal(clicks,expected,'Devono essere piazzate tutte le armate della riserva iniziale');
@@ -128,7 +135,7 @@ try{
  // Select a seed with a conquest on the first roll, without mocking dice in the UI.
  for(let seed=1;seed<1000;seed++){s.rng=seed;if(applyCommand(s,0,{type:'ATTACK',from:0,to:1}).phase==='POST_CONQUEST_MOVE')break;}
  await loadFixture(s);
- await page.locator('[data-territory="0"] .territory-hit').click({force:true});await page.locator('[data-territory="1"] .territory-hit').click({force:true});
+ await clickTerritory(page,0);await clickTerritory(page,1);
  await page.locator('.floating-panel').waitFor();assert.equal(await page.locator('.modal-backdrop').count(),0);
  const panel=await page.locator('.floating-panel').boundingBox();assert.ok(panel.height<=390*.6+1&&panel.width<=360);
  await page.locator('[data-action="roll"]').click();await page.locator('.effects-layer.rolling').waitFor();
@@ -168,7 +175,7 @@ try{
  // Interrupt a real roll: persistence already contains its outcome; resume must
  // open the mandatory transfer without replaying dice or losing the result.
  await loadFixture(s);
- await page.locator('[data-territory="0"] .territory-hit').click({force:true});await page.locator('[data-territory="1"] .territory-hit').click({force:true});
+ await clickTerritory(page,0);await clickTerritory(page,1);
  await page.locator('[data-action="roll"]').click();await page.locator('.effects-layer.rolling').waitFor();
  await page.locator('[data-action="pause"]').click();await page.locator('.pause-card').waitFor();
  assert.equal(await page.locator('.battle-window').count(),0);
@@ -215,7 +222,7 @@ try{
  polar.phase='ATTACK';polar.round=5;polar.active=0;polar.players.forEach(p=>p.setupRemaining=0);
  polar.board[42]={owner:0,armies:12};polar.board[43]={owner:1,armies:1};
  for(let seed=1;seed<1000;seed++){polar.rng=seed;if(applyCommand(polar,0,{type:'ATTACK',from:42,to:43}).phase==='POST_CONQUEST_MOVE')break;}
- await loadFixture(polar);await page.locator('[data-territory="42"] .territory-hit').click({force:true});await page.locator('[data-territory="43"] .territory-hit').click({force:true});
+ await loadFixture(polar);await clickTerritory(page,42);await clickTerritory(page,43);
  await page.locator('[data-action="roll"]').click();await page.locator('#map-fx.impact-now').waitFor();
  await page.screenshot({path:'artifacts/browser/antarctica-clash.png'});
  await page.locator('[data-action="confirm-move"]').waitFor();
@@ -225,6 +232,11 @@ try{
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
  console.log('PASS: setup 3/4/5 completo via tocchi, IndexedDB/ripresa anche durante i dadi, obiettivo, finestre compatte, dadi, timer sospeso, conquista, spostamento, pesca e carte; carte persistenti durante attacchi e cambio turno, trasferimento immediato e anteprima aggiuntivi; telefono/tablet; zero richieste esterne.');
 }catch(error){
+ if(page){
+  const info=await browserDiagnostics(page).catch(e=>({diagnosticsError:String(e)}));
+  console.error('Stato al fallimento:',JSON.stringify(info,null,2));
+  await writeFile('artifacts/browser/failure-state.json',JSON.stringify(info,null,2)).catch(()=>{});
+ }
  await page?.screenshot({path:'artifacts/browser/failure.png',fullPage:true}).catch(()=>{});
  throw error;
 }finally{

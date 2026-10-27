@@ -1,0 +1,27 @@
+✔ animazione conquista: conteggi autentici, nessun fotogramma a zero, nessuna freccia (7.122146ms)
+✔ animazione aggiuntivi: aggiorna entrambi i contatori una sola volta (2.45245ms)
+✔ interruzione animazioni cancella i callback e non invia un secondo completamento (1.083675ms)
+✔ tocchi browser: centro libero, click normale senza forzare sovrapposizioni (0.688349ms)
+✔ tocchi browser: centro sotto HUD, seleziona un punto libero dello stesso territorio (0.307103ms)
+✔ tocchi browser: territorio completamente coperto, errore esplicito senza click falso (1.12667ms)
+✔ lobby renders all bot slots, defaults and blind selectors without real levels (3.243814ms)
+✔ table renders 42 territories, hidden objectives, timer and battle controls (3.808617ms)
+✔ new game requires confirmation before replacing a save (1.323957ms)
+✔ commands carry actor-independent revision and unique request id (3.940775ms)
+✔ results reveal blind difficulty and all objectives only after conclusion (1.37851ms)
+✔ background pause during compulsory conquest never traps the resume controls (1.785914ms)
+✔ setup UI distingue schierati, riserva e mano, evidenzia solo i propri territori (1.466743ms)
+✔ carte militari selezionabili: invia solo il tris scelto e mostra il bonus (2.496617ms)
+✔ spostamento obbligatorio usa finestra flottante senza oscurare la plancia (1.269385ms)
+✔ carte e selezione restano aperte tra attacchi e cambi di turno dei bot (3.238205ms)
+✔ finestra conquista mostra minimo trasferito e selettore aggiuntivi a zero (1.009083ms)
+✔ strategie per bot: caselle, tregua, applica a tutti e configurazione della nuova partita (1.422937ms)
+✔ Antartide facoltativa: menu, plancia completa e ripresa con inquadratura estesa (2.17388ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 131.458824
