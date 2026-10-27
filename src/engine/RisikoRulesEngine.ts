@@ -1,4 +1,5 @@
-import { territories, continents, objectives, cards, colors, objectivePoints } from '../data/mapGraph.ts';
+import {botPolicy} from '../ai/policy.ts';
+import { allTerritories as territories, objectives, colors, objectivePoints, mapFor } from '../data/mapGraph.ts';
 import type { GameConfig, GameState, GameView, Command, GameEvent, BoardCell } from './types.ts';
 export class RuleError extends Error {}
 const requireRule = (condition: unknown, message: string) => {
@@ -27,13 +28,15 @@ export function shuffle<T>(s: {
 export const owned = (s: Pick<GameState, 'board'>, p: number) => s.board.flatMap((t, i) => t.owner === p ? [i] : []);
 export const total = (s: Pick<GameState, 'board'>, p: number) => s.board.reduce((n, t) => n + (t.owner === p ? t.armies : 0), 0);
 export function reinforcement(s: Pick<GameState, 'board'>, p: number): number {
+  const {territories,continents}=mapFor(s);
   const own = owned(s, p);
   return Math.floor(own.length / 3) + continents.reduce((n, c) => n + (territories.filter(t => t.continent === c.id).every(t => s.board[t.id].owner === p) ? c.bonus : 0), 0);
 }
 export function border(s: Pick<GameState, 'board'>, t: number): boolean {
-  return territories[t].neighbors.some(n => s.board[n].owner !== s.board[t].owner);
+  return mapFor(s).territories[t].neighbors.some(n => s.board[n].owner !== s.board[t].owner);
 }
 export function exchangeValue(s: Pick<GameState, 'board'>, p: number, hand: number[]): number {
+  const {cards}=mapFor(s);
   if (hand.length !== 3 || new Set(hand).size !== 3 || hand.some(c => !cards[c])) return 0;
   const symbols = hand.map(c => cards[c].symbol),
     j = symbols.filter(x => x === 'jolly').length;
@@ -80,9 +83,12 @@ export function createGame(config: GameConfig): GameState {
   requireRule([3, 4, 5].includes(config.players), 'Il tavolo deve avere 3, 4 o 5 giocatori.');
   requireRule(Number.isInteger(config.turnSeconds) && config.turnSeconds >= 60 && config.turnSeconds <= 600, 'Tempo turno non valido.');
   requireRule(config.difficulties.length === config.players - 1 && config.difficulties.every(d => ['facile', 'medio', 'difficile', 'casuale'].includes(d)), 'Difficoltà non valida.');
+  requireRule(config.antarctica===undefined||typeof config.antarctica==='boolean', 'Modalità non valida.');
+  const {territories,continents,cards}=mapFor(config);
   const rng = (config.seed ?? Math.floor(Math.random() * 4294967295)) >>> 0 || 1;
   const s: GameState = {
     version: 1,
+    antarctica: config.antarctica===true,
     id: `${Date.now().toString(36)}-${rng.toString(36)}`,
     revision: 0,
     rng,
@@ -131,6 +137,7 @@ export function createGame(config: GameConfig): GameState {
         4: 30,
         5: 25
       } as Record<number, number>)[config.players],
+      botPolicy: botPolicy(config.botPolicies?.[id-1]),
       eliminated: false
     };
   });
@@ -139,10 +146,10 @@ export function createGame(config: GameConfig): GameState {
   let dealt = false;
   for (let attempt = 0; attempt < 100000 && !dealt; attempt++) {
     const deck = shuffle(s, territories.map(t => t.id));
-    const board: BoardCell[] = Array(42);
+    const board: BoardCell[] = Array(territories.length);
     const counts = s.players.map(() => Object.fromEntries(continents.map(c => [c.id, 0])));
     let valid = true;
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < territories.length; i++) {
       const p = s.order[config.players - 1 - i % config.players],
         t = territories[deck[i]];
       counts[p][t.continent]++;
@@ -170,7 +177,7 @@ export function createGame(config: GameConfig): GameState {
 export function canAttack(s: Pick<GameState, 'board' | 'round' | 'active'>, from: number, to: number): boolean {
   const a = s.board[from],
     d = s.board[to];
-  if (!a || !d || a.owner !== s.active || d.owner === s.active || !territories[from].neighbors.includes(to)) return false;
+  if (!a || !d || a.owner !== s.active || d.owner === s.active || !mapFor(s).territories[from].neighbors.includes(to)) return false;
   if (s.round <= 4 && owned(s, d.owner).length === 1) return false;
   return a.armies > 1 && Math.min(3, a.armies - 1) >= Math.min(3, d.armies);
 }
@@ -180,7 +187,7 @@ export function moveBounds(s: Pick<GameState, 'board' | 'pending' | 'phase' | 'a
 } {
   const a = s.board[from],
     b = s.board[to];
-  if (!a || !b || a.owner !== s.active || b.owner !== s.active || !territories[from].neighbors.includes(to)) return {
+  if (!a || !b || a.owner !== s.active || b.owner !== s.active || !mapFor(s).territories[from].neighbors.includes(to)) return {
     min: 1,
     max: 0
   };
@@ -222,6 +229,7 @@ function startTurn(s: GameState) {
   s.pending = null;
   s.remainingMs = s.turnSeconds * 1000;
   s.reinforcements = Math.min(130 - total(s, s.active), reinforcement(s, s.active));
+  s.turnReinforcements=s.reinforcements;
   event(s, 'onTurnChanged', `${s.players[s.active].name}: giro ${s.round}, ${s.reinforcements} rinforzi.`);
   checkObjective(s);
 }
@@ -338,6 +346,7 @@ export function applyCommand(input: GameState, actor: number, command: Command):
         s.discard.push(...command.cards);
         const added = Math.min(value, 130 - total(s, s.active) - s.reinforcements);
         s.reinforcements += added;
+        s.turnReinforcements=(s.turnReinforcements??s.reinforcements-added)+added;
         event(s, 'onGameStateUpdate', `${p.name} cambia un tris: ${added} rinforzi${added < value ? ' (limite carri)' : ''}.`, {action: 'exchange', count: added});
         break;
       }
@@ -534,10 +543,12 @@ export function upgradeConquestSave(input: GameState): GameState {
   return s;
 }
 export function assertState(s: GameState) {
-  requireRule(s.version === 1 && s.board.length === 42, 'Salvataggio incompatibile.');
+  requireRule(s.antarctica===undefined||typeof s.antarctica==='boolean', 'Modalità salvata non valida.');
+  const {territories,cards}=mapFor({antarctica:s.antarctica===true});
+  requireRule(s.version === 1 && s.board.length === territories.length, 'Salvataggio incompatibile.');
   requireRule([3, 4, 5].includes(s.players.length), 'Numero giocatori non valido.');
   requireRule(new Set(s.order).size === s.players.length && s.order.every(id => s.players[id]), 'Ordine di gioco non valido.');
-  for (let i = 0; i < 42; i++) {
+  for (let i = 0; i < territories.length; i++) {
     const t = s.board[i];
     requireRule(s.players[t.owner] && Number.isInteger(t.armies) && t.armies >= (s.phase === 'POST_CONQUEST_MOVE' && s.pending?.to === i && s.pending.transferred === undefined ? 0 : 1), 'Stato territorio non valido.');
   }
@@ -552,6 +563,6 @@ export function assertState(s: GameState) {
     requireRule(p.eliminated === (owned(s, p.id).length === 0), 'Eliminazione incoerente.');
   }
   const all = [...s.deck, ...s.discard, ...s.players.flatMap(p => p.cards)];
-  requireRule(all.length === 44 && new Set(all).size === 44 && all.every(c => cards[c]), 'Conservazione delle carte violata.');
+  requireRule(all.length === cards.length && new Set(all).size === cards.length && all.every(c => cards[c]), 'Conservazione delle carte violata.');
   requireRule(s.reinforcements >= 0 && s.remainingMs >= 0, 'Contatori non validi.');
 }

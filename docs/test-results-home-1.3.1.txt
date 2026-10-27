@@ -1,0 +1,21 @@
+✔ lobby renders all bot slots, defaults and blind selectors without real levels (6.63565ms)
+✔ table renders 42 territories, hidden objectives, timer and battle controls (6.053232ms)
+✔ new game requires confirmation before replacing a save (1.24653ms)
+✔ commands carry actor-independent revision and unique request id (4.476583ms)
+✔ results reveal blind difficulty and all objectives only after conclusion (3.85796ms)
+✔ background pause during compulsory conquest never traps the resume controls (1.899466ms)
+✔ setup UI distingue schierati, riserva e mano, evidenzia solo i propri territori (1.414944ms)
+✔ carte militari selezionabili: invia solo il tris scelto e mostra il bonus (3.868557ms)
+✔ spostamento obbligatorio usa finestra flottante senza oscurare la plancia (1.043725ms)
+✔ carte e selezione restano aperte tra attacchi e cambi di turno dei bot (5.923096ms)
+✔ finestra conquista mostra minimo trasferito e selettore aggiuntivi a zero (1.652012ms)
+✔ strategie per bot: caselle, tregua, applica a tutti e configurazione della nuova partita (1.083064ms)
+✔ Antartide facoltativa: menu, plancia completa e ripresa con inquadratura estesa (4.769295ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 155.724007

@@ -1,3 +1,4 @@
+export type BotPolicy = { weakBorders: boolean; continents: boolean; defend: boolean; disruptGrowth: boolean; breakBonus: boolean; containLeader: boolean; eliminate: boolean; reserve: boolean; graceRounds: number };
 export type Difficulty = 'facile' | 'medio' | 'difficile';
 export type Phase = 'SETUP_PLACEMENT' | 'TRIS_EXCHANGE' | 'REINFORCEMENT' | 'ATTACK' | 'POST_CONQUEST_MOVE' | 'FORTIFY' | 'CARD_DRAW' | 'SDADATA_CHECK' | 'GAME_OVER';
 export type Player = {
@@ -11,6 +12,7 @@ export type Player = {
   cards: number[];
   setupRemaining: number;
   eliminated: boolean;
+  botPolicy?: BotPolicy;
 };
 export type BoardCell = {
   owner: number;
@@ -39,6 +41,7 @@ export type GameEvent = {
 };
 export type GameState = {
   version: 1;
+  antarctica?: boolean;
   id: string;
   revision: number;
   rng: number;
@@ -52,6 +55,7 @@ export type GameState = {
   deck: number[];
   discard: number[];
   reinforcements: number;
+  turnReinforcements?: number;
   setupBatch: number;
   conquests: number;
   pending: PendingMove | null;
@@ -75,6 +79,8 @@ export type GameState = {
 };
 export type BotContext = {
   temperament: number;
+  sortieChecked?: boolean;
+  sortiePending?: boolean;
   round: number;
   turns: number;
   lastEpisode: number;
@@ -86,9 +92,11 @@ export type BotContext = {
   episode: { from: number; to: number; initialArmies: number; rolls: number } | null;
 };
 export type GameConfig = {
+  antarctica?: boolean;
   players: number;
   name: string;
   difficulties: (Difficulty | 'casuale')[];
+  botPolicies?: BotPolicy[];
   turnSeconds: number;
   seed?: number;
 };

@@ -8,7 +8,7 @@ import {playTransition} from '../src/gui/effects.ts';
 // Small SVG adapter: tests actual timeline callbacks and rendered counts, not CSS layout.
 function timeline(t:Transition,check:(run:(until?:number)=>void,cancel:()=>void,dom:any)=>void) {
  const original={set:globalThis.setTimeout,clear:globalThis.clearTimeout};
- let now=0,serial=0,finished=0;
+ let now=0,serial=0,finished=0,clashes=0;
  const timers=new Map<number,{at:number;fn:()=>void}>();
  const classes=()=>{const set=new Set<string>();return {add:(...xs:string[])=>xs.forEach(x=>set.add(x)),remove:(...xs:string[])=>xs.forEach(x=>set.delete(x)),contains:(x:string)=>set.has(x)};};
  const tokens=t.before.board.map(c=>{
@@ -19,7 +19,7 @@ function timeline(t:Transition,check:(run:(until?:number)=>void,cancel:()=>void,
  });
  const host={innerHTML:'',className:'',classList:classes(),style:{setProperty(){}},querySelector(){return null;}};
  const marks:string[]=[];
- const fx={insertAdjacentHTML(_where:string,markup:string){marks.push(markup);},remove(){}};
+ const fx={classList:classes(),insertAdjacentHTML(_where:string,markup:string){marks.push(markup);},remove(){}};
  const cell={classList:classes(),setAttribute(){}};
  const root={querySelector(q:string){
   if(q==='#effects')return host;
@@ -37,7 +37,7 @@ function timeline(t:Transition,check:(run:(until?:number)=>void,cancel:()=>void,
    timers.delete(next[0]);now=next[1].at;next[1].fn();
   }
  };
- try{const cancel=playTransition(root as never,t,()=>finished++);check(run,cancel,{tokens,marks,host,get finished(){return finished;}});}
+ try{const cancel=playTransition(root as never,t,()=>finished++,()=>clashes++);check(run,cancel,{tokens,marks,host,get finished(){return finished;},get clashes(){return clashes;}});}
  finally{globalThis.setTimeout=original.set;globalThis.clearTimeout=original.clear;}
 }
 function conquest(){
@@ -54,6 +54,7 @@ test('animazione conquista: conteggi autentici, nessun fotogramma a zero, nessun
  timeline(makeTransition(s,n)!, (run,_cancel,dom)=>{
   run(1600);assert.equal(dom.tokens[1].number.textContent,'1');
   run();assert.equal(dom.finished,1);
+  assert.equal(dom.clashes,1);assert.match(dom.marks.join(''),/clash-origin/);assert.match(dom.marks.join(''),/clash-impact/);
   assert.equal(dom.tokens[1].number.textContent,'3');assert.equal(dom.tokens[0].number.textContent,'9');
   assert.ok(!dom.tokens[1].seen.includes('0'));
   assert.match(dom.marks.join(''),/>\+3</);assert.match(dom.marks.join(''),/>−3</);
@@ -71,7 +72,7 @@ test('animazione aggiuntivi: aggiorna entrambi i contatori una sola volta',()=>{
 test('interruzione animazioni cancella i callback e non invia un secondo completamento',()=>{
  const {s,n}=conquest();
  timeline(makeTransition(s,n)!, (run,cancel,dom)=>{
-  run(500);cancel();run();assert.equal(dom.finished,0);assert.equal(dom.host.innerHTML,'');
+  run(500);cancel();run();assert.equal(dom.finished,0);assert.equal(dom.clashes,0);assert.equal(dom.host.innerHTML,'');
   assert.deepEqual(dom.tokens[1].seen,['1']);
  });
 });

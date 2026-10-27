@@ -1,6 +1,7 @@
+import {botPolicy} from './policy.ts';
 import {chooseBotCommand, conquestOdds} from './BotAI.ts';
 import {canAttack, owned} from '../engine/RisikoRulesEngine.ts';
-import {territories} from '../data/mapGraph.ts';
+import {mapFor} from '../data/mapGraph.ts';
 import type {BotContext, Command, Difficulty, GameView} from '../engine/types.ts';
 
 export function humanDecision(v: GameView, level: Difficulty, rng: () => number, previous?: BotContext): {command: Command; context: BotContext} {
@@ -26,23 +27,23 @@ export function humanDecision(v: GameView, level: Difficulty, rng: () => number,
     context.turns++;
     if (context.reclaimUntil !== undefined && context.turns > context.reclaimUntil) context.lostTerritory = null;
     context.episode = null;
-    // Episodes are sampled once per own turn, never once per attempted attack.
-    const others = v.players.filter(x => !x.eliminated && x.id !== p.id);
-    const mean = others.reduce((n, x) => n + x.totalArmies, 0) / Math.max(1, others.length);
-    const desperate = v.round >= 5 && p.territoryCount <= 3 && p.totalArmies < mean / 2 && context.turns - context.lastEpisode >= 3;
-    if (desperate && rng() < {facile: .06, medio: .03, difficile: .01}[level]) {
-      const attacks = owned(v, p.id).flatMap(from => territories[from].neighbors
-        .filter(to => canAttack(v, from, to))
-        .map(to => ({from, to, score: (to === context.lostTerritory ? 10 : 0) - v.board[to].armies})))
-        .sort((a, b) => b.score - a.score);
-      if (attacks[0]) {
-        const {from, to} = attacks[0];
-        context.episode = {from, to, initialArmies: v.board[from].armies, rolls: 0};
-        context.lastEpisode = context.turns;
-      }
-    }
+    context.sortieChecked = false;
+    context.sortiePending = false;
   }
-  if (v.phase === 'ATTACK' && context.episode) {
+  const policy=botPolicy(p.botPolicy);
+  // Decide only after card exchanges: a large bonus must prevent eligibility.
+  if(!context.sortieChecked && ['REINFORCEMENT','ATTACK','FORTIFY'].includes(v.phase)){
+    context.sortieChecked=true;
+    const received=v.turnReinforcements ?? (v.phase==='REINFORCEMENT'?v.reinforcements:Infinity);
+    const eligible=v.round>=5 && v.round>policy.graceRounds && p.territoryCount<=8 && received<3 && context.turns-context.lastEpisode>=3;
+    context.sortiePending=eligible && rng() < {facile:.06,medio:.03,difficile:.02}[level];
+  }
+  if(v.phase==='ATTACK' && context.sortiePending){
+    context.sortiePending=false;
+    const attacks=owned(v,p.id).flatMap(from=>mapFor(v).territories[from].neighbors.filter(to=>canAttack(v,from,to)).map(to=>({from,to,score:(to===context.lostTerritory?10:0)-v.board[to].armies}))).sort((a,b)=>b.score-a.score||a.from-b.from||a.to-b.to);
+    if(attacks[0]){const {from,to}=attacks[0];context.episode={from,to,initialArmies:v.board[from].armies,rolls:0};context.lastEpisode=context.turns;}
+  }
+  if (v.phase === 'ATTACK' && context.episode && v.round>policy.graceRounds) {
     const e = context.episode;
     if (e.rolls < 3 && v.board[e.from].armies > e.initialArmies / 2 && canAttack(v, e.from, e.to)) {
       e.rolls++;

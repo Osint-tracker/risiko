@@ -1,4 +1,6 @@
-import { territories, continents, objectives, seaLinks, cards, colors } from '../data/mapGraph.ts';
+import {GameAudio} from './AudioService.ts';
+import {botPolicy,policyOptions} from '../ai/policy.ts';
+import { allTerritories as territories, objectives, allCards as cards, colors, mapFor } from '../data/mapGraph.ts';
 import { canAttack, moveBounds, validTris, exchangeValue } from '../engine/RisikoRulesEngine.ts';
 import type { GameView, Command, GameConfig } from '../engine/types.ts';
 import {armyToken, counterFontSize, tankShape, territoryColors, cardFace, objectiveMap, dieMarkup} from './art.ts';
@@ -34,25 +36,10 @@ const levelNames: Record<string, string> = {
 const tank = '<path d="M2 10h26l-3-5h-7V2h-7v3H7zM4 12h22a4 4 0 010 8H4a4 4 0 010-8zm1 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm7 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm7 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM16 3h17v3H16z"/>';
 const tankIcon = `<svg viewBox="0 0 34 22" class="tank-icon" aria-hidden="true">${tank}</svg>`;
 const duration = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
-let audio: AudioContext | null = null;
-function sound(kind = 'tap') {
-  try {
-    audio ??= new AudioContext();
-    if (audio.state === 'suspended') void audio.resume();
-    const o = audio.createOscillator(),
-      g = audio.createGain();
-    o.connect(g);
-    g.connect(audio.destination);
-    o.type = kind === 'battle' ? 'triangle' : 'sine';
-    o.frequency.setValueAtTime(kind === 'battle' ? 130 : 480, audio.currentTime);
-    o.frequency.exponentialRampToValueAtTime(70, audio.currentTime + .12);
-    g.gain.setValueAtTime(.035, audio.currentTime);
-    g.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .15);
-    o.start();
-    o.stop(audio.currentTime + .16);
-  } catch {}
-}
 export function mountGame(root: HTMLElement): () => void {
+  const sounds=new GameAudio();
+  const sound=(kind='tap')=>kind==='battle'?sounds.clash():sounds.tap();
+  let strategyBot=0;
   const worker = new Worker(new URL('../engine/server.worker.ts', import.meta.url), {
     type: 'module'
   });
@@ -77,6 +64,7 @@ export function mountGame(root: HTMLElement): () => void {
   let restoreViewport: typeof viewport | null = null;
   let blitzTimer: ReturnType<typeof setTimeout> | null = null;
   function cancelPresentation() {
+    sounds.stop();
     cancelEffects?.(); cancelEffects=null; presenting=null;
     if(restoreViewport){viewport=restoreViewport;restoreViewport=null;}
     if(blitzTimer){clearTimeout(blitzTimer);blitzTimer=null;}
@@ -87,14 +75,16 @@ export function mountGame(root: HTMLElement): () => void {
     objectiveView = false,
     showLog = false,
     speed = 1,
-    muted = false,
+    muted = sounds.muted,
     pendingCommand = false,
     blitz = false;
   let config: GameConfig = {
+    antarctica: false,
     players: 4,
     name: 'Comandante',
     difficulties: ['medio', 'medio', 'medio'],
-    turnSeconds: 180
+    turnSeconds: 180,
+    botPolicies:Array.from({length:4},()=>botPolicy())
   };
   let viewport = {
       x: 0,
@@ -132,10 +122,11 @@ export function mountGame(root: HTMLElement): () => void {
     return state?.players[0].points ?? 0;
   }
   function mapMarkup(preview = false) {
+    const {territories,continents,seaLinks,height}=mapFor(preview?config:state??{});
     const labels: string[] = [];
     const s = state,
       goal = s?.players[0].objective ? objectives[s.players[0].objective! - 1].territories : [];
-    return `<svg id="world-map" class="world-map ${preview ? 'preview' : ''}" viewBox="${preview ? '0 0 1240 690' : `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`}" role="img" aria-label="Plancia interattiva: 42 territori"><defs><pattern id="ocean-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#9addcc" stroke-width=".5" opacity=".25"/></pattern><linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#064452"/><stop offset=".43" stop-color="#20ac9e"/><stop offset=".55" stop-color="#29b7a7"/><stop offset="1" stop-color="#054250"/></linearGradient><pattern id="triangles" width="18" height="16" patternUnits="userSpaceOnUse"><path d="M0 0L9 16L18 0ZM0 16L9 0L18 16Z" fill="none" stroke="#011f2d" stroke-width="2" opacity=".32"/></pattern><linearGradient id="pattern-fade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="white"/><stop offset=".35" stop-color="black"/><stop offset=".65" stop-color="black"/><stop offset="1" stop-color="white"/></linearGradient><mask id="ocean-pattern"><rect width="1240" height="690" fill="url(#pattern-fade)"/></mask><pattern id="land-grain" width="17" height="19" patternUnits="userSpaceOnUse"><path d="M1 3L4 2M7 8L11 7M3 15L5 17M14 1L16 5M12 16L16 14" stroke="#ffe9ad" stroke-width=".7" opacity=".14"/><path d="M2 7L5 10M9 1L11 2M9 13L8 17" stroke="#173d25" stroke-width="1" opacity=".2"/></pattern><filter id="terrain"><feTurbulence type="fractalNoise" baseFrequency=".4" numOctaves="3" seed="8" result="noise"/><feColorMatrix in="noise" type="matrix" values=".33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 .28 0"/><feComposite in2="SourceGraphic" operator="in"/><feBlend in="SourceGraphic" mode="soft-light"/></filter><filter id="land-shadow"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-opacity=".35"/></filter><symbol id="tank" viewBox="0 0 34 22">${tank}</symbol></defs><rect x="-4000" y="-4000" width="9200" height="9200" fill="#07535e"/><rect width="1240" height="690" fill="url(#ocean)"/><rect width="1240" height="690" fill="url(#triangles)" mask="url(#ocean-pattern)"/><rect x="0" y="0" width="1240" height="690" fill="url(#ocean-grid)"/><g class="map-decoration"><circle cx="620" cy="345" r="290"/><circle cx="620" cy="345" r="190"/><path d="M0 345H1240M620 0V690"/><text x="80" y="450">OCEANO PACIFICO</text><text x="410" y="290">ATLANTICO</text><text x="809" y="580">OCEANO INDIANO</text></g><g class="sea-links">${seaLinks.map(([a, b]) => {
+    return `<svg id="world-map" class="world-map ${preview ? 'preview' : ''}" viewBox="${preview ? `0 0 1240 ${height}` : `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`}" role="img" aria-label="Plancia interattiva: ${territories.length} territori"><defs><pattern id="ocean-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#9addcc" stroke-width=".5" opacity=".25"/></pattern><linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#064452"/><stop offset=".43" stop-color="#20ac9e"/><stop offset=".55" stop-color="#29b7a7"/><stop offset="1" stop-color="#054250"/></linearGradient><pattern id="triangles" width="18" height="16" patternUnits="userSpaceOnUse"><path d="M0 0L9 16L18 0ZM0 16L9 0L18 16Z" fill="none" stroke="#011f2d" stroke-width="2" opacity=".32"/></pattern><linearGradient id="pattern-fade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="white"/><stop offset=".35" stop-color="black"/><stop offset=".65" stop-color="black"/><stop offset="1" stop-color="white"/></linearGradient><mask id="ocean-pattern"><rect width="1240" height="${height}" fill="url(#pattern-fade)"/></mask><pattern id="land-grain" width="17" height="19" patternUnits="userSpaceOnUse"><path d="M1 3L4 2M7 8L11 7M3 15L5 17M14 1L16 5M12 16L16 14" stroke="#ffe9ad" stroke-width=".7" opacity=".14"/><path d="M2 7L5 10M9 1L11 2M9 13L8 17" stroke="#173d25" stroke-width="1" opacity=".2"/></pattern><filter id="terrain"><feTurbulence type="fractalNoise" baseFrequency=".4" numOctaves="3" seed="8" result="noise"/><feColorMatrix in="noise" type="matrix" values=".33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 .28 0"/><feComposite in2="SourceGraphic" operator="in"/><feBlend in="SourceGraphic" mode="soft-light"/></filter><filter id="land-shadow"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-opacity=".35"/></filter><symbol id="tank" viewBox="0 0 34 22">${tank}</symbol></defs><rect x="-4000" y="-4000" width="9200" height="9200" fill="#07535e"/><rect width="1240" height="${height}" fill="url(#ocean)"/><rect width="1240" height="${height}" fill="url(#triangles)" mask="url(#ocean-pattern)"/><rect x="0" y="0" width="1240" height="${height}" fill="url(#ocean-grid)"/><g class="map-decoration"><circle cx="620" cy="345" r="290"/><circle cx="620" cy="345" r="190"/><path d="M0 345H1240M620 0V690"/><text x="80" y="450">OCEANO PACIFICO</text><text x="410" y="290">ATLANTICO</text><text x="809" y="580">OCEANO INDIANO</text></g><g class="sea-links">${seaLinks.map(([a, b]) => {
       const A = territories[a],
         B = territories[b];
       return a === 0 && b === 29 ? `<path d="M${A.x} ${A.y}L0 ${A.y}M1240 ${B.y}L${B.x} ${B.y}"/>` : `<path d="M${A.x} ${A.y}L${B.x} ${B.y}"/>`;
@@ -152,8 +143,7 @@ export function mountGame(root: HTMLElement): () => void {
   }
   const header = () => `<header class="app-header"><button class="brand" data-action="home" aria-label="Pagina iniziale">RisiKo<span>!</span><small>OFFLINE / REGULAR</small></button><nav><span class="offline-indicator"><i></i> 100% OFFLINE</span><button class="profile-button" data-action="profile"><span class="avatar">${escape(profile.name[0].toUpperCase())}</span><span>${escape(profile.name)}<small>Profilo locale</small></span></button></nav></header>`;
   function home() {
-    const wins = profile.results.filter(r => r.rank === 1).length;
-    return `${header()}<main class="dashboard"><section class="intro"><div class="eyebrow"><span class="gold-line"></span> IL TUO TAVOLO. LA TUA STRATEGIA.</div><h1>Il mondo aspetta<br>la tua <em>prossima mossa.</em></h1><p>Una plancia, un obiettivo segreto.<br>Sfida l’intelligenza artificiale, ovunque ti trovi.</p><div class="home-map">${mapMarkup(true)}<span class="map-stamp">42 TERRITORI · 6 CONTINENTI</span></div><div class="home-stats"><div><strong>${profile.results.length}</strong><span>PARTITE GIOCATE</span></div><div><strong>${wins}</strong><span>VITTORIE</span></div><div><strong>${profile.results.length ? Math.round(profile.results.reduce((n, r) => n + r.points, 0) / profile.results.length) : '—'}</strong><span>MEDIA PUNTI</span></div></div></section><section class="lobby-panel"><div class="panel-heading"><span class="mode-icon">${tankIcon}</span><div><span class="eyebrow">TORNEO STANDARD</span><h2>Regular <span>20</span></h2></div><span class="pill">SINGLE PLAYER</span></div><p class="muted">20 giri + sdadata · Obiettivi segreti da 86 punti</p><label class="field-label" for="player-name">IL TUO NOME</label><input id="player-name" maxlength="24" value="${escape(config.name)}" autocomplete="off"/><div class="lobby-row"><div><label class="field-label" for="player-count">GIOCATORI AL TAVOLO</label><div class="segmented">${[3, 4, 5].map(n => `<button data-count="${n}" class="${config.players === n ? 'active' : ''}">${n}</button>`).join('')}</div></div><div><label class="field-label" for="turn-time">TEMPO PER TURNO</label><select id="turn-time">${[60, 120, 180, 240, 300, 600].map(n => `<option value="${n}" ${config.turnSeconds === n ? 'selected' : ''}>${n / 60} minuti</option>`).join('')}</select></div></div><div class="opponents-heading"><span class="field-label">I TUOI AVVERSARI</span><button class="text-button" data-action="blind-all">Tutti casuali ↻</button></div><div class="bot-slots">${config.difficulties.map((d, i) => `<div class="bot-slot"><span class="bot-avatar" style="--player:${colors[i + 1]}">${tankIcon}</span><div class="bot-info"><strong>${['Falco', 'Vega', 'Atlas', 'Ombra'][i]}</strong><small>${d === 'casuale' ? 'Bot ? · livello segreto' : 'BOT IA'}</small></div><select data-bot="${i}" aria-label="Difficoltà ${['Falco', 'Vega', 'Atlas', 'Ombra'][i]}">${['facile', 'medio', 'difficile', 'casuale'].map(l => `<option value="${l}" ${l === d ? 'selected' : ''}>${levelNames[l]}</option>`).join('')}</select></div>`).join('')}</div><button class="primary start-button" data-action="new" ${!ready ? 'disabled' : ''}>${ready ? 'Crea il tuo tavolo' : 'Caricamento…'} <span>→</span></button>${hasGame ? '<button class="secondary full" data-action="resume">Riprendi la partita salvata ↗</button>' : ''}<p class="privacy-note">Salvataggio automatico sul dispositivo.<br>Nessun account. Nessuna connessione necessaria.</p></section></main><footer class="home-footer"><span>REGOLAMENTO ITALIANO · FINO A 3 DADI IN DIFESA</span><button data-action="rules" class="text-button">Regole e informazioni ↗</button></footer>`;
+    return `<main class="classic-home"><header class="classic-header"><div class="classic-brand">RisiKo<span>!</span><small>OFFLINE · Regular 20</small></div><nav><button data-action="audio" aria-label="Impostazioni audio">♫ Audio</button><button data-action="profile">Profilo</button><button data-action="rules">Regole</button></nav></header><section class="classic-lobby"><aside class="box-art"><div class="box-title">20 GIRI.<br>POI SDADATA.</div><div class="box-map">${mapMarkup(true)}</div><div class="box-tanks">${['#df2337','#25252c','#ffce32','#32b5ed','#32a05a','#9159c2'].map((color,i)=>armyToken([3,5,2,4,6,1][i],color)).join('')}</div><div class="box-caption">${config.antarctica?44:42} TERRITORI · 3–5 GIOCATORI</div></aside><section class="classic-settings"><div class="settings-title"><h1>Prepara la partita</h1><div class="settings-actions">${hasGame?'<button class="resume-button" data-action="resume">Riprendi ▶</button>':''}<button class="primary start-button" data-action="new" ${ready?'':'disabled'}>${ready?'GIOCA':'CARICAMENTO…'} <span>▶</span></button></div></div><div class="settings-scroll"><section class="lobby-basics" aria-label="Impostazioni partita"><label class="field-label" for="player-name">IL TUO NOME</label><input id="player-name" maxlength="24" value="${escape(config.name)}" autocomplete="off"/><div class="lobby-row"><div><span class="field-label">GIOCATORI</span><div class="segmented">${[3,4,5].map(n=>`<button data-count="${n}" class="${config.players===n?'active':''}">${n}</button>`).join('')}</div></div><div><label class="field-label" for="turn-time">TEMPO PER TURNO</label><select id="turn-time">${[60,120,180,240,300,600].map(n=>`<option value="${n}" ${config.turnSeconds===n?'selected':''}>${n/60} minuti</option>`).join('')}</select></div></div><label class="antarctica-option"><input id="antarctica-mode" type="checkbox" ${config.antarctica?'checked':''}/><span><b>Modalità Antartide</b><small>2 territori · +2 armate per turno se controlli entrambi</small></span></label></section><section class="lobby-opponents" aria-label="Avversari"><div class="opponents-heading"><span class="field-label">AVVERSARI</span><button data-action="blind-all" class="text-button">Tutti casuali ↻</button></div><div class="bot-slots">${config.difficulties.map((d,i)=>`<div class="bot-slot" style="--player:${colors[i+1]}"><span class="bot-avatar">${armyToken(i+1,colors[i+1])}</span><div class="bot-info"><strong>${['Falco','Vega','Atlas','Ombra'][i]}</strong><small>${d==='casuale'?'Bot ? · livello segreto':'BOT IA'}</small></div><select data-bot="${i}" aria-label="Difficoltà ${['Falco','Vega','Atlas','Ombra'][i]}">${['facile','medio','difficile','casuale'].map(l=>`<option value="${l}" ${l===d?'selected':''}>${levelNames[l]}</option>`).join('')}</select><button class="strategy-button" data-strategy="${i}">Strategia</button></div>`).join('')}</div></section></div><small class="classic-footnote">Salvataggio automatico · Nessuna connessione richiesta</small></section></section></main>`;
   }
   function playerCards() {
     return `<aside class="players-row" aria-label="Giocatori">${state!.order.map(id => {
@@ -207,7 +197,7 @@ export function mountGame(root: HTMLElement): () => void {
       ${showLog?`<aside class="game-log"><button data-action="log" class="close-button">×</button><h3>Diario della partita</h3>${s.log.slice(-250).reverse().map(e=>`<p><i style="background:${s.players[e.player].color}"></i>${escape(e.message)}</p>`).join('')}</aside>`:''}
     </main>`;
   }
-  function miniObjective(id: number) { return objectiveMap(id); }
+  function miniObjective(id: number) { return objectiveMap(id,state?.antarctica===true); }
   function results() {
     const s = state!,
       ranking = [...s.players].sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.outside ?? 0) - (a.outside ?? 0) || s.order.indexOf(b.id) - s.order.indexOf(a.id));
@@ -223,22 +213,29 @@ export function mountGame(root: HTMLElement): () => void {
         4: [70, 50, 25, 10],
         5: [90, 70, 50, 25, 10]
       } as Record<number, number[]>)[r.players][r.rank - 1], 0);
-    return `${header()}<main class="profile-page"><button class="text-button" data-action="home">← Torna al tavolo</button><span class="eyebrow">IL TUO PERCORSO / REGULAR</span><h1>${escape(profile.name)}</h1><p class="muted">Livello locale ${1 + Math.floor(xp / 100)} · ${xp} XP · Statistiche conservate su questo dispositivo</p><div class="stat-grid">${[[n, 'Partite giocate'], [wins, 'Vittorie'], [mean, 'Media punti'], [n ? Math.round(100 * rows.filter(r => r.reason === 'risiko').length / n) + '%' : '—', 'Fine per RisiKo!'], [n ? Math.round(100 * rows.filter(r => r.reason === 'sdadata').length / n) + '%' : '—', 'Fine per sdadata'], [n ? duration(rows.reduce((sum, r) => sum + r.duration, 0) / n) : '—', 'Durata media']].map(([v, l]) => `<div><strong>${v}</strong><span>${l}</span></div>`).join('')}</div><h2>Le tue partite</h2>${!n ? '<div class="empty-state">La tua storia comincia dalla prossima mossa.<br>Completa una partita per registrare il primo risultato.</div>' : `<table class="history"><thead><tr><th>Data</th><th>Tavolo</th><th>Posizione</th><th>Punti</th><th>Conclusione</th><th>Durata</th></tr></thead><tbody>${rows.map(r => `<tr><td>${new Date(r.date).toLocaleDateString('it-IT')}</td><td>${r.players} giocatori</td><td>${r.rank}°</td><td>${r.points}</td><td>${r.reason === 'risiko' ? 'RisiKo!' : 'Sdadata'}</td><td>${duration(r.duration)}</td></tr>`).join('')}</tbody></table>`}<h2>Classifica personale</h2><div class="local-ranking">${[...rows].sort((a, b) => b.points - a.points || a.rank - b.rank).slice(0, 10).map((r, i) => `<div><span>${i + 1}.</span><b>${escape(r.name)}</b><span>${new Date(r.date).toLocaleDateString('it-IT')}</span><strong>${r.points} pt</strong></div>`).join('') || '<p class="muted">Le dieci migliori prestazioni appariranno qui.</p>'}</div></main>`;
+    return `${header()}<main class="profile-page"><button class="text-button" data-action="home">← Torna al tavolo</button><span class="eyebrow">IL TUO PERCORSO / REGULAR</span><h1>${escape(profile.name)}</h1><p class="muted">Livello locale ${1 + Math.floor(xp / 100)} · ${xp} XP · Statistiche conservate su questo dispositivo</p><div class="stat-grid">${[[n, 'Partite giocate'], [wins, 'Vittorie'], [mean, 'Media punti'], [n ? Math.round(100 * rows.filter(r => r.reason === 'risiko').length / n) + '%' : '—', 'Fine per RisiKo!'], [n ? Math.round(100 * rows.filter(r => r.reason === 'sdadata').length / n) + '%' : '—', 'Fine per sdadata'], [n ? duration(rows.reduce((sum, r) => sum + r.duration, 0) / n) : '—', 'Durata media']].map(([v, l]) => `<div><strong>${v}</strong><span>${l}</span></div>`).join('')}</div><h2>Le tue partite</h2>${!n ? '<div class="empty-state">La tua storia comincia dalla prossima mossa.<br>Completa una partita per registrare il primo risultato.</div>' : `<table class="history"><thead><tr><th>Data</th><th>Tavolo</th><th>Posizione</th><th>Punti</th><th>Conclusione</th><th>Durata</th></tr></thead><tbody>${rows.map(r => `<tr><td>${new Date(r.date).toLocaleDateString('it-IT')}</td><td>${r.players} giocatori${r.antarctica?' · Antartide':''}</td><td>${r.rank}°</td><td>${r.points}</td><td>${r.reason === 'risiko' ? 'RisiKo!' : 'Sdadata'}</td><td>${duration(r.duration)}</td></tr>`).join('')}</tbody></table>`}<h2>Classifica personale</h2><div class="local-ranking">${[...rows].sort((a, b) => b.points - a.points || a.rank - b.rank).slice(0, 10).map((r, i) => `<div><span>${i + 1}.</span><b>${escape(r.name)}</b><span>${new Date(r.date).toLocaleDateString('it-IT')}</span><strong>${r.points} pt</strong></div>`).join('') || '<p class="muted">Le dieci migliori prestazioni appariranno qui.</p>'}</div></main>`;
   }
   function modalMarkup() {
-    if (!modal || !state && modal !== 'rules' && modal !== 'replace') return '';
+    if (!modal || !state && !['rules','replace','strategy','audio'].includes(modal)) return '';
     let content = '',
       cls = '';
     const s = state;
+    if(modal==='strategy'){
+      const policy=config.botPolicies![strategyBot];cls='strategy-window';
+      content=`<h2>Strategia · ${['Falco','Vega','Atlas','Ombra'][strategyBot]}</h2><p>Le caselle definiscono le priorità di questo bot.</p><div class="policy-list">${policyOptions.map(([key,label,hint])=>`<label><input type="checkbox" data-policy="${key}" ${policy[key]?'checked':''}/><span><strong>${label}</strong><small>${hint}</small></span></label>`).join('')}</div><label class="grace-field">Tregua iniziale <select id="grace-rounds">${[0,1,2,3].map(n=>`<option value="${n}" ${policy.graceRounds===n?'selected':''}>${n===0?'Nessuna':n+' giri'}</option>`).join('')}</select></label><p class="policy-note">Durante la tregua il bot difende e rinforza, ma non attacca.</p><div class="policy-actions"><button class="secondary" data-action="policy-all">Applica a tutti</button><button class="text-button" data-action="policy-reset">Ripristina consigliati</button></div>`;
+    }
+    if(modal==='audio'){
+      cls='audio-window';content=`<h2>Audio</h2><label class="audio-switch"><input type="checkbox" id="audio-enabled" ${muted?'':'checked'}/> Effetti sonori</label><label for="audio-volume">Volume</label><input id="audio-volume" type="range" min="0" max="100" value="${Math.round(sounds.volume*100)}"/><button class="primary full" data-action="audio-test">Prova il clash</button><p>Il volume multimediale del telefono deve essere attivo.</p>`;
+    }
     if (modal === 'replace') {
       content = '<span class="eyebrow">NUOVA PARTITA</span><h2>Aprire un nuovo tavolo?</h2><p>La partita in corso verrà sostituita. Le statistiche delle partite concluse rimangono salvate.</p><button class="primary full" data-action="confirm-new">Crea il nuovo tavolo</button>';
     }
     if (modal === 'rules') {
-      content = '<span class="eyebrow">COME SI GIOCA</span><h2>La strategia, in breve.</h2><div class="rules-copy"><p>Rinforza, attacca, effettua uno spostamento tra territori adiacenti e pesca una carta se hai conquistato almeno un territorio.</p><p>Si attacca e si difende con il massimo dei dadi, fino a tre. Non puoi attaccare con meno dadi del difensore. I pareggi favoriscono la difesa.</p><p>I tris valgono 8, 10 o 12 armate, più 2 per ogni carta territorio posseduta. Puoi conservare fino a 7 carte e schierare fino a 130 carri.</p><p>Conquista il tuo obiettivo per vincere subito. Dal termine del giro 20, la sdadata può chiudere la partita: soglia 4, poi 5, 6 e 7. Con tre conquiste o più non si lancia.</p><p>Gli avversari non possono essere eliminati nei primi quattro giri. Una guarnigione di almeno due carri deve rimanere sui confini nemici quando sposti volontariamente.</p><p>Alla scadenza del turno vengono completati i piazzamenti e i movimenti obbligatori; poi il turno termina. L’app in background mette in pausa la partita.</p><p class="muted">Riferimento: il file “RisiKo! Online – Come si gioca” fornito dall’utente, integrato con le regole concordate. Ricostruzione indipendente offline, non affiliata a Spin Master.</p></div>';
+      content = '<span class="eyebrow">COME SI GIOCA</span><h2>La strategia, in breve.</h2><div class="rules-copy"><p>Rinforza, attacca, effettua uno spostamento tra territori adiacenti e pesca una carta se hai conquistato almeno un territorio.</p><p>Si attacca e si difende con il massimo dei dadi, fino a tre. Non puoi attaccare con meno dadi del difensore. I pareggi favoriscono la difesa.</p><p>I tris valgono 8, 10 o 12 armate, più 2 per ogni carta territorio posseduta. Puoi conservare fino a 7 carte e schierare fino a 130 carri.</p><p>Conquista il tuo obiettivo per vincere subito. Dal termine del giro 20, la sdadata può chiudere la partita: soglia 4, poi 5, 6 e 7. Con tre conquiste o più non si lancia.</p><p>Gli avversari non possono essere eliminati nei primi quattro giri. Una guarnigione di almeno due carri deve rimanere sui confini nemici quando sposti volontariamente.</p><p>Alla scadenza del turno vengono completati i piazzamenti e i movimenti obbligatori; poi il turno termina. L’app in background mette in pausa la partita.</p><p><b>Modalità Antartide (facoltativa):</b> 44 territori e 46 carte. Antartide Occidentale confina con Argentina e Antartide Orientale; Antartide Orientale confina anche con Africa del Sud e Australia Orientale. Il controllo di entrambe dà +2 armate a turno. I due territori valgono 3 punti ciascuno fuori obiettivo; gli obiettivi classici restano da 86 punti. Dotazioni iniziali e mani da tre restano invariate.</p><p class="muted">Riferimento: il file “RisiKo! Online – Come si gioca” fornito dall’utente, integrato con le regole concordate. Ricostruzione indipendente offline, non affiliata a Spin Master.</p></div>';
     }
     if (modal === 'objective') {
       const o = objectives[s!.players[0].objective! - 1];
-      content = `<span class="eyebrow">RISERVATO AL COMANDANTE</span><h2>IL TUO OBIETTIVO</h2>${miniObjective(o.id)}<div class="objective-score"><b>${points()}</b><span>/ 86 punti</span></div><p>Occupa tutti i territori evidenziati per fare RisiKo!</p><button class="primary full" data-action="objective-map">Mostra l’obiettivo sulla plancia ◎</button><details><summary>Territori dell’obiettivo</summary><p>${o.territories.map(t => `${escape(territories[t].name)} (${territories[t].points})`).join(' · ')}</p></details>`;
+      content = `<span class="eyebrow">RISERVATO AL COMANDANTE</span><h2>IL TUO OBIETTIVO</h2>${miniObjective(o.id)}<div class="objective-score"><b>${points()}</b><span>/ 86 punti</span></div><p>Occupa tutti i territori evidenziati per fare RisiKo!</p>${s?.antarctica?'<p class="card-hint">Antartide: +2 rinforzi con entrambi i territori. Valgono 3 punti ciascuno fuori obiettivo; gli obiettivi restano da 86 punti.</p>':''}<button class="primary full" data-action="objective-map">Mostra l’obiettivo sulla plancia ◎</button><details><summary>Territori dell’obiettivo</summary><p>${o.territories.map(t => `${escape(territories[t].name)} (${territories[t].points})`).join(' · ')}</p></details>`;
     }
     if (modal === 'cards') {
       const hand=s!.players[0].cards??[], allowed=humanTurn()&&s!.phase==='TRIS_EXCHANGE';
@@ -296,6 +293,7 @@ export function mountGame(root: HTMLElement): () => void {
     }
   }
   function render(force=false) {
+    const homeScroll=screen==='home'?root.querySelector<HTMLElement>('.classic-settings')?.scrollTop??0:0;
     if(presenting&&!force){refreshDialogs();return;}
     const key=`${modal}:${selected}:${target}`;
     const oldPanel=root.querySelector<HTMLElement>('.floating-panel');
@@ -316,6 +314,8 @@ export function mountGame(root: HTMLElement): () => void {
       dialogMarkup=presenting&&!consulting()?'':modalMarkup();
       root.innerHTML = `<div class="app-shell"><div id="scene">${sceneMarkup}</div><div id="dialogs">${dialogMarkup}</div><div id="effects" class="effects-layer"></div><div id="toast" role="status" class="toast"></div><div class="portrait-notice"><span>↻</span><h2>Ruota il dispositivo</h2><p>La tua strategia merita tutta la plancia.<br>Gioca in orizzontale.</p></div></div>`;
     }
+    const homePanel=screen==='home'?root.querySelector<HTMLElement>('.classic-settings'):null;
+    if(homePanel)homePanel.scrollTop=homeScroll;
     bindMap();
     previewMove();
     const panel=root.querySelector<HTMLElement>('[data-floating]');
@@ -335,7 +335,7 @@ export function mountGame(root: HTMLElement): () => void {
       x: 0,
       y: 0,
       w: 1240,
-      h: 690
+      h: mapFor(config).height
     };
     screen = 'table';
     send({
@@ -387,7 +387,7 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function setZoom(factor: number) {
     const nw = Math.max(380, Math.min(1240, viewport.w * factor)),
-      nh = nw * 690 / 1240;
+      nh = nw * mapFor(state??{}).height / 1240;
     viewport.x += (viewport.w - nw) / 2;
     viewport.y += (viewport.h - nh) / 2;
     viewport.w = nw;
@@ -396,7 +396,7 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function updateMap() {
     viewport.x = Math.max(-100, Math.min(1240 - viewport.w + 100, viewport.x));
-    viewport.y = Math.max(-70, Math.min(690 - viewport.h + 70, viewport.y));
+    viewport.y = Math.max(-70, Math.min(mapFor(state??{}).height - viewport.h + 70, viewport.y));
     root.querySelector('#world-map')?.setAttribute('viewBox', `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`);
   }
   function bindMap() {
@@ -465,6 +465,7 @@ export function mountGame(root: HTMLElement): () => void {
   function click(e: MouseEvent) {
     const el = (e.target as Element).closest<HTMLElement>('button');
     if (!el || el.hasAttribute('disabled')) return;
+    void sounds.unlock();
     if(presenting && el.dataset.card===undefined && !['cards','objective','objective-map','close','pause','home','blitz','zoom-in','zoom-out','reset-map'].includes(el.dataset.action??''))return;
     if(el.dataset.placeCount){placementCount=Number(el.dataset.placeCount);render();return;}
     if (el.dataset.count) {
@@ -504,7 +505,12 @@ export function mountGame(root: HTMLElement): () => void {
       render();
       return;
     }
+    if(el.dataset.strategy!==undefined){strategyBot=Number(el.dataset.strategy);modal='strategy';render();return;}
     switch (el.dataset.action) {
+      case 'audio': modal='audio';render();break;
+      case 'audio-test': void sounds.unlock().then(()=>{sounds.clash();if(!sounds.ready)toast('Tocca ancora Prova il clash per attivare l’audio.');});break;
+      case 'policy-all': config.botPolicies=Array.from({length:4},()=>({...config.botPolicies![strategyBot]}));toast('Strategia applicata a tutti i bot');break;
+      case 'policy-reset': config.botPolicies![strategyBot]=botPolicy();render();break;
       case 'exchange-selected':
         if(state&&exchangeValue(state,0,cardSelection)>0)command({type:'EXCHANGE',cards:[...cardSelection]});
         break;
@@ -625,7 +631,7 @@ export function mountGame(root: HTMLElement): () => void {
         render();
         break;
       case 'sound':
-        muted = !muted;
+        muted = !muted;sounds.muted=muted;sounds.save();
         render();
         break;
       case 'zoom-in':
@@ -639,7 +645,7 @@ export function mountGame(root: HTMLElement): () => void {
           x: 0,
           y: 0,
           w: 1240,
-          h: 690
+          h: mapFor(state??{}).height
         };
         updateMap();
         break;
@@ -647,6 +653,11 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function change(e: Event) {
     const el = e.target as HTMLInputElement;
+    if(el.id==='antarctica-mode'){config.antarctica=el.checked;render();return;}
+    if(el.dataset.policy){const key=el.dataset.policy as typeof policyOptions[number][0];config.botPolicies![strategyBot][key]=el.checked;}
+    if(el.id==='grace-rounds')config.botPolicies![strategyBot].graceRounds=Number(el.value);
+    if(el.id==='audio-enabled'){muted=!el.checked;sounds.muted=muted;sounds.save();}
+    if(el.id==='audio-volume'){sounds.volume=Number(el.value)/100;sounds.save();}
     if (el.id === 'player-name') config.name = el.value;
     if (el.id === 'turn-time') config.turnSeconds = Number(el.value);
     if (el.dataset.bot !== undefined) {
@@ -718,14 +729,14 @@ export function mountGame(root: HTMLElement): () => void {
       state=t.before;presenting=t;pendingCommand=true;
       const involved=t.effects.flatMap(e=>'from' in e?[e.from,e.to]:'to' in e?[e.to]:[]);
       if(involved.some(id=>{const p=territories[id];return p.x<viewport.x+35||p.x>viewport.x+viewport.w-35||p.y<viewport.y+35||p.y>viewport.y+viewport.h-35;})) {
-        restoreViewport={...viewport};viewport={x:0,y:0,w:1240,h:690};
+        restoreViewport={...viewport};viewport={x:0,y:0,w:1240,h:mapFor(state??{}).height};
       }
       render(true);
-      if(!muted&&t.effects.some(e=>e.kind==='battle'||e.kind==='sdadata'))sound('battle');
+
       cancelEffects=playTransition(root,t,()=>{
         if(presenting?.id!==t.id)return;
         lastPresentedId=t.id;lastBattleMessage=t.after.lastBattle?.message??'';cancelPresentation();send({type:'PRESENTED',id:t.id});receiveState(t.after);
-      });
+      },()=>sounds.clash());
       return;
     }
     if (data.type === 'STATE') {
@@ -736,6 +747,7 @@ export function mountGame(root: HTMLElement): () => void {
   function receiveState(nextState: GameView) {
       const previous = state;
       state = nextState;
+      if(!previous||previous.id!==state.id)viewport={x:0,y:0,w:1240,h:mapFor(state).height};
       if (state && state.id !== previous?.id) profile.name = state.players[0].name;
       hasGame = state!.phase !== 'GAME_OVER';
       const changed = !previous || previous.revision !== state!.revision || previous.paused !== state!.paused || previous.id !== state!.id;
@@ -767,7 +779,7 @@ export function mountGame(root: HTMLElement): () => void {
         }
         if (state!.lastBattle?.message !== lastBattleMessage) {
           lastBattleMessage = state!.lastBattle?.message ?? '';
-          if (lastBattleMessage && !muted) sound('battle');
+
         }
         render();
         if (blitz && modal === 'combat' && selected !== null && target !== null) {
@@ -797,6 +809,7 @@ export function mountGame(root: HTMLElement): () => void {
   return () => {
     if(dialogExit)clearTimeout(dialogExit);
     cancelPresentation();
+    sounds.dispose();
     worker.terminate();
     root.removeEventListener('click', click);
     root.removeEventListener('input', change);

@@ -1,4 +1,4 @@
-import {cards, territories, objectives} from '../data/mapGraph.ts';
+import {allCards as cards, allTerritories as territories, objectives, mapFor} from '../data/mapGraph.ts';
 export const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'} as Record<string,string>)[c]);
 export const tankShape = 'M1.8 16.5Q1.7 12 4.3 10.2Q6.8 8.3 8.9 8.3L9.2 6.4Q10.6 3.6 13 3.2H17.4Q18.6 3.2 19.1 4.8L38.5 5.3Q41.3 5.4 41.4 8V10Q41.1 12 39.4 12.3L35.1 12.8L34.9 19.4Q34.5 23.7 30.2 24H7.4Q2 23.8 1.8 19.1Z';
 export function counterFontSize(count: number, signed = false): number {
@@ -14,7 +14,7 @@ export const territoryColors = [
   '#9a538a','#664a79','#926090','#653c71','#744780','#8b6080','#773b75',
   '#876124','#986e32','#aa903e','#8b592c','#794920','#b49245',
   '#829a4b','#27653d','#487e36','#8c9e38','#4e863b','#315f35','#57865b','#688743','#235a37','#8b9d4b','#287343','#367361',
-  '#914774','#963b78','#993c7b','#a4478c'
+  '#914774','#963b78','#993c7b','#a4478c','#71b7d2','#b1d5e5'
 ];
 const military: Record<string,string> = {
   cannone: '<path d="M7 10h22l5-4h5v7H23l-4 5H7zM6 22l9-8 4 2-9 9z"/><circle cx="26" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="3"/><path d="M26 17v10m-5-5h10" stroke="currentColor" stroke-width="1.5"/>',
@@ -36,9 +36,9 @@ export function cardFace(id?: number) {
   if (c.symbol === 'jolly') return `<div class="card-face card-jolly">${['cavaliere','fante','cannone'].map(s => `<div>${militaryIcon(s)}</div>`).join('')}<strong>JOLLY</strong></div>`;
   return `<div class="card-face"><div class="card-symbol">${militaryIcon(c.symbol)}</div>${silhouette(c.territory!)}<strong>${escapeHtml(territories[c.territory!].name)}</strong><small>${c.symbol}</small></div>`;
 }
-export function objectiveMap(id: number) {
-  const goal = objectives[id-1];
-  return `<div class="objective-card"><svg class="objective-mini" viewBox="220 45 840 580" role="img" aria-label="Mappa obiettivo ${id}"><rect x="0" y="0" width="1240" height="690" fill="#065266"/>${territories.map(t => `<path d="${t.path}" fill="${goal.territories.includes(t.id)?'#b5dc58':'#bae4ea'}" stroke="#398b87" stroke-width="1"/>`).join('')}</svg><span class="objective-id">${id}</span></div>`;
+export function objectiveMap(id: number, antarctica=false) {
+  const goal = objectives[id-1], map=mapFor({antarctica}), territories=map.territories;
+  return `<div class="objective-card"><svg class="objective-mini" viewBox="${antarctica?'220 0 840 815':'220 45 840 580'}" role="img" aria-label="Mappa obiettivo ${id}"><rect x="0" y="0" width="1240" height="${map.height}" fill="#065266"/>${territories.map(t => `<path d="${t.path}" fill="${goal.territories.includes(t.id)?'#b5dc58':'#bae4ea'}" stroke="#398b87" stroke-width="1"/>`).join('')}</svg><span class="objective-id">${id}</span></div>`;
 }
 const pipPositions: Record<number,number[][]> = {
   1:[[15,15]],2:[[8,8],[22,22]],3:[[8,8],[15,15],[22,22]],4:[[8,8],[22,8],[8,22],[22,22]],

@@ -263,3 +263,34 @@ test('finestra conquista mostra minimo trasferito e selettore aggiuntivi a zero'
  assert.match(f.root.innerHTML,/id="move-range" min="0" max="\d+" value="0"/);
  f.click({action:'confirm-move'});assert.equal(f.worker.messages.at(-1).command.count,0);f.cleanup();
 });
+
+test('strategie per bot: caselle, tregua, applica a tutti e configurazione della nuova partita',()=>{
+ const f=fixture();f.click({strategy:'0'});
+ assert.match(f.root.innerHTML,/Strategia · Falco/);assert.equal((f.root.innerHTML.match(/data-policy=/g)??[]).length,8);
+ f.callbacks.input({target:{id:'',dataset:{policy:'continents'},checked:false}});
+ f.callbacks.input({target:{id:'grace-rounds',dataset:{},value:'2'}});
+ f.click({action:'policy-all'});f.click({action:'close'});f.click({strategy:'1'});
+ assert.match(f.root.innerHTML,/data-policy="continents" \/>/);
+ assert.match(f.root.innerHTML,/value="2" selected/);
+ f.click({action:'close'});f.click({action:'new'});
+ const message=f.worker.messages.find(m=>m.type==='NEW');
+ assert.equal(message.config.botPolicies[0].continents,false);assert.equal(message.config.botPolicies[1].graceRounds,2);
+ f.cleanup();
+});
+
+test('Antartide facoltativa: menu, plancia completa e ripresa con inquadratura estesa',()=>{
+ const f=fixture();assert.match(f.root.innerHTML,/42 TERRITORI/);
+ f.callbacks.input({target:{id:'antarctica-mode',dataset:{},checked:true}});
+ assert.match(f.root.innerHTML,/44 TERRITORI/);assert.match(f.root.innerHTML,/Antartide Occidentale/);
+ f.click({action:'new'});assert.equal(f.worker.messages.find(m=>m.type==='NEW').config.antarctica,true);
+ const s=createGame({antarctica:true,players:3,name:'Test',difficulties:['medio','difficile'],turnSeconds:180,seed:3});
+ f.worker.emit({type:'STATE',state:project(s)});
+ assert.equal((f.root.innerHTML.match(/data-territory=/g)??[]).length,44);
+ assert.match(f.root.innerHTML,/viewBox="0 0 1240 815"/);assert.match(f.root.innerHTML,/data-token="43"/);
+ mkdirSync('artifacts/previews',{recursive:true});writeFileSync('artifacts/previews/antarctica-table.html',f.root.innerHTML);
+ f.click({action:'objective'});assert.match(f.root.innerHTML,/gli obiettivi restano da 86 punti/);
+ f.click({action:'close'});f.click({action:'home'});
+ f.callbacks.input({target:{id:'antarctica-mode',dataset:{},checked:false}});
+ assert.match(f.root.innerHTML,/42 TERRITORI/);assert.doesNotMatch(f.root.innerHTML,/data-territory="42"/);
+ writeFileSync('artifacts/previews/home.html',f.root.innerHTML);f.cleanup();
+});

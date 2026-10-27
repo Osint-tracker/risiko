@@ -1,4 +1,6 @@
-# Rapporto di verifica
+# Rapporto di verifica storico (1.2 / 1.2.1)
+
+Per la versione attuale leggere [VERIFICA-1.3.md](VERIFICA-1.3.md).
 
 Correzione grafica 1.2.1: 14 test di UI/animazione ripetuti con successo; build web locale e import verificati. Font numerico incorporato, cifra 1 ridisegnata e silhouette ricalcata. Output in `test-results-token-1.2.1.txt`. Verifica browser del font e nuovo APK demandati alla CI GitHub. Le verifiche complete sotto si riferiscono alla base 1.2.
 

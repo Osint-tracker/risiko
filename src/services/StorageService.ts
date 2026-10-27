@@ -1,6 +1,8 @@
+import {botPolicy} from '../ai/policy.ts';
 import type { GameState } from '../engine/types.ts';
 import { assertState, ranks, upgradeConquestSave } from '../engine/RisikoRulesEngine.ts';
 export type ResultRecord = {
+  antarctica?: boolean;
   id: string;
   date: number;
   name: string;
@@ -46,6 +48,7 @@ export class StorageService {
           rank = ranking.findIndex(r => r.player === 0);
         const result: ResultRecord = {
           id: state.id,
+          antarctica: state.antarctica===true,
           date: Date.now(),
           name: state.players[0].name,
           rank: rank + 1,
@@ -66,6 +69,14 @@ export class StorageService {
     if (!s) return null;
     const upgraded = upgradeConquestSave(s);
     if (upgraded !== s) await this.save(upgraded);
+    let changed=false;
+    for(const player of upgraded.players)if(!player.botPolicy){player.botPolicy=botPolicy();changed=true;}
+    if(upgraded.turnReinforcements===undefined){
+      let start=upgraded.log.length-1;while(start>=0&&upgraded.log[start].type!=='onTurnChanged')start--;
+      upgraded.turnReinforcements=upgraded.reinforcements+upgraded.log.slice(start+1).filter(e=>e.player===upgraded.active&&e.action==='reinforce').reduce((n,e)=>n+(e.count??0),0);
+      changed=true;
+    }
+    if(changed)await this.save(upgraded);
     return upgraded;
   }
   async profile(): Promise<Profile> {

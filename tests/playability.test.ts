@@ -88,9 +88,9 @@ test('personalità privata e compatibilità con salvataggi privi del contesto IA
  s.botContexts={0:d.context};assertState(s);assert.equal('botContexts'in project(s,1),false);
  const old=structuredClone(s);delete old.botContexts;assert.doesNotThrow(()=>humanDecision(project(old,0),'difficile',()=>.5));
 });
-test('sortita disperata: solo se in svantaggio, tre lanci massimi, cooldown',()=>{
+test('sortita disperata: pochi rinforzi, tre lanci massimi, cooldown',()=>{
  const s=active();s.board.forEach((c,i)=>{c.owner=i===0?0:i%2+1;c.armies=i===0?5:3;});s.board[1].armies=1;
- const v=project(s);assert.ok(canAttack(s,0,1));
+ s.turnReinforcements=0;const v=project(s);assert.ok(canAttack(s,0,1));
  let context:BotContext={temperament:0,round:4,turns:4,lastEpisode:0,previousArmies:15,cautious:false,lostTerritory:1,logIndex:0,episode:null};
  let d=humanDecision(v,'difficile',()=>0,context);assert.equal(d.command.type,'ATTACK');assert.equal(d.context.episode?.rolls,1);
  context=d.context;

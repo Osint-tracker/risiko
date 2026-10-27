@@ -12,15 +12,42 @@ try{
  let connected=false;
  for(let i=0;i<100;i++){if(server.exitCode!==null)throw new Error('Server non disponibile: '+logs);try{if((await fetch('http://127.0.0.1:4173')).ok){connected=true;break;}}catch{}await wait(200);}
  assert.ok(connected,'Server non avviato');
- browser=await chromium.launch({headless:true});
- page=await browser.newPage({viewport:{width:844,height:390}});
+ browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
+ page=await browser.newPage({viewport:{width:844,height:390},...(process.env.RECORD_UI?{recordVideo:{dir:'artifacts/browser/video',size:{width:844,height:390}}}:{})});
  const errors=[],external=[];
  await page.context().tracing.start({screenshots:true,snapshots:true});
  page.on('pageerror',e=>errors.push(e.message));
  page.on('request',r=>{if(!r.url().startsWith('http://127.0.0.1:4173')&&!r.url().startsWith('data:')&&!r.url().startsWith('blob:'))external.push(r.url());});
  await page.goto('http://127.0.0.1:4173');
  await page.locator('[data-action="new"]:not([disabled])').waitFor();
+ // On shallow phone/webview screens the whole settings panel must scroll.
+ for(const viewport of [{width:844,height:390},{width:932,height:260},{width:640,height:300}]){
+  await page.setViewportSize(viewport);
+  const layout=await page.locator('.classic-settings').evaluate(panel=>({height:panel.clientHeight,overflow:getComputedStyle(panel).overflowY,innerOverflow:getComputedStyle(panel.querySelector('.settings-scroll')).overflowY}));
+  assert.ok(layout.height>=viewport.height*.65,`Impostazioni troppo basse: ${JSON.stringify(layout)}`);
+  assert.equal(layout.overflow,'auto');assert.equal(layout.innerOverflow,'visible','Nessuna seconda striscia scorrevole');
+  await page.locator('[data-strategy="2"]').scrollIntoViewIfNeeded();
+  const row=await page.locator('[data-strategy="2"]').boundingBox();assert.ok(row.height>=44&&row.y>=0&&row.y+row.height<=viewport.height);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+  await page.locator('.classic-settings').evaluate(panel=>panel.scrollTop=0);
+  await page.screenshot({path:`artifacts/browser/home-${viewport.width}x${viewport.height}.png`});
+ }
+ await page.setViewportSize({width:844,height:390});
  await page.screenshot({path:'artifacts/browser/lobby.png',fullPage:true});
+ await page.locator('#antarctica-mode').check();assert.equal(await page.locator('[data-territory]').count(),44);
+ await page.screenshot({path:'artifacts/browser/lobby-antarctica.png'});
+ await page.locator('#antarctica-mode').uncheck();assert.equal(await page.locator('[data-territory]').count(),42);
+ const startRect=await page.locator('[data-action="new"]').boundingBox();assert.ok(startRect.y+startRect.height<=390);
+ await page.locator('[data-strategy="0"]').click();await page.locator('.strategy-window').waitFor();
+ assert.equal(await page.locator('[data-policy]').count(),8);
+ await page.locator('[data-policy="continents"]').uncheck();await page.locator('#grace-rounds').selectOption('2');
+ await page.locator('[data-action="policy-all"]').click();await page.screenshot({path:'artifacts/browser/strategies.png'});
+ await page.locator('[data-action="close"]').click();await page.locator('[data-strategy="1"]').click();
+ assert.equal(await page.locator('[data-policy="continents"]').isChecked(),false);assert.equal(await page.locator('#grace-rounds').inputValue(),'2');
+ await page.locator('[data-action="policy-reset"]').click();await page.locator('[data-action="policy-all"]').click();await page.locator('[data-action="close"]').click();
+ await page.locator('[data-action="audio"]').click();await page.locator('[data-action="audio-test"]').click();
+ await page.locator('[data-action="close"]').click();
+
  await page.locator('[data-action="blind-all"]').click();assert.equal(await page.getByText('Bot ? · livello segreto',{exact:true}).count(),3);
  await page.locator('[data-count="3"]').click();await page.locator('[data-action="new"]').click();
  await page.locator('.game-table').waitFor();assert.equal(await page.locator('[data-territory]').count(),42);
@@ -105,9 +132,11 @@ try{
  await page.locator('.floating-panel').waitFor();assert.equal(await page.locator('.modal-backdrop').count(),0);
  const panel=await page.locator('.floating-panel').boundingBox();assert.ok(panel.height<=390*.6+1&&panel.width<=360);
  await page.locator('[data-action="roll"]').click();await page.locator('.effects-layer.rolling').waitFor();
+ assert.equal(await page.locator('.clash-origin').count(),1);assert.equal(await page.locator('.clash-impact').count(),1);
  const timer=await page.locator('#timer').innerText();await wait(350);assert.equal(await page.locator('#timer').innerText(),timer);
  assert.equal(await page.locator('.fx-source').count(),1);assert.equal(await page.locator('.fx-target').count(),1);
  await page.screenshot({path:'artifacts/browser/dice-rolling.png'});
+ await page.locator('#map-fx.impact-now').waitFor();await page.screenshot({path:'artifacts/browser/clash.png'});
  await page.locator('[data-action="confirm-move"]').waitFor();
  const move=page.locator('.move-panel');
  const moveRect=await move.boundingBox();assert.ok(moveRect.width<=290&&moveRect.height<=390*.6+1);
@@ -172,6 +201,27 @@ try{
  await page.locator('[data-action="cards"]').click();
  await page.waitForSelector('.game-table[data-active="0"]');
  assert.equal(await page.locator('.cards-window').count(),1);
+ // Optional map must survive IndexedDB and finish setup with its actual territory count.
+ await page.locator('[data-action="close"]').click();
+ for(const n of [3,4,5]){
+  const polar=createGame({antarctica:true,players:n,name:'Comandante',difficulties:Array(n-1).fill('medio'),turnSeconds:180,seed:41});
+  const own=polar.board.filter(c=>c.owner===0).length;
+  await loadFixture(polar);assert.equal(await page.locator('[data-territory]').count(),44);
+  assert.equal(await page.locator('#world-map').getAttribute('viewBox'),'0 0 1240 815');
+  await page.screenshot({path:`artifacts/browser/antarctica-${n}.png`});
+  await completeSetup(polar.players[0].setupRemaining,own);
+ }
+ const polar=createGame({antarctica:true,players:3,name:'Comandante',difficulties:['medio','medio'],turnSeconds:180,seed:7});
+ polar.phase='ATTACK';polar.round=5;polar.active=0;polar.players.forEach(p=>p.setupRemaining=0);
+ polar.board[42]={owner:0,armies:12};polar.board[43]={owner:1,armies:1};
+ for(let seed=1;seed<1000;seed++){polar.rng=seed;if(applyCommand(polar,0,{type:'ATTACK',from:42,to:43}).phase==='POST_CONQUEST_MOVE')break;}
+ await loadFixture(polar);await page.locator('[data-territory="42"] .territory-hit').click({force:true});await page.locator('[data-territory="43"] .territory-hit').click({force:true});
+ await page.locator('[data-action="roll"]').click();await page.locator('#map-fx.impact-now').waitFor();
+ await page.screenshot({path:'artifacts/browser/antarctica-clash.png'});
+ await page.locator('[data-action="confirm-move"]').waitFor();
+ assert.equal(await page.locator('[data-token="43"] .tank-number').textContent(),'3');
+ await page.locator('[data-action="confirm-move"]').click();
+ console.log('PASS: home, strategie personalizzate; Antartide 3/4/5, ripresa e conquista polare.');
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
  console.log('PASS: setup 3/4/5 completo via tocchi, IndexedDB/ripresa anche durante i dadi, obiettivo, finestre compatte, dadi, timer sospeso, conquista, spostamento, pesca e carte; carte persistenti durante attacchi e cambio turno, trasferimento immediato e anteprima aggiuntivi; telefono/tablet; zero richieste esterne.');
 }catch(error){
@@ -179,5 +229,5 @@ try{
  throw error;
 }finally{
  if(page)await page.context().tracing.stop({path:'artifacts/browser/trace.zip'}).catch(()=>{});
- await browser?.close();server.kill('SIGTERM');
+ await page?.context().close();await browser?.close();server.kill('SIGTERM');
 }

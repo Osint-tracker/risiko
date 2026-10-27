@@ -1,5 +1,5 @@
 import {referenceShape} from './referenceGeometry.ts';
-export type ContinentId = 'na' | 'sa' | 'eu' | 'af' | 'as' | 'oc';
+export type ContinentId = 'na' | 'sa' | 'eu' | 'af' | 'as' | 'oc' | 'an';
 export type Territory = {
   id: number;
   name: string;
@@ -89,3 +89,23 @@ export const objectives = objectivesData.map(([name, territoryIds], i) => ({
 export const seaLinks = [[0, 29], [2, 13], [8, 9], [11, 20], [16, 20], [18, 20], [18, 21], [21, 34], [37, 38], [38, 39], [38, 40], [39, 40], [39, 41], [23, 25], [24, 25], [29, 32], [31, 32], [13, 14], [13, 15], [14, 15], [14, 16], [14, 17]];
 export const colors = ['#2458ee', '#d91e34', '#303a3d', '#269459', '#f0d846'];
 export const objectivePoints = (id: number, owned: number[]) => objectives[id - 1].territories.reduce((sum, t) => sum + (owned.includes(t) ? territories[t].points : 0), 0);
+
+// Optional expansion. Existing IDs, joker IDs and classic objective values stay stable.
+export const antarcticTerritories: Territory[] = [
+ {id:42,name:'Antartide Occidentale',short:'Antartide Ovest',continent:'an',points:3,neighbors:[12,43],x:565,y:686,
+ path:'M452 615Q440 624 449 641L466 651L476 648L483 661L505 665L515 677L538 668L556 667L570 658L584 640Q589 651 604 654L601 672Q594 682 609 693L619 711Q625 727 643 738Q650 750 638 760L619 758L604 763L584 755L569 761L550 757L538 745L522 739L520 711L508 705Q493 716 493 701L498 688L485 680L483 670L470 669L462 657L449 653L442 641Q437 623 452 615Z'},
+ {id:43,name:'Antartide Orientale',short:'Antartide Est',continent:'an',points:3,neighbors:[42,24,41],x:707,y:703,
+ path:'M584 640L590 622Q607 608 629 612L652 618L671 627L681 624L692 634L713 631L728 640L742 638Q756 642 752 656L748 670L758 682L753 694L766 708L783 714L781 730L787 744L777 762L765 770L750 782L731 790L712 787L695 794L680 789L665 792L652 783L642 787Q630 783 633 770L638 760Q650 750 643 738Q625 727 619 711L609 693Q594 682 601 672L604 654Q589 651 584 640Z'}
+];
+export const allTerritories: Territory[] = [...territories.map(t=>({...t,neighbors:[...t.neighbors]})),...antarcticTerritories];
+allTerritories[12].neighbors.push(42);
+allTerritories[24].neighbors.push(43);
+allTerritories[41].neighbors.push(43);
+export const allContinents = [...continents,{id:'an',name:'Antartide',bonus:2,color:'#80b8cf',points:6}] as const;
+export const allCards = [...cards,{id:44,territory:42,symbol:'cannone'},{id:45,territory:43,symbol:'fante'}];
+const classicMap = {territories,continents,cards,seaLinks,width:1240,height:690};
+const antarcticMap = {territories:allTerritories,continents:allContinents,cards:allCards,seaLinks:[...seaLinks,[12,42],[24,43],[41,43]],width:1240,height:815};
+/** Board-only rule helpers infer the map; persisted states are validated against their explicit mode. */
+export function mapFor(source: {antarctica?:boolean;board?:unknown[]} = {}) {
+ return (source.antarctica ?? (source.board?.length===44)) ? antarcticMap : classicMap;
+}

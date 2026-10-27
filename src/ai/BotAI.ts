@@ -1,4 +1,4 @@
-import { territories, objectives, continents } from '../data/mapGraph.ts';
+import { mapFor, objectives } from '../data/mapGraph.ts';
 import { border, owned, validTris, moveBounds, canAttack } from '../engine/RisikoRulesEngine.ts';
 import type { GameView, Command, Difficulty } from '../engine/types.ts';
 type Outcome = {
@@ -56,7 +56,7 @@ export function conquestOdds(armies: number, defenders: number): number {
   return chance;
 }
 function targetPressure(v: GameView, t: number) {
-  return territories[t].neighbors.reduce((n, id) => n + (v.board[id].owner !== v.active ? v.board[id].armies : 0), 0);
+  return mapFor(v).territories[t].neighbors.reduce((n, id) => n + (v.board[id].owner !== v.active ? v.board[id].armies : 0), 0);
 }
 export function inferObjectiveWeights(v: GameView, p: number): number[] {
   const scores = objectives.map(() => 0);
@@ -72,138 +72,4 @@ export function inferObjectiveWeights(v: GameView, p: number): number[] {
   return raw.map(x => x / sum);
 }
 export type BotMood = {riskBias: number; reclaim: number | null; variation: number};
-export function chooseBotCommand(v: GameView, level: Difficulty, rng: () => number, mood?: BotMood): Command {
-  const p = v.players[v.active],
-    own = owned(v, v.active),
-    goal = objectives[p.objective! - 1].territories;
-  const pick = <T,>(a: T[]) => a[Math.min(a.length - 1, Math.floor(rng() * a.length))];
-  const easy = level === 'facile',
-    hard = level === 'difficile';
-  const frontier = own.filter(t => border(v, t));
-  const weights = new Map(v.players.filter(x => x.id !== p.id && !x.eliminated).map(x => [x.id, inferObjectiveWeights(v, x.id)]));
-  const estimated = (id: number) => {
-    const w = weights.get(id)!;
-    return objectives.reduce((n, o, i) => n + w[i] * o.territories.filter(t => v.board[t].owner === id).reduce((n, t) => n + territories[t].points, 0), 0);
-  };
-  const leading = hard && v.round >= 17 && (p.points ?? 0) >= Math.max(0, ...[...weights.keys()].map(estimated));
-  const priority = (t: number) => {
-    const nearby = territories[t].neighbors.filter(id => v.board[id].owner !== p.id);
-    const continent = territories.filter(x => x.continent === territories[t].continent);
-    const control = continent.filter(x => v.board[x.id].owner === p.id).length / continent.length;
-    return (goal.includes(t) ? 10 + territories[t].points : 0) + (nearby.some(id => goal.includes(id)) ? 8 : 0) + control * 7 + Math.min(20, targetPressure(v, t)) * .6 - v.board[t].armies * .9;
-  };
-  if (v.phase === 'SETUP_PLACEMENT' || v.phase === 'REINFORCEMENT') {
-    const candidates = frontier.length ? frontier : own;
-    const t = easy ? pick(candidates) : [...candidates].sort((a, b) => priority(b) - priority(a) || a - b)[0];
-    return {
-      type: 'PLACE',
-      territory: t,
-      count: 1
-    };
-  }
-  if (v.phase === 'TRIS_EXCHANGE') {
-    const combos = validTris(v, p.id, p.cards ?? []).sort((a, b) => b.value - a.value);
-    const threatened = frontier.some(t => targetPressure(v, t) > v.board[t].armies * 2);
-    if (combos.length && p.totalArmies + v.reinforcements < 130 && (easy || combos[0].value >= 10 || p.cardCount >= 7 || threatened || v.round >= 17)) return {
-      type: 'EXCHANGE',
-      cards: combos[0].cards
-    };
-    return {
-      type: 'NEXT'
-    };
-  }
-  if (v.phase === 'POST_CONQUEST_MOVE') {
-    const m = v.pending!,
-      b = moveBounds(v, m.from, m.to);
-    let count = b.min;
-    if (border(v, m.to)) {
-      if (!border(v, m.from)) count = b.max;else count = Math.max(b.min, Math.min(b.max, Math.round((v.board[m.from].armies + v.board[m.to].armies) / 2) - v.board[m.to].armies));
-    }
-    return {
-      type: 'MOVE',
-      from: m.from,
-      to: m.to,
-      count
-    };
-  }
-  if (v.phase === 'ATTACK') {
-    const candidates: {
-      from: number;
-      to: number;
-      utility: number;
-    }[] = [];
-    for (const from of frontier) for (const to of territories[from].neighbors) {
-      if (!canAttack(v, from, to)) continue;
-      const attack = v.board[from].armies,
-        defense = v.board[to].armies;
-      if (easy) {
-        if (attack / defense >= 1.5 + (mood?.riskBias ?? 0)) candidates.push({
-          from,
-          to,
-          utility: rng()
-        });
-        continue;
-      }
-      if (leading && v.conquests >= 1) continue;
-      const odds = conquestOdds(attack, defense),
-        threshold = Math.max(.4, Math.min(.95, (leading ? .9 : hard ? v.round >= 17 ? .6 : .75 : .65) + (mood?.riskBias ?? 0)));
-      if (odds <= threshold) continue;
-      const owner = v.board[to].owner,
-        goalValue = goal.includes(to) ? territories[to].points : 0;
-      const c = territories[to].continent,
-        full = territories.filter(t => t.continent === c).every(t => v.board[t.id].owner === owner);
-      const continentBonus = full ? continents.find(x => x.id === c)!.bonus : 0;
-      const denial = hard ? (weights.get(owner) ?? []).reduce((n, w, i) => n + w * (objectives[i].territories.includes(to) ? territories[to].points : 0), 0) : 0;
-      const utility = (goalValue * 3 + (v.conquests === 0 ? 8 : 0) + continentBonus * 4 + denial - defense * 1.6 - (1 - odds) * 10 + (mood?.reclaim === to ? 2 : 0)) * (1 + (mood ? (rng() * 2 - 1) * mood.variation : 0));
-      if (utility > 0 && (!leading || v.conquests < 2)) candidates.push({
-        from,
-        to,
-        utility
-      });
-    }
-    if (!candidates.length) return {
-      type: 'NEXT'
-    };
-    const chosen = easy ? pick(candidates) : candidates.sort((a, b) => b.utility - a.utility || a.from - b.from || a.to - b.to)[0];
-    return {
-      type: 'ATTACK',
-      from: chosen.from,
-      to: chosen.to
-    };
-  }
-  if (v.phase === 'FORTIFY') {
-    const moves: {
-      from: number;
-      to: number;
-      count: number;
-      score: number;
-    }[] = [];
-    for (const from of own) for (const to of territories[from].neighbors) {
-      if (v.board[to].owner !== p.id) continue;
-      const b = moveBounds(v, from, to);
-      if (b.max < b.min) continue;
-      const score = priority(to) - priority(from) + (border(v, to) && !border(v, from) ? 20 : 0);
-      if (easy || score > 2) moves.push({
-        from,
-        to,
-        count: easy ? b.max : Math.max(1, Math.min(b.max, Math.ceil((v.board[from].armies - v.board[to].armies) / 2) + (border(v, from) ? 0 : Math.floor(b.max / 2)))),
-        score
-      });
-    }
-    if (moves.length) {
-      const m = easy ? pick(moves) : moves.sort((a, b) => b.score - a.score)[0];
-      return {
-        type: 'MOVE',
-        from: m.from,
-        to: m.to,
-        count: m.count
-      };
-    }
-    return {
-      type: 'NEXT'
-    };
-  }
-  return {
-    type: 'NEXT'
-  };
-}
+export {strategicCommand as chooseBotCommand} from './Strategy.ts';

@@ -1,1 +1,11 @@
-{"appId":"it.local.risiko","appName":"RisiKo Offline","webDir":"dist","android":{"allowMixedContent":false},"server":{"androidScheme":"https"}}
+{
+	"appId": "it.local.risiko",
+	"appName": "RisiKo Offline",
+	"webDir": "dist",
+	"android": {
+		"allowMixedContent": false
+	},
+	"server": {
+		"androidScheme": "https"
+	}
+}

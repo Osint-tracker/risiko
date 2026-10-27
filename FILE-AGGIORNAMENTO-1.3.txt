@@ -1,0 +1,72 @@
+Aggiornamento cumulativo 1.3.0, inclusi miglioramenti 1.2/1.2.1 e modalità Antartide.
+Estrarre e sovrascrivere i file nei medesimi percorsi della radice del repository.
+NON creare una cartella aggiuntiva dentro il repository. Non cancellare i sorgenti esistenti.
+Gli asset Android sono generati di nuovo da cap sync prima della build.
+Istruzioni: docs/AGGIORNAMENTO-1.3.md. Verifiche: docs/VERIFICA-1.3.md.
+
+File inclusi:
+.github/workflows/android.yml
+README.md
+android/app/build.gradle
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/public/assets/index-Bfl27KYp.css
+android/app/src/main/assets/public/assets/index-CAZHx_n_.js
+android/app/src/main/assets/public/assets/server.worker-BHxaei5E.js
+android/app/src/main/assets/public/audio/clash.wav
+android/app/src/main/assets/public/cordova.js
+android/app/src/main/assets/public/cordova_plugins.js
+android/app/src/main/assets/public/fonts/LICENSE-counter.txt
+android/app/src/main/assets/public/fonts/risiko-counter.ttf
+android/app/src/main/assets/public/index.html
+android/app/src/main/res/xml/config.xml
+docs/AGGIORNAMENTO-1.2.md
+docs/AGGIORNAMENTO-1.3.md
+docs/CORREZIONE-CARRO-1.2.1.md
+docs/VERIFICA-1.3.md
+docs/VERIFICA.md
+docs/antarctica-preview.html
+docs/antarctica-preview.png
+docs/antarctica-preview.svg
+docs/benchmark-ai-1.3.json
+docs/board-preview-v1.2.png
+docs/board-preview.svg
+docs/home-preview.html
+docs/test-results-1.3.txt
+docs/test-results-token-1.2.1.txt
+docs/test-results-ui-1.2.txt
+docs/test-results.txt
+docs/token-preview-v1.2.1.png
+docs/token-preview-v1.2.1.svg
+docs/token-preview-v1.2.png
+docs/token-preview-v1.2.svg
+package-lock.json
+package.json
+public/audio/clash.wav
+public/fonts/LICENSE-counter.txt
+public/fonts/risiko-counter.ttf
+scripts/benchmark-ai.mjs
+scripts/browser-test.mjs
+src/ai/BotAI.ts
+src/ai/HumanBot.ts
+src/ai/Strategy.ts
+src/ai/policy.ts
+src/data/mapGraph.ts
+src/engine/RisikoRulesEngine.ts
+src/engine/presentation.ts
+src/engine/types.ts
+src/gui/App.ts
+src/gui/AudioService.ts
+src/gui/art.ts
+src/gui/effects.ts
+src/gui/styles.css
+src/services/StorageService.ts
+tests/animation.test.ts
+tests/antarctica.test.ts
+tests/audio.test.ts
+tests/fixtures/LegacyAI.ts
+tests/fixtures/LegacyHumanBot.ts
+tests/playability.test.ts
+tests/refinement.test.ts
+tests/strategy.test.ts
+tests/ui.test.ts
+FILE-AGGIORNAMENTO-1.3.txt

@@ -1,6 +1,20 @@
-# RisiKo Offline 1.2.1 — Regular per Android
+# RisiKo Offline 1.3.1 — Regular e Antartide per Android
 
 Gioco single-player in italiano con 2–4 avversari IA, 20 giri e sdadata. Il tavolo e la mappa SVG sono ricostruiti seguendo lo screenshot fornito dall’utente: oceano turchese, coste e isole, giocatori a sinistra, comandi a destra e fase/timer in alto. È una ricostruzione indipendente, non l’app ufficiale e non una replica pixel per pixel.
+
+## Correzione home 1.3.1
+
+Sui display in orizzontale alti al massimo 600 px, le impostazioni usano tutta la larghezza disponibile. Opzioni partita e avversari sono affiancati da 760 px di larghezza; sui display più stretti si dispongono in verticale. Scorre l’intero pannello, inclusi titolo e comandi, con GIOCA e Riprendi nella stessa barra. Nessuna piccola area di scorrimento interna. I cambi di opzione conservano la posizione di scorrimento.
+
+[Anteprima statica aggiornata](docs/home-preview-1.3.1.html) · [Istruzioni e verifiche](docs/CORREZIONE-HOME-1.3.1.md).
+
+## Novità 1.3
+
+- Attacchi con mirino, flash, clash e suono sincronizzato.
+- Home nei colori dei carri e impostazioni dei bot personalizzabili.
+- Bot più attenti a territori deboli, continenti, riserve e contrattacchi.
+- Sortite rare solo con al massimo 8 territori e meno di 3 rinforzi totali.
+- Antartide opzionale: due territori, tre collegamenti intercontinentali, +2 rinforzi.
 
 ## Correzione grafica 1.2.1
 
@@ -18,11 +32,13 @@ Verifica della correzione: 14 test di rendering/animazione superati, build web l
 
 Istruzioni: [AGGIORNAMENTO-1.2.md](docs/AGGIORNAMENTO-1.2.md). Rimangono tutte le funzioni della [versione 1.1](docs/AGGIORNAMENTO-1.1.md), compresi setup corretto e tempi umani dei bot.
 
-## Stato della consegna
+## Stato della consegna 1.3
 
-La versione 1.1 è stata compilata su GitHub e provata su Android dall’utente. La nuova **1.2 ha superato 64 test locali**: 61 nella suite completa e 3 nuovi test della timeline delle animazioni eseguiti separatamente. Dopo l’adattamento dei numeri a tre cifre, ripetuti con successo i 14 test di rendering/animazione interessati. Build web locale senza dipendenze e verifica degli import completate.
+Nuova home, clash con audio locale, strategie configurabili per ciascun bot e modalità **Antartide** facoltativa. Istruzioni complete: [AGGIORNAMENTO-1.3.md](docs/AGGIORNAMENTO-1.3.md). Anteprima della mappa: [antarctica-preview.png](docs/antarctica-preview.png).
 
-In questo ambiente SDK Android e pacchetti npm non sono disponibili; l’accesso al proxy e l’avvio di Chromium sono bloccati. **Il nuovo APK, il typecheck semantico e il collaudo browser devono essere verificati dal workflow GitHub.** Il test browser è stato esteso con controlli su finestre, trasferimenti e carte durante gli attacchi. Vedi il [rapporto di verifica](docs/VERIFICA.md).
+TypeScript, build React/Vite, verifica degli asset offline e sincronizzazione Capacitor completati localmente. Confronto di 90 partite con la precedente IA e test specifici dell’Antartide completati. Il collaudo browser e il nuovo APK restano da eseguire nel workflow GitHub: qui l’avvio del server e di Chromium è impedito dai permessi di rete/sistema e non è installato l’SDK Android. Dettagli nel [rapporto 1.3](docs/VERIFICA-1.3.md).
+
+Le sezioni 1.2 e 1.2.1 sopra descrivono le verifiche storiche di quelle versioni.
 
 ## Prova locale senza installare pacchetti
 

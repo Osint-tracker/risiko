@@ -1,4 +1,4 @@
-import {territories} from '../data/mapGraph.ts';
+import {allTerritories as territories} from '../data/mapGraph.ts';
 import {effectDuration, sequenceScale} from '../engine/presentation.ts';
 import type {Transition, VisualEffect} from '../engine/presentation.ts';
 import {armyToken, counterFontSize, tankShape, cardFace, dieMarkup, escapeHtml} from './art.ts';
@@ -51,14 +51,14 @@ export function bindPanelDrag(panel: HTMLElement) {
 }
 
 /** Runs on a separate layer: no full-page render between dice frames. */
-export function playTransition(root: HTMLElement, t: Transition, finished: () => void): () => void {
+export function playTransition(root: HTMLElement, t: Transition, finished: () => void, onClash?: () => void): () => void {
   const host = root.querySelector<HTMLElement>('#effects');
   if (!host) { finished(); return ()=>{}; }
   const timers: ReturnType<typeof setTimeout>[]=[];
   let stopped=false;
   const later=(f:()=>void, ms:number)=>timers.push(setTimeout(()=>{if(!stopped)f();},ms));
   const clearMap=()=>{
-    root.querySelectorAll('.fx-source,.fx-target,.fx-place,.fx-conquer').forEach(el=>el.classList.remove('fx-source','fx-target','fx-place','fx-conquer'));
+    root.querySelectorAll('.fx-source,.fx-target,.fx-place,.fx-conquer,.fx-clash').forEach(el=>el.classList.remove('fx-source','fx-target','fx-place','fx-conquer','fx-clash'));
     root.querySelectorAll('.count-changing').forEach(el=>el.classList.remove('count-changing'));
     root.querySelectorAll('.count-before').forEach(el=>el.remove());
     root.querySelector('#map-fx')?.remove();
@@ -114,6 +114,15 @@ export function playTransition(root: HTMLElement, t: Transition, finished: () =>
         changeArmy(e.to,e.count,e.player,duration*.75);
       },duration*.15);
       if(e.kind==='battle') {
+        const source=territories[e.from],target=territories[e.to];
+        const matrix=root.querySelector<SVGSVGElement>('#world-map')?.getScreenCTM?.();
+        const factor=matrix?Math.min(3,Math.max(.5,1/Math.hypot(matrix.a,matrix.b))):1;
+        root.querySelector('#map-fx')?.insertAdjacentHTML('beforeend',`<g class="clash-origin" transform="translate(${source.x} ${source.y}) scale(${factor})"><circle r="22"/><circle r="28"/><path d="M-34 0H-24M24 0H34M0-34V-24M0 24V34"/></g><g class="clash-impact" transform="translate(${target.x} ${target.y}) scale(${factor})"><g class="clash-burst"><path d="M0-29L6-12L22-22L12-5L30 0L12 6L21 23L5 12L0 30L-6 12L-23 22L-12 5L-30 0L-12-6L-22-22L-5-12Z"/><circle class="clash-wave wave-one" r="24"/><circle class="clash-wave wave-two" r="30"/></g></g>`);
+        later(()=>{
+          root.querySelector(`[data-territory="${e.to}"]`)?.classList.add('fx-clash');
+          root.querySelector('#map-fx')?.classList.add('impact-now');
+          onClash?.();
+        },duration*.64);
         later(()=>{
           changeArmy(e.from,-e.losses[0],e.player,duration*.28);
           // A conquered territory swaps directly to its compulsory garrison;
