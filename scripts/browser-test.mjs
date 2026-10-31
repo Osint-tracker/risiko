@@ -1,6 +1,7 @@
 import {spawn} from 'node:child_process';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {clickTerritory,browserDiagnostics} from './browser-input.mjs';
+import {readBoardLayout,assertBoardLayout,readMapScale} from './browser-layout.mjs';
 import {setTimeout as wait} from 'node:timers/promises';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
@@ -90,22 +91,19 @@ try{
   assert.notEqual(await page.locator('.game-table').getAttribute('data-phase'),'SETUP_PLACEMENT');
  }
  await completeSetup(21,14);
- // Layout regression: zoom/history and lower commands occupy separate regions.
- async function checkBoardLayout(){
-  const selectors=['.players-row','.map-stage','.command-deck','.table-footer'];
-  const boxes=await Promise.all(selectors.map(s=>page.locator(s).boundingBox()));
-  for(let i=1;i<boxes.length;i++)assert.ok(boxes[i].y>=boxes[i-1].y+boxes[i-1].height-1,`HUD sovrapposto: ${selectors[i-1]} / ${selectors[i]}`);
-  const zoom=await page.locator('.reference-zoom').boundingBox(),rail=await page.locator('.reference-sidebar').boundingBox();
-  assert.ok(zoom.x+zoom.width<=rail.x,'Zoom e Cronologia devono stare in colonne distinte');
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
- }
- await checkBoardLayout();
- const token=page.locator('[data-token="0"] .army-map-icon'),map=page.locator('#world-map');
- const initialWidth=(await token.boundingBox()).width,initialMap=await map.getAttribute('viewBox');
+ // Geometry and zoom require one stable position, not a live instant-speed bot turn.
+ // The setup above remains exercised through actual clicks and the real Worker.
+ const layoutFixture=createGame({players:3,name:'Comandante',difficulties:['medio','medio'],turnSeconds:600,seed:17});
+ layoutFixture.active=0;layoutFixture.round=5;layoutFixture.phase='ATTACK';
+ layoutFixture.players.forEach(p=>p.setupRemaining=0);
+ await loadFixture(layoutFixture);
+ await page.locator('.game-table[data-active="0"][data-phase="ATTACK"]').waitFor();
+ assertBoardLayout(await readBoardLayout(page));
+ const initialScale=await readMapScale(page);
  await page.locator('[data-action="zoom-in"]').click();
- const zoomedWidth=(await token.boundingBox()).width;
- const initialViewWidth=Number(initialMap.split(' ')[2]),zoomedViewWidth=Number((await map.getAttribute('viewBox')).split(' ')[2]);
- assert.ok(Math.abs(zoomedWidth/initialWidth-initialViewWidth/zoomedViewWidth)<.02,'I carri devono scalare nella stessa proporzione dei territori');
+ await page.waitForFunction(before=>document.querySelector('#world-map')?.getAttribute('viewBox')!==before,initialScale.viewBox);
+ const zoomedScale=await readMapScale(page);
+ assert.ok(Math.abs(zoomedScale.tokenWidth/initialScale.tokenWidth-initialScale.viewWidth/zoomedScale.viewWidth)<.02,'I carri devono scalare nella stessa proporzione dei territori');
  await page.locator('[data-action="reset-map"]').click();
 
  await page.locator('[data-action="pause"]').click();await page.locator('.pause-card').waitFor();
