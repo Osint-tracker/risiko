@@ -20,7 +20,18 @@ try{
  page.on('pageerror',e=>errors.push(e.message));
  page.on('request',r=>{if(!r.url().startsWith('http://127.0.0.1:4173')&&!r.url().startsWith('data:')&&!r.url().startsWith('blob:'))external.push(r.url());});
  await page.goto('http://127.0.0.1:4173');
- await page.locator('[data-action="new"]:not([disabled])').waitFor();
+ await page.locator('[data-action="configure"]:not([disabled])').first().waitFor();
+ await page.setViewportSize({width:390,height:844});
+ assert.equal(await page.locator('.portrait-notice').isVisible(),false);
+ assert.equal(await page.locator('[data-bot]').count(),0);
+ await page.screenshot({path:'artifacts/browser/portrait-home.png',fullPage:true});
+ await page.locator('.portal-play').click();
+ await page.locator('[data-bot="0"]').selectOption('survival');
+ assert.equal(await page.locator('[data-bot="0"]').inputValue(),'survival');
+ await page.locator('[data-bot="0"]').selectOption('medio');
+ await page.locator('[data-strategy="2"]').scrollIntoViewIfNeeded();
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+ await page.screenshot({path:'artifacts/browser/portrait-prepare.png'});
  // On shallow phone/webview screens the whole settings panel must scroll.
  for(const viewport of [{width:844,height:390},{width:932,height:260},{width:640,height:300}]){
   await page.setViewportSize(viewport);
@@ -39,6 +50,7 @@ try{
  await page.screenshot({path:'artifacts/browser/lobby-antarctica.png'});
  await page.locator('#antarctica-mode').uncheck();assert.equal(await page.locator('[data-territory]').count(),42);
  await page.locator('.classic-settings').evaluate(panel=>panel.scrollTop=0);
+ await page.locator('[data-action="new"]').scrollIntoViewIfNeeded();
  const startRect=await page.locator('[data-action="new"]').boundingBox();assert.ok(startRect.y+startRect.height<=390);
  await page.locator('[data-strategy="0"]').click();await page.locator('.strategy-window').waitFor();
  assert.equal(await page.locator('[data-policy]').count(),8);
@@ -128,7 +140,7 @@ try{
   }),fixture);
   assert.deepEqual(stored,{id:fixture.id,phase:fixture.phase,players:fixture.players.length,remaining:fixture.players[0].setupRemaining},'Fixture salvata correttamente prima di avviare il nuovo Worker');
   await page.goto('http://127.0.0.1:4173');
-  await page.locator('[data-action="new"]:not([disabled])').waitFor();
+  await page.locator('.portal-play:not([disabled])').waitFor();
   const loaded=await page.evaluate(()=>new Promise((resolve,reject)=>{
    const req=indexedDB.open('risiko-offline',1);req.onerror=()=>reject(req.error);
    req.onsuccess=()=>{

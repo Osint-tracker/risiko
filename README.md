@@ -1,6 +1,18 @@
-# RisiKo Offline 1.4.1 — Torneo per Android
+# RisiKo Offline 1.5.0 — Torneo per Android
 
 Gioco single-player in italiano: un umano contro 2–4 bot. Solo obiettivi Torneo da 86 punti, difesa fino a tre dadi, distribuzione iniziale con limite continentale del 50%. Antartide facoltativa, disattivata di default. Il badge da 12 carri è una soglia grafica, non un nuovo limite.
+
+## Aggiornamento 1.5.0 — home verticale e pianificatore IA
+
+- Menu verticale con pulsanti reali; configurazione partita separata. Android passa in orizzontale soltanto per la plancia.
+- Medio, Difficile e Survival concentrano i rinforzi, sfruttano le riconquiste convenienti e riportano le armate interne verso i confini. Facile conserva il comportamento 1.4.
+- Difficile e Survival confrontano campagne, fallimenti e risposte avversarie con simulazioni limitate e informazioni pubbliche. Survival si può scegliere per singolo bot o per l’intero tavolo dalla home.
+- Gli attacchi evidenziano soltanto origine e bersagli validi; eliminato lo strato dorato pieno che colorava gli altri territori.
+- Antartide facoltativa, salvataggi, obiettivi Torneo, icona e animazioni mantenuti.
+
+Dettagli, limiti delle misure e verifiche: [AGGIORNAMENTO-1.5.0.md](docs/AGGIORNAMENTO-1.5.0.md). Anteprima **statica**, con pulsanti non operativi: [home-preview-1.5.0.html](docs/home-preview-1.5.0.html).
+
+Per il confronto riproducibile contro IA precedenti e un avversario opportunista: `npm run benchmark:planner`. Variabili opzionali: `BENCH_SEEDS` (numero di serie da 18 partite) e `BENCH_OFFSET` (nuovi semi di verifica).
 
 ## Aggiornamento 1.4.1 — leggibilità e fluidità
 
