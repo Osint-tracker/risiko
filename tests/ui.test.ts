@@ -23,7 +23,7 @@ class MockWorker {
     });
   }
 }
-function fixture(holdEffects=false) {
+function fixture(holdEffects=false,prepare=true) {
   const callbacks: Record<string, Function> = {};
   let html = '';
   const effects={innerHTML:'',className:'',style:{setProperty(){}},classList:{add(){},remove(){}},querySelector(){return null;}};
@@ -75,6 +75,7 @@ function fixture(holdEffects=false) {
     type: 'READY',
     hasGame: false
   });
+  if(prepare)click({action:'configure'});
   return {
     root,
     worker,
@@ -289,7 +290,7 @@ test('Antartide facoltativa: menu, plancia completa e ripresa con inquadratura e
  assert.match(f.root.innerHTML,/viewBox="0 0 1240 815"/);assert.match(f.root.innerHTML,/data-token="43"/);
  mkdirSync('artifacts/previews',{recursive:true});writeFileSync('artifacts/previews/antarctica-table.html',f.root.innerHTML);
  f.click({action:'objective'});assert.match(f.root.innerHTML,/gli obiettivi restano da 86 punti/);
- f.click({action:'close'});f.click({action:'home'});
+ f.click({action:'close'});f.click({action:'home'});f.click({action:'configure'});
  f.callbacks.input({target:{id:'antarctica-mode',dataset:{},checked:false}});
  assert.match(f.root.innerHTML,/42 TERRITORI/);assert.doesNotMatch(f.root.innerHTML,/data-territory="42"/);
  writeFileSync('artifacts/previews/home.html',f.root.innerHTML);f.cleanup();
@@ -328,4 +329,24 @@ test('I tick del timer non ricostruiscono la plancia né fanno perdere la finest
  assert.equal(f.root.innerHTML,markup,'Nessun rimpiazzo del DOM a ogni secondo');
  f.worker.emit({type:'CLOCK',id:'altra-partita',revision:0,remainingMs:0,matchRemainingMs:0,elapsedMs:1000});
  f.click({action:'close'});assert.match(f.root.innerHTML,/2:59/);assert.match(f.root.innerHTML,/44:59/);f.cleanup();
+});
+
+test('home verticale: menu reale, preparazione separata e Survival per tutti i bot',()=>{
+ const f=fixture(false,false);
+ mkdirSync('artifacts/previews',{recursive:true});writeFileSync('artifacts/previews/home-portrait.html',f.root.innerHTML);
+ assert.match(f.root.innerHTML,/portal-home/);assert.match(f.root.innerHTML,/LE TUE STATISTICHE/);
+ assert.doesNotMatch(f.root.innerHTML,/data-bot=/);
+ f.click({action:'survival'});assert.equal((f.root.innerHTML.match(/value="survival" selected/g)??[]).length,3);
+ f.click({action:'new'});assert.deepEqual(f.worker.messages.find(m=>m.type==='NEW').config.difficulties,['survival','survival','survival']);
+ f.cleanup();
+});
+test('selezione attacco: solo bersagli legali evidenziati, nessun territorio estraneo attenuato',()=>{
+ const f=fixture();f.click({action:'new'});
+ const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});
+ s.active=0;s.phase='ATTACK';s.round=5;s.board.forEach(c=>{c.owner=1;c.armies=3;});s.board[0]={owner:0,armies:8};
+ f.worker.emit({type:'STATE',state:project(s)});f.callbacks.keydown({key:'Enter',target:{closest:()=>({getAttribute:()=> '0'})}});
+ assert.doesNotMatch(f.root.innerHTML,/map-territory--dimmed/);
+ assert.equal((f.root.innerHTML.match(/ attackable /g)??[]).length,3);
+ assert.match(f.root.innerHTML,/source-ring/);assert.doesNotMatch(f.root.innerHTML,/fill="#d49b35"/);
+ f.cleanup();
 });

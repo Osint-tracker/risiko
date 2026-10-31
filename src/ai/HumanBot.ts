@@ -27,6 +27,7 @@ export function humanDecision(v: GameView, level: Difficulty, rng: () => number,
     context.turns++;
     if (context.reclaimUntil !== undefined && context.turns > context.reclaimUntil) context.lostTerritory = null;
     context.episode = null;
+    context.plan = undefined;
     context.sortieChecked = false;
     context.sortiePending = false;
   }
@@ -36,7 +37,7 @@ export function humanDecision(v: GameView, level: Difficulty, rng: () => number,
     context.sortieChecked=true;
     const received=v.turnReinforcements ?? (v.phase==='REINFORCEMENT'?v.reinforcements:Infinity);
     const eligible=v.round>=5 && v.round>policy.graceRounds && p.territoryCount<=8 && received<3 && context.turns-context.lastEpisode>=3;
-    context.sortiePending=eligible && rng() < {facile:.06,medio:.03,difficile:.02}[level];
+    context.sortiePending=eligible && rng() < {facile:.06,medio:.03,difficile:.02,survival:0}[level];
   }
   if(v.phase==='ATTACK' && context.sortiePending){
     context.sortiePending=false;
@@ -52,9 +53,9 @@ export function humanDecision(v: GameView, level: Difficulty, rng: () => number,
     context.episode = null;
   }
   if (context.lostTerritory !== null && v.board[context.lostTerritory].owner === p.id) context.lostTerritory = null;
-  const dosage = {facile: 1, medio: .65, difficile: .3}[level];
+  const dosage = {facile: 1, medio: .65, difficile: .3,survival:0}[level];
   const riskBias = dosage * ((context.cautious ? .08 : 0) - (v.conquests >= 2 ? .04 : 0) - context.temperament * .025);
-  const command = chooseBotCommand(v, level, rng, {riskBias, reclaim: context.lostTerritory, variation: dosage * .1});
+  const command = chooseBotCommand(v, level, rng, {riskBias, reclaim: context.lostTerritory, variation: dosage * .1}, context);
   return {command, context};
 }
 

@@ -1,6 +1,6 @@
 export type BotPersonality = 'equilibrato' | 'stratega' | 'incursore' | 'conquistatore';
 export type BotPolicy = { personality?: BotPersonality; weakBorders: boolean; continents: boolean; defend: boolean; disruptGrowth: boolean; breakBonus: boolean; containLeader: boolean; eliminate: boolean; reserve: boolean; graceRounds: number };
-export type Difficulty = 'facile' | 'medio' | 'difficile';
+export type Difficulty = 'facile' | 'medio' | 'difficile' | 'survival';
 export type Phase = 'SETUP_PLACEMENT' | 'TRIS_EXCHANGE' | 'REINFORCEMENT' | 'ATTACK' | 'POST_CONQUEST_MOVE' | 'FORTIFY' | 'CARD_DRAW' | 'SDADATA_CHECK' | 'GAME_OVER';
 export type Player = {
   id: number;
@@ -84,6 +84,7 @@ export type GameState = {
   botContexts?: Record<number, BotContext>;
 };
 export type BotContext = {
+  plan?: {round:number; phase:string; placements:number[]; target?:number};
   temperament: number;
   sortieChecked?: boolean;
   sortiePending?: boolean;

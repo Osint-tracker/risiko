@@ -82,7 +82,7 @@ function die(s: GameState) {
 export function createGame(config: GameConfig): GameState {
   requireRule([3, 4, 5].includes(config.players), 'Il tavolo deve avere 3, 4 o 5 giocatori.');
   requireRule(Number.isInteger(config.turnSeconds) && config.turnSeconds >= 60 && config.turnSeconds <= 600, 'Tempo turno non valido.');
-  requireRule(config.difficulties.length === config.players - 1 && config.difficulties.every(d => ['facile', 'medio', 'difficile', 'casuale'].includes(d)), 'Difficoltà non valida.');
+  requireRule(config.difficulties.length === config.players - 1 && config.difficulties.every(d => ['facile', 'medio', 'difficile', 'survival', 'casuale'].includes(d)), 'Difficoltà non valida.');
   requireRule(config.antarctica===undefined||typeof config.antarctica==='boolean', 'Modalità non valida.');
   const {territories,continents,cards}=mapFor(config);
   requireRule(!config.endMode||['regular','countdown'].includes(config.endMode),'Fine partita non valida.');

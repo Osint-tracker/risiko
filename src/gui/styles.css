@@ -354,3 +354,29 @@ input{user-select:text;-webkit-user-select:text}
  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='24'%3E%3Cpath d='M1 1L14 22L27 1ZM1 23L14 2L27 23Z' fill='none' stroke='%23084f7b' stroke-opacity='.16' stroke-width='3'/%3E%3C/svg%3E"),linear-gradient(#d8faff20 1px,transparent 1px),linear-gradient(90deg,#d8faff20 1px,transparent 1px),linear-gradient(150deg,#0b689b 0%,#37bce1 48%,#006781 100%);
  background-size:28px 24px,48px 48px,48px 48px,100% 100%;
 }
+
+/* v1.5: portrait portal, a separate preparation page and board-only rotation. */
+.app-shell:not(.on-board) .portrait-notice{display:none!important}
+.classic-home.portal-home{display:block;overflow-y:auto;overflow-x:hidden;height:100dvh}
+.portal-header{display:flex;align-items:center;gap:12px;min-height:42px;padding:5px 14px;background:#003447;border-bottom:1px solid #8ee4f3}
+.portal-header>b{font:bold italic 28px Arial,sans-serif;color:#e22b26;background:#fff;padding:0 4px;letter-spacing:-2px}
+.portal-header>span{font-size:9px;letter-spacing:1px;color:#b6e7ef}.portal-header>button{margin-left:auto;min-width:44px;min-height:36px;border:1px solid #6cc5d6;border-radius:6px}
+.portal-column{width:min(100%,440px);margin:0 auto;padding:20px 16px 32px;display:flex;flex-direction:column;gap:9px}
+.portal-home .home-player-strip{width:100%;min-height:68px;margin:0 0 6px;text-align:left;padding:10px 13px;border:2px solid #d7f9ff;border-radius:8px}
+.portal-home .home-player-strip>span:nth-child(2){flex:1;min-width:0}.portal-home .home-player-strip strong{font-size:17px}.portal-home .home-player-strip small{font-size:10px}
+.portal-banner{position:relative;overflow:hidden;border:2px solid #47bed6;border-radius:9px;height:clamp(170px,29dvh,270px);background:#02485e}
+.portal-banner img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 45%}
+.portal-banner>span{position:absolute;bottom:0;left:0;right:0;padding:9px 5px;text-align:center;background:#002c47e8;font-size:10px;font-weight:bold;letter-spacing:1px}
+.portal-play{display:flex;align-items:center;justify-content:center;gap:12px;min-height:58px;background:linear-gradient(#ff9d25 0 48%,#ff7800 49%);border:2px solid #ffd691;border-radius:7px;box-shadow:0 3px 0 #864300;color:white;font-size:25px;font-weight:900;text-shadow:0 2px #9c5100}
+.portal-play small{display:block;font-size:9px;letter-spacing:1px}.portal-play>span:first-child{font-size:23px}
+.portal-resume{display:flex;align-items:center;justify-content:center;gap:12px;min-height:48px;background:linear-gradient(#38b681,#078958);border:2px solid #b1f3ce;border-radius:6px;font-weight:bold}.portal-resume small{font-weight:normal}
+.portal-menu{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.portal-menu>button{display:flex;align-items:center;gap:10px;text-align:left;min-height:45px;padding:7px 12px;background:#004a65e8;border:1px solid #77ccdc;border-radius:5px;font-size:12px;font-weight:700}
+.portal-menu>button>span{width:20px;text-align:center;font-size:19px;color:#b8f0ff}.portal-menu>button>b{margin-left:auto;color:#b6e6f1;font-size:20px}.portal-menu small{font-size:9px;font-weight:normal}
+.portal-footer{text-align:center;font-size:10px;line-height:1.8;color:#c2eaf2;margin-top:12px}
+.menu-back{display:block;min-height:44px;color:#c1f4ff;font-size:13px;margin-bottom:6px}
+@media(orientation:portrait){
+ .classic-home:not(.portal-home){height:100dvh;overflow:hidden}.classic-header{flex:0 0 48px;height:48px;padding:4px 10px}.classic-brand b{font-size:25px}.classic-brand small{display:none}.classic-header nav{gap:4px}.classic-header nav button{padding:6px;font-size:11px;min-height:40px}.classic-header nav button[data-action=profile]{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .classic-lobby{display:block;flex:1;min-height:0;padding:8px}.classic-lobby .box-art{display:none}.classic-settings{width:100%;height:100%;max-height:none;overflow-y:auto;padding:12px}.classic-settings .home-player-strip{display:none}.classic-settings .settings-title{display:block;position:static}.classic-settings .settings-title h1{font-size:24px}.classic-settings .settings-actions{display:flex;flex-direction:column;gap:8px;margin:12px 0}.classic-settings .settings-actions button{width:100%;min-height:48px}.classic-settings .settings-scroll{display:block;overflow:visible}.classic-settings .lobby-basics,.classic-settings .lobby-opponents{width:100%;border:0;padding:0}.classic-settings .lobby-opponents{margin-top:22px}.classic-settings .lobby-row{grid-template-columns:1fr 1fr;gap:8px}.classic-settings .bot-slot{display:grid;grid-template-columns:36px minmax(0,1fr) 115px;gap:8px}.classic-settings .bot-slot select{width:100%;min-width:0}.classic-settings .strategy-button{grid-column:2/4;min-height:44px}.classic-settings .bot-info{min-width:0}.classic-settings .classic-footnote{display:block;margin-top:15px;text-align:center}
+ .profile-page{padding:20px 14px}.profile-page .stat-grid{grid-template-columns:repeat(2,1fr)}.profile-page .history{display:block;overflow:auto}.app-header nav .offline-indicator{display:none}
+}

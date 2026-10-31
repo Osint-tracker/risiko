@@ -1,0 +1,38 @@
+AGGIORNAMENTO COMPLETO 1.5.0 (Android versionCode 9)
+
+1. Estrai lo ZIP. package.json, src/, tests/, scripts/, android/ e .github/ sono direttamente alla radice.
+2. Sostituisci nel repository i file con lo stesso percorso. Non caricare una seconda cartella "risiko-offline" e non rinominare i duplicati.
+3. Mantieni la cartella .github inclusa. Esegui il workflow Android, attendi tutti i check e scarica l'APK dall'artifact risiko-offline-debug.
+4. Aggiorna l'app con l'APK prodotto; evita di disinstallarla se vuoi mantenere i salvataggi locali.
+
+Home verticale, configurazione separata, Difficile potenziato e Survival. Facile e regole invariate.
+110 test superati, TypeScript, build web e cap sync riusciti. Verifica browser locale bloccata dall'ambiente (listen EPERM), mantenuta obbligatoria in GitHub. APK nativo da compilare nel workflow.
+Benchmark finale: 36 partite; Medio 7/12, Difficile 7/12, Survival 10/12 contro avversari di riferimento, senza vantaggi su dadi o informazioni segrete. Non è una garanzia contro giocatori umani.
+Dettagli: docs/AGGIORNAMENTO-1.5.0.md. Anteprima statica: docs/home-preview-1.5.0.html.
+
+File nuovi o aggiornati rispetto alla 1.4.1:
+ - README.md
+ - android/app/build.gradle
+ - android/app/src/main/AndroidManifest.xml
+ - android/app/src/main/java/it/local/risiko/GameOrientationPlugin.java
+ - android/app/src/main/java/it/local/risiko/MainActivity.java
+ - docs/AGGIORNAMENTO-1.5.0.md
+ - docs/benchmark-1.5.0.json
+ - docs/board-preview.svg
+ - docs/home-preview-1.5.0.html
+ - package-lock.json
+ - package.json
+ - scripts/benchmark-planner.mjs
+ - scripts/browser-test.mjs
+ - scripts/verify-package.mjs
+ - src/ai/HumanBot.ts
+ - src/ai/LegacyStrategy.ts
+ - src/ai/Strategy.ts
+ - src/engine/RisikoRulesEngine.ts
+ - src/engine/types.ts
+ - src/gui/App.ts
+ - src/gui/orientation.ts
+ - src/gui/styles.css
+ - tests/orientation.test.ts
+ - tests/planner.test.ts
+ - tests/ui.test.ts

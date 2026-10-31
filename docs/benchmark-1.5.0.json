@@ -1,0 +1,441 @@
+{
+  "note": "Versione finale con pianificazione riserva, occupazione e stop campagna. Due serie di semi distinti. Campione ridotto, non misura abilit\u00e0 contro utenti umani.",
+  "series": [
+    {
+      "opponents": [
+        "v1.4 medio",
+        "v1.4 difficile",
+        "opportunista concentrato"
+      ],
+      "games": 18,
+      "groups": [
+        {
+          "level": "medio",
+          "games": 6,
+          "wins": 3,
+          "equalStrengthExpectedWins": 1.5666666666666664,
+          "meanPoints": 52
+        },
+        {
+          "level": "difficile",
+          "games": 6,
+          "wins": 4,
+          "equalStrengthExpectedWins": 1.5666666666666664,
+          "meanPoints": 66.5
+        },
+        {
+          "level": "survival",
+          "games": 6,
+          "wins": 6,
+          "equalStrengthExpectedWins": 1.5666666666666664,
+          "meanPoints": 100
+        }
+      ],
+      "decisionMs": {
+        "mean": 10.682956952923838,
+        "p95": 62.13256199999887,
+        "max": 392.49657399999705
+      },
+      "runs": [
+        {
+          "level": "medio",
+          "players": 3,
+          "antarctica": false,
+          "seed": 1081030,
+          "candidate": 1,
+          "won": false,
+          "points": 0,
+          "actions": 622
+        },
+        {
+          "level": "medio",
+          "players": 3,
+          "antarctica": true,
+          "seed": 1081031,
+          "candidate": 2,
+          "won": false,
+          "points": 0,
+          "actions": 887
+        },
+        {
+          "level": "medio",
+          "players": 4,
+          "antarctica": false,
+          "seed": 1081040,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 797
+        },
+        {
+          "level": "medio",
+          "players": 4,
+          "antarctica": true,
+          "seed": 1081041,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 611
+        },
+        {
+          "level": "medio",
+          "players": 5,
+          "antarctica": false,
+          "seed": 1081050,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 713
+        },
+        {
+          "level": "medio",
+          "players": 5,
+          "antarctica": true,
+          "seed": 1081051,
+          "candidate": 2,
+          "won": false,
+          "points": 12,
+          "actions": 1122
+        },
+        {
+          "level": "difficile",
+          "players": 3,
+          "antarctica": false,
+          "seed": 1081030,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 632
+        },
+        {
+          "level": "difficile",
+          "players": 3,
+          "antarctica": true,
+          "seed": 1081031,
+          "candidate": 2,
+          "won": false,
+          "points": 8,
+          "actions": 651
+        },
+        {
+          "level": "difficile",
+          "players": 4,
+          "antarctica": false,
+          "seed": 1081040,
+          "candidate": 1,
+          "won": true,
+          "points": 73,
+          "actions": 1202
+        },
+        {
+          "level": "difficile",
+          "players": 4,
+          "antarctica": true,
+          "seed": 1081041,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 701
+        },
+        {
+          "level": "difficile",
+          "players": 5,
+          "antarctica": false,
+          "seed": 1081050,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 789
+        },
+        {
+          "level": "difficile",
+          "players": 5,
+          "antarctica": true,
+          "seed": 1081051,
+          "candidate": 2,
+          "won": false,
+          "points": 18,
+          "actions": 1143
+        },
+        {
+          "level": "survival",
+          "players": 3,
+          "antarctica": false,
+          "seed": 1081030,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 981
+        },
+        {
+          "level": "survival",
+          "players": 3,
+          "antarctica": true,
+          "seed": 1081031,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 1053
+        },
+        {
+          "level": "survival",
+          "players": 4,
+          "antarctica": false,
+          "seed": 1081040,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 630
+        },
+        {
+          "level": "survival",
+          "players": 4,
+          "antarctica": true,
+          "seed": 1081041,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 519
+        },
+        {
+          "level": "survival",
+          "players": 5,
+          "antarctica": false,
+          "seed": 1081050,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 956
+        },
+        {
+          "level": "survival",
+          "players": 5,
+          "antarctica": true,
+          "seed": 1081051,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 738
+        }
+      ]
+    },
+    {
+      "opponents": [
+        "v1.4 medio",
+        "v1.4 difficile",
+        "opportunista concentrato"
+      ],
+      "games": 18,
+      "groups": [
+        {
+          "level": "medio",
+          "games": 6,
+          "wins": 4,
+          "equalStrengthExpectedWins": 1.5666666666666664,
+          "meanPoints": 75.66666666666667
+        },
+        {
+          "level": "difficile",
+          "games": 6,
+          "wins": 3,
+          "equalStrengthExpectedWins": 1.5666666666666664,
+          "meanPoints": 55.166666666666664
+        },
+        {
+          "level": "survival",
+          "games": 6,
+          "wins": 4,
+          "equalStrengthExpectedWins": 1.5666666666666664,
+          "meanPoints": 72.33333333333333
+        }
+      ],
+      "decisionMs": {
+        "mean": 9.181732908908897,
+        "p95": 56.578361000007135,
+        "max": 394.1055570000026
+      },
+      "runs": [
+        {
+          "level": "medio",
+          "players": 3,
+          "antarctica": false,
+          "seed": 1131030,
+          "candidate": 1,
+          "won": false,
+          "points": 37,
+          "actions": 650
+        },
+        {
+          "level": "medio",
+          "players": 3,
+          "antarctica": true,
+          "seed": 1131031,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 931
+        },
+        {
+          "level": "medio",
+          "players": 4,
+          "antarctica": false,
+          "seed": 1131040,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 974
+        },
+        {
+          "level": "medio",
+          "players": 4,
+          "antarctica": true,
+          "seed": 1131041,
+          "candidate": 2,
+          "won": false,
+          "points": 17,
+          "actions": 642
+        },
+        {
+          "level": "medio",
+          "players": 5,
+          "antarctica": false,
+          "seed": 1131050,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 1293
+        },
+        {
+          "level": "medio",
+          "players": 5,
+          "antarctica": true,
+          "seed": 1131051,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 1235
+        },
+        {
+          "level": "difficile",
+          "players": 3,
+          "antarctica": false,
+          "seed": 1131030,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 702
+        },
+        {
+          "level": "difficile",
+          "players": 3,
+          "antarctica": true,
+          "seed": 1131031,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 1172
+        },
+        {
+          "level": "difficile",
+          "players": 4,
+          "antarctica": false,
+          "seed": 1131040,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 621
+        },
+        {
+          "level": "difficile",
+          "players": 4,
+          "antarctica": true,
+          "seed": 1131041,
+          "candidate": 2,
+          "won": false,
+          "points": 21,
+          "actions": 1122
+        },
+        {
+          "level": "difficile",
+          "players": 5,
+          "antarctica": false,
+          "seed": 1131050,
+          "candidate": 1,
+          "won": false,
+          "points": 0,
+          "actions": 1263
+        },
+        {
+          "level": "difficile",
+          "players": 5,
+          "antarctica": true,
+          "seed": 1131051,
+          "candidate": 2,
+          "won": false,
+          "points": 10,
+          "actions": 852
+        },
+        {
+          "level": "survival",
+          "players": 3,
+          "antarctica": false,
+          "seed": 1131030,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 419
+        },
+        {
+          "level": "survival",
+          "players": 3,
+          "antarctica": true,
+          "seed": 1131031,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 1010
+        },
+        {
+          "level": "survival",
+          "players": 4,
+          "antarctica": false,
+          "seed": 1131040,
+          "candidate": 1,
+          "won": true,
+          "points": 100,
+          "actions": 1134
+        },
+        {
+          "level": "survival",
+          "players": 4,
+          "antarctica": true,
+          "seed": 1131041,
+          "candidate": 2,
+          "won": true,
+          "points": 100,
+          "actions": 638
+        },
+        {
+          "level": "survival",
+          "players": 5,
+          "antarctica": false,
+          "seed": 1131050,
+          "candidate": 1,
+          "won": false,
+          "points": 21,
+          "actions": 980
+        },
+        {
+          "level": "survival",
+          "players": 5,
+          "antarctica": true,
+          "seed": 1131051,
+          "candidate": 2,
+          "won": false,
+          "points": 13,
+          "actions": 1316
+        }
+      ]
+    }
+  ]
+}
