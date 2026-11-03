@@ -1,0 +1,217 @@
+Suite completa
+
+> risiko-offline@1.6.0 test
+> node --test --test-isolation=none tests/*.test.ts
+
+✔ occasione ignorata: rompe an, accesso 12→42, 3/4/5 giocatori (39.133894ms)
+✔ occasione ignorata: rompe an, accesso 24→43, 3/4/5 giocatori (8.896611ms)
+✔ occasione ignorata: rompe an, accesso 41→43, 3/4/5 giocatori (6.446832ms)
+✔ occasione ignorata: rompe oc, accesso 37→38, 3/4/5 giocatori (9.311607ms)
+✔ occasione ignorata: rompe eu, accesso 2→13, 3/4/5 giocatori (8.938644ms)
+✔ occasione ignorata: rompe eu, accesso 26→19, 3/4/5 giocatori (8.220621ms)
+✔ occasione ignorata: rompe eu, accesso 20→16, 3/4/5 giocatori (7.301929ms)
+✔ occasione ignorata: rompe eu, accesso 34→18, 3/4/5 giocatori (7.25547ms)
+✔ Europa del bot: otto rinforzi mettono almeno tre difensori sui quattro accessi contro stack umani da dodici (11.897138ms)
+✔ tris: sette carte utilizzabili vengono scambiate prima dei piazzamenti, nei limiti delle 130 armate (3.463912ms)
+✔ occupazione: sposta la forza verso il nuovo fronte se il territorio di origine è ormai interno (1.587272ms)
+✔ il pacing reale non consuma il turno prima di poter eseguire una sequenza di attacchi (1.795941ms)
+✔ difesa persistente: protegge entrambi gli accessi antartici e quello oceanico durante piazzamenti reali (10.207143ms)
+✔ tris consecutivi: usa entrambi i tris disponibili prima di iniziare a piazzare (1.869901ms)
+✔ animazione conquista: conteggi autentici, nessun fotogramma a zero, vettore e marcia (2.746499ms)
+✔ animazione aggiuntivi: aggiorna entrambi i contatori una sola volta (1.047242ms)
+✔ interruzione animazioni cancella i callback e non invia un secondo completamento (0.698425ms)
+✔ I dadi si fermano a 350 ms; l’esito appare dopo il rotolamento e una sola volta (0.780797ms)
+✔ Velocità Istantaneo salta gli effetti dei bot, preservando la presentazione per l’umano (1.497739ms)
+✔ Antartide: grafo simmetrico, tre rotte richieste e modalità classica isolata (0.250481ms)
+✔ distribuzione Antartide 3/4/5: totali invariati, mai un continente iniziale, mani da tre (16.044843ms)
+✔ bonus polare, attraversamenti, confini e spostamenti funzionano in entrambi i sensi (0.883579ms)
+✔ carte polari: ID jolly conservati, tris e bonus territorio, salvataggio e punteggio (1.789512ms)
+✔ bot medio/difficile completano Antartide e difendono le nuove frontiere (1.509036ms)
+✔ Antartide: sei partite complete 3/4/5 con bot medi e difficili, invarianti dopo ogni azione (33930.538173ms)
+✔ audio: sblocco dal gesto, un impatto per volta, mute, preferenze e rilascio (0.811344ms)
+✔ audio procedurale senza campioni: effetti, mute, aptica opt-in e cancellazione dei suoni programmati (0.963178ms)
+✔ tocchi browser: centro libero, click normale senza forzare sovrapposizioni (0.620083ms)
+✔ tocchi browser: centro sotto HUD, seleziona un punto libero dello stesso territorio (0.274485ms)
+✔ tocchi browser: territorio completamente coperto, errore esplicito senza click falso (1.166698ms)
+✔ HUD: snapshot coerente supera tutti i controlli geometrici (0.380981ms)
+✔ HUD: un elemento mancante produce un errore identificabile, non null.y né un falso successo (0.456773ms)
+✔ HUD: restano rilevate sovrapposizioni, elementi nascosti e overflow (0.435021ms)
+✔ HUD: lettura atomica, senza richieste locator che possano attraversare due render (0.338168ms)
+✔ zoom: misura carro e viewBox nello stesso snapshot e diagnostica una mappa assente (0.544772ms)
+✔ CI: stdout/stderr vengono conservati e il codice di errore non è mascherato (11.243598ms)
+✔ CI: un comando riuscito mantiene il codice zero (6.604026ms)
+✔ CI SDK: successo, senza mascherare gli errori (12.525446ms)
+✔ CI SDK: errore licenze, senza mascherare gli errori (12.549541ms)
+✔ CI SDK: errore installazione, senza mascherare gli errori (10.993169ms)
+✔ CI SDK: diagnostica esplicita quando il runner non contiene sdkmanager (4.756495ms)
+✔ 42 territories: symmetric graph, 164 points and six continent totals (0.391537ms)
+✔ 16 objectives: 86 points and published overlaps, with three documented source errata (1.01158ms)
+✔ 44-card deck has 14 of each regular symbol and 2 jokers (0.123352ms)
+✔ setup: balanced territory counts, continent caps and armies for 3/4/5 players (11.12903ms)
+✔ invalid and out-of-turn commands are atomic (0.698408ms)
+✔ reinforcements have no minimum of three (0.300262ms)
+✔ tris values, territory bonuses, joker restrictions and 130 army cap (0.48261ms)
+✔ maximum dice, no inferior dice attack, fourth-round protection (0.358518ms)
+✔ dice distributions include defense ties and exact 3v3 expectation (0.163781ms)
+✔ seeded battle sorts dice, compares pairs and conserves losses (0.500567ms)
+✔ border garrison and mandatory conquest exception (0.688844ms)
+✔ strategic movement is adjacent and ends the turn (0.410305ms)
+✔ seven-card cap: no forced tris at five; draw once; recycle discards (1.137575ms)
+✔ timer: complete compulsory tasks, no automatic card exchange, skip attacks (1.01847ms)
+✔ timeout post-conquest performs mandatory transfer before finishing (0.432257ms)
+✔ sdadata begins only on last active player of round 20 and skips 3 conquests (0.529991ms)
+✔ sdadata thresholds advance on anchor rotation, including eliminated anchor (0.672701ms)
+✔ projection hides other cards/objectives and blind levels until game over (0.458054ms)
+✔ JSON save/resume preserves subsequent dice, cards and AI choices (0.468841ms)
+✔ all three strategies complete legal games at each table size (41733.437634ms)
+✔ objective completion wins in the conquest action, before an optional move (0.527601ms)
+✔ elimination transfers random cards only up to seven, excess goes to discard (0.591064ms)
+✔ sdadata rolls exactly two dice and closes when sum meets threshold (0.753515ms)
+✔ orientamento nativo: menu verticale, tavolo orizzontale, nessuna richiesta duplicata (0.233635ms)
+✔ contrattacco: sfrutta un territorio lasciato con una sola armata, anche fuori obiettivo (45.810898ms)
+✔ rinforzi: concentra la riserva per sbloccare un attacco anziché distribuirla in incrementi inutili (3.619886ms)
+✔ spostamento: le armate interne avanzano di un collegamento verso il fronte (0.506699ms)
+✔ preferenza interrompi bonus cambia davvero il bersaglio, non solo la legalità del comando (0.660297ms)
+✔ simulazioni limitate, riproducibili, senza mutare la vista né leggere obiettivi avversari (165.619893ms)
+✔ Facile mantiene il comportamento precedente nelle fasi decisionali (2.321626ms)
+✔ Survival rispetta la tregua e non aggiunge sortite casuali (42.433981ms)
+✔ Difficile e Survival costruiscono una forza per la campagna sudamericana, non due fronti sottodimensionati (12.830876ms)
+✔ occupazione: conserva la difesa del continente conquistato invece di svuotarne il passaggio (0.646006ms)
+✔ setup completo 3/4/5: contatori pubblici, mani da tre, nessuna armata persa (297.680017ms)
+✔ rinforzi normali: trenta carri in un comando sono consentiti (0.382606ms)
+✔ transizione attacco conserva origine, dadi reali, perdite e stato precedente (1.435564ms)
+✔ pesca: animazione solo dopo conquista; identità carta riservata al destinatario (1.352401ms)
+✔ scambio: solo le proprie carte vengono trasmesse nella presentazione (0.676642ms)
+✔ fortificazione, pesca e sdadata mantengono ordine e risultati (0.442435ms)
+✔ watchdog: ACK esatto, duplicati ignorati e scadenza limitata (0.127038ms)
+✔ timeout con molti piazzamenti non supera gli otto secondi di presentazione (1.017005ms)
+✔ tempi umani: intervalli contestuali, velocità e limite residuo (0.657292ms)
+✔ personalità privata e compatibilità con salvataggi privi del contesto IA (22.962128ms)
+✔ sortita disperata: pochi rinforzi, tre lanci massimi, cooldown (20.38234ms)
+✔ immagini locali: figure militari, sagome, obiettivi, dadi con pallini (0.633217ms)
+✔ nove partite con personalità: mosse legali e conclusione a tutte le difficoltà (30735.272205ms)
+✔ conquista con 1/2/3 dadi trasferisce subito il minimo, senza mostrare zero (1.501102ms)
+✔ i carri aggiuntivi partono da zero e rispettano la guarnigione (1.029184ms)
+✔ timeout non sposta nuovamente il minimo già trasferito (0.610394ms)
+✔ vecchio salvataggio di conquista: conversione idempotente e immutabile (1.119086ms)
+✔ conquista che completa un obiettivo trasferisce il minimo una sola volta (0.502564ms)
+✔ i bot scelgono solo rinforzi aggiuntivi validi dopo la conquista (1.782088ms)
+✔ sortite: solo <=8 territori e <3 rinforzi; soglie 6/3/2% (125.202605ms)
+✔ sortita controllata dopo i tris e prima del piazzamento; bersaglio scelto dopo i rinforzi (0.994302ms)
+✔ sortite: tentativo fallito non ripetuto, cooldown e stop a metà forze (21.540976ms)
+✔ tregua per bot: nessun attacco prima della scadenza, altre fasi consentite (1.033029ms)
+✔ stima esatta conserva probabilità e superstiti plausibili (0.170472ms)
+✔ ogni preferenza disattivata produce comunque comandi legali (95.912901ms)
+✔ difficile sfrutta il bersaglio debole e rifiuta un attacco senza probabilità di successo (10.320396ms)
+✔ Undo ripristina armate, riserva e inferenze; resta disponibile dopo l’ultimo rinforzo fino ad Attacco (1.303679ms)
+✔ Undo non annulla la dotazione iniziale né scambi; il timeout conserva le armate e chiude la cronologia (0.773475ms)
+✔ Countdown 45 minuti: esclusi setup e pausa, chiusura a punti alla scadenza, nessuna Sdadata (0.474742ms)
+✔ Countdown risolve una conquista precedente senza azzerare né duplicare la guarnigione (0.42521ms)
+✔ Andamento punti: ogni bot vede solo i propri valori fino alla classifica finale (0.757221ms)
+✔ Snapshot locale completo: ripresa con Undo, no perdita silenziosa su JSON corrotto o quota esaurita (0.916116ms)
+✔ Statistiche: dadi dell’umano in attacco/difesa, esclusi altri bot e Sdadata; media punti tavolo e vecchi record (0.296549ms)
+✔ Rotte su entrambe le mappe: punti di costa finiti e distinti dai centri; badge 12 puramente estetico (2.340745ms)
+✔ Tick ordinari e scadenze conservano gli snapshot precedenti, anche dopo una lunga cronologia (14.197265ms)
+✔ lobby renders all bot slots, defaults and blind selectors without real levels (4.806525ms)
+✔ table renders 42 territories, hidden objectives, timer and battle controls (6.442656ms)
+✔ new game requires confirmation before replacing a save (1.976826ms)
+✔ commands carry actor-independent revision and unique request id (4.147899ms)
+✔ results reveal blind difficulty and all objectives only after conclusion (1.370869ms)
+✔ background pause during compulsory conquest never traps the resume controls (3.312383ms)
+✔ setup UI distingue schierati, riserva e mano, evidenzia solo i propri territori (2.157123ms)
+✔ carte militari selezionabili: invia solo il tris scelto e mostra il bonus (5.883479ms)
+✔ spostamento obbligatorio usa finestra flottante senza oscurare la plancia (2.197553ms)
+✔ carte e selezione restano aperte tra attacchi e cambi di turno dei bot (5.299854ms)
+✔ finestra conquista mostra minimo trasferito e selettore aggiuntivi a zero (1.329588ms)
+✔ strategie per bot: caselle, tregua, applica a tutti e configurazione della nuova partita (2.198004ms)
+✔ Antartide facoltativa: menu, plancia completa e ripresa con inquadratura estesa (5.10725ms)
+✔ Home Torneo: Countdown 45 minuti, Antartide off, velocità e personalità personalizzabili (1.77034ms)
+✔ Widget obiettivo mostra punti, mappa punti e bonus; Undo passa attraverso il protocollo dei comandi (2.877319ms)
+✔ I tick del timer non ricostruiscono la plancia né fanno perdere la finestra carte (2.226646ms)
+✔ home verticale: menu reale, preparazione separata e Survival per tutti i bot (0.750771ms)
+✔ selezione attacco: solo bersagli legali evidenziati, nessun territorio estraneo attenuato (1.839352ms)
+✔ menu: audio, regole e strategie usano pagine verticali coerenti; ritorno alla preparazione (2.625737ms)
+✔ statistiche: pagina a colonna con cronologia espandibile, senza tabella orizzontale (14.076085ms)
+✔ Worker: salvataggio prima degli effetti, timer fermo, ACK, pausa e watchdog (136.447911ms)
+✔ Worker integration: persist before publish, private projection, duplicate requests and save failure (53.957613ms)
+ℹ tests 131
+ℹ suites 0
+ℹ pass 131
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107958.822564
+
+
+TypeScript
+
+> risiko-offline@1.6.0 typecheck
+> tsc --noEmit
+
+
+
+Build e Capacitor
+
+> risiko-offline@1.6.0 android:sync
+> npm run build && cap sync android
+
+
+> risiko-offline@1.6.0 build
+> node scripts/build.mjs
+
+vite v7.0.0 building for production...
+transforming...
+✓ 40 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                          0.75 kB │ gzip:  0.44 kB
+dist/assets/server.worker-D9I6m5TE.js   68.30 kB
+dist/assets/index-tgPtcJ1c.css         105.39 kB │ gzip: 23.10 kB
+dist/assets/index-BOq_ejWX.js          279.67 kB │ gzip: 94.81 kB
+✓ built in 1.27s
+✔ Copying web assets from dist to android/app/src/main/assets/public in 9.19ms
+✔ Creating capacitor.config.json in android/app/src/main/assets in 567.07μs
+✔ copy android in 18.46ms
+✔ Updating Android plugins in 1.27ms
+✔ update android in 31.10ms
+[info] Sync finished in 0.065s
+
+
+Verifica pacchetto
+Verifica statica: 9 file locali, import risolti, nessun endpoint remoto, orientamento home/plancia e permesso Internet rimosso nel manifest sorgente.
+
+
+Browser locale: BLOCCATO
+
+> risiko-offline@1.5.0 test:ui
+> node scripts/browser-test.mjs
+
+file:///workspace/risiko-offline/scripts/browser-test.mjs:15
+ for(let i=0;i<100;i++){if(server.exitCode!==null)throw new Error('Server non disponibile: '+logs);try{if((await fetch('http://127.0.0.1:4173')).ok){connected=true;break;}}catch{}await wait(200);}
+                                                        ^
+
+Error: Server non disponibile: node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EPERM: operation not permitted 0.0.0.0:4173
+    at Server.setupListenHandle [as _listen2] (node:net:2145:21)
+    at listenInCluster (node:net:2224:12)
+    at node:net:2448:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2203:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EPERM',
+  errno: -1,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 4173
+}
+
+Node.js v24.19.0
+
+    at file:///workspace/risiko-offline/scripts/browser-test.mjs:15:57
+
+Node.js v24.19.0

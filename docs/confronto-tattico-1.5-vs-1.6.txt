@@ -1,0 +1,248 @@
+Stessi primi 12 test della suite adversarial-ai eseguiti sul pacchetto 1.5.0-fix-browser.
+
+✖ occasione ignorata: rompe an, accesso 12→42, 3/4/5 giocatori (114.163095ms)
+✖ occasione ignorata: rompe an, accesso 24→43, 3/4/5 giocatori (44.542897ms)
+✖ occasione ignorata: rompe an, accesso 41→43, 3/4/5 giocatori (352.467702ms)
+✖ occasione ignorata: rompe oc, accesso 37→38, 3/4/5 giocatori (536.73235ms)
+✔ occasione ignorata: rompe eu, accesso 2→13, 3/4/5 giocatori (463.875392ms)
+✔ occasione ignorata: rompe eu, accesso 26→19, 3/4/5 giocatori (869.863229ms)
+✖ occasione ignorata: rompe eu, accesso 20→16, 3/4/5 giocatori (2.469773ms)
+✖ occasione ignorata: rompe eu, accesso 34→18, 3/4/5 giocatori (1.444142ms)
+✖ Europa del bot: otto rinforzi mettono almeno tre difensori sui quattro accessi contro stack umani da dodici (1.371254ms)
+✔ tris: sette carte utilizzabili vengono scambiate prima dei piazzamenti, nei limiti delle 130 armate (6.084797ms)
+✔ occupazione: sposta la forza verso il nuovo fronte se il territorio di origine è ormai interno (0.879796ms)
+✖ il pacing reale non consuma il turno prima di poter eseguire una sequenza di attacchi (4.17279ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 4
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2485.854898
+
+✖ failing tests:
+
+test at tests/adversarial-ai.test.ts:16:2
+✖ occasione ignorata: rompe an, accesso 12→42, 3/4/5 giocatori (114.163095ms)
+  AssertionError [ERR_ASSERTION]: difficile/3/12:2
+  + actual - expected
+  
+    {
+      from: 12,
+  +   to: 11,
+  -   to: 42,
+      type: 'ATTACK'
+    }
+  
+      at TestContext.<anonymous> (file:///tmp/risiko160baseline/tests/adversarial-ai.test.ts:22:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/adversarial-ai.test.ts:16:2
+✖ occasione ignorata: rompe an, accesso 24→43, 3/4/5 giocatori (44.542897ms)
+  AssertionError [ERR_ASSERTION]: difficile/3/8:1
+  + actual - expected
+  
+    {
+      from: 24,
+  +   to: 23,
+  -   to: 43,
+      type: 'ATTACK'
+    }
+  
+      at TestContext.<anonymous> (file:///tmp/risiko160baseline/tests/adversarial-ai.test.ts:22:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/adversarial-ai.test.ts:16:2
+✖ occasione ignorata: rompe an, accesso 41→43, 3/4/5 giocatori (352.467702ms)
+  AssertionError [ERR_ASSERTION]: difficile/4/15:3
+  + actual - expected
+  
+    {
+      from: 41,
+  +   to: 40,
+  -   to: 43,
+      type: 'ATTACK'
+    }
+  
+      at TestContext.<anonymous> (file:///tmp/risiko160baseline/tests/adversarial-ai.test.ts:22:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/adversarial-ai.test.ts:16:2
+✖ occasione ignorata: rompe oc, accesso 37→38, 3/4/5 giocatori (536.73235ms)
+  AssertionError [ERR_ASSERTION]: medio/5/12:2
+  + actual - expected
+  
+    {
+      from: 37,
+  +   to: 35,
+  -   to: 38,
+      type: 'ATTACK'
+    }
+  
+      at TestContext.<anonymous> (file:///tmp/risiko160baseline/tests/adversarial-ai.test.ts:22:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/adversarial-ai.test.ts:16:2
+✖ occasione ignorata: rompe eu, accesso 20→16, 3/4/5 giocatori (2.469773ms)
+  AssertionError [ERR_ASSERTION]: medio/3/15:3
+  + actual - expected
+  
+    {
+      from: 20,
+  +   to: 18,
+  -   to: 16,
+      type: 'ATTACK'
+    }
+  
+      at TestContext.<anonymous> (file:///tmp/risiko160baseline/tests/adversarial-ai.test.ts:22:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/adversarial-ai.test.ts:16:2
+✖ occasione ignorata: rompe eu, accesso 34→18, 3/4/5 giocatori (1.444142ms)
+  AssertionError [ERR_ASSERTION]: medio/3/15:3
+  + actual - expected
+  
+    {
+      from: 34,
+  +   to: 19,
+  -   to: 18,
+      type: 'ATTACK'
+    }
+  
+      at TestContext.<anonymous> (file:///tmp/risiko160baseline/tests/adversarial-ai.test.ts:22:11)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/adversarial-ai.test.ts:27:1
+✖ Europa del bot: otto rinforzi mettono almeno tre difensori sui quattro accessi contro stack umani da dodici (1.371254ms)
+  AssertionError [ERR_ASSERTION]: medio: accesso 13 lasciato sguarnito
+      at TestContext.<anonymous> (file:///tmp/risiko160baseline/tests/adversarial-ai.test.ts:34:40)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/adversarial-ai.test.ts:53:1
+✖ il pacing reale non consuma il turno prima di poter eseguire una sequenza di attacchi (4.17279ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(delay<=1000)
+  
+      at TestContext.<anonymous> (file:///tmp/risiko160baseline/tests/adversarial-ai.test.ts:55:64)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+
+1.6.0, suite ampliata a 14 test:
+✔ occasione ignorata: rompe an, accesso 12→42, 3/4/5 giocatori (48.276001ms)
+✔ occasione ignorata: rompe an, accesso 24→43, 3/4/5 giocatori (11.403409ms)
+✔ occasione ignorata: rompe an, accesso 41→43, 3/4/5 giocatori (8.800532ms)
+✔ occasione ignorata: rompe oc, accesso 37→38, 3/4/5 giocatori (10.086217ms)
+✔ occasione ignorata: rompe eu, accesso 2→13, 3/4/5 giocatori (8.807842ms)
+✔ occasione ignorata: rompe eu, accesso 26→19, 3/4/5 giocatori (12.219338ms)
+✔ occasione ignorata: rompe eu, accesso 20→16, 3/4/5 giocatori (8.31376ms)
+✔ occasione ignorata: rompe eu, accesso 34→18, 3/4/5 giocatori (8.096899ms)
+✔ Europa del bot: otto rinforzi mettono almeno tre difensori sui quattro accessi contro stack umani da dodici (6.351663ms)
+✔ tris: sette carte utilizzabili vengono scambiate prima dei piazzamenti, nei limiti delle 130 armate (2.113993ms)
+✔ occupazione: sposta la forza verso il nuovo fronte se il territorio di origine è ormai interno (1.0328ms)
+✔ il pacing reale non consuma il turno prima di poter eseguire una sequenza di attacchi (0.786375ms)
+✔ difesa persistente: protegge entrambi gli accessi antartici e quello oceanico durante piazzamenti reali (8.316384ms)
+✔ tris consecutivi: usa entrambi i tris disponibili prima di iniziare a piazzare (2.056407ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 220.845172
