@@ -130,7 +130,7 @@ setInterval(() => {
           const rngState = {rng: state.aiRng};
           const view = project(state, p.id);
           const decision = humanDecision(view, p.difficulty, () => random(rngState), state.botContexts?.[p.id]);
-          const delay = decisionDelay(view, decision.command, previousBot?.actor === p.id ? previousBot.command : null, speed, Math.random);
+          const delay = decisionDelay(view, decision.command, previousBot?.actor === p.id ? previousBot.command : null, speed, Math.random, p.difficulty);
           planned = {...decision, revision: state.revision, actor: p.id, aiRng: rngState.rng, due: now + delay};
         }
         if (now >= planned.due) {

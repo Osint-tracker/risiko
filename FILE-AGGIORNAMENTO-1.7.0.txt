@@ -1,0 +1,13 @@
+AGGIORNAMENTO COMPLETO 1.7.0 (build 11)
+
+Sostituisci i file allo stesso percorso nel repository, senza aggiungere una seconda cartella risiko-offline. Mantieni .github/ e la nuova cartella ios/.
+
+ANDROID: workflow android.yml come prima. L'APK include la correzione del rimbalzo dello zoom. Per mantenere i salvataggi installa come aggiornamento con lo stesso identificatore e la stessa chiave di firma.
+
+IPHONE: l'APK non funziona su iOS. Il progetto Xcode incluso è per iPhone, non per Mac. Un Mac con Xcode 26+ serve per compilare e firmare: npm ci, npm run ios:setup, npm run ios:open. Seleziona il tuo Team Apple e il tuo iPhone in Xcode. Guida completa: docs/IPHONE.md.
+
+TestFlight richiede Apple Developer Program, configurazione App Store Connect, firma e caricamento. Nessun IPA firmato è incluso. Il workflow ios.yml compila solo un archivio di verifica NON installabile sul telefono.
+
+Zoom corretto e verificato sulle transizioni. Configurazione iOS verificata staticamente; compilazione Swift e installazione su iPhone da eseguire su Mac o runner GitHub. Browser locale bloccato dall'ambiente (listen EPERM); test conservato nel workflow Android.
+
+VERIFICHE: 133 test superati, TypeScript e build web/Android sync riusciti.

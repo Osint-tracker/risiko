@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import {makeTransition} from '../src/engine/presentation.ts';
 import { mountGame } from '../src/gui/App.ts';
 import { createGame, project, applyCommand, owned } from '../src/engine/RisikoRulesEngine.ts';
 class MockWorker {
@@ -23,9 +24,13 @@ class MockWorker {
     });
   }
 }
-function fixture(holdEffects=false,prepare=true) {
+function fixture(holdEffects=false,prepare=true,trackMap=false) {
   const callbacks: Record<string, Function> = {};
   let html = '';
+  const map={
+    setAttribute(name:string,value:string){if(name==='viewBox')html=html.replace(/(id="world-map"[^>]*viewBox=")[^"]+/,`$1${value}`);},
+    insertAdjacentHTML(){}, getScreenCTM(){return null;}
+  };
   const effects={innerHTML:'',className:'',style:{setProperty(){}},classList:{add(){},remove(){}},querySelector(){return null;}};
   const root = {
     set innerHTML(v: string) {
@@ -35,6 +40,7 @@ function fixture(holdEffects=false,prepare=true) {
       return html;
     },
     querySelector(selector:string) {
+      if(trackMap&&selector==='#world-map'&&html.includes('id="world-map"'))return map;
       return holdEffects&&selector==='#effects'?effects:null;
     },
     querySelectorAll(){return [];},
@@ -349,4 +355,57 @@ test('selezione attacco: solo bersagli legali evidenziati, nessun territorio est
  assert.equal((f.root.innerHTML.match(/ attackable /g)??[]).length,3);
  assert.match(f.root.innerHTML,/source-ring/);assert.doesNotMatch(f.root.innerHTML,/fill="#d49b35"/);
  f.cleanup();
+});
+
+test('menu: audio, regole e strategie usano pagine verticali coerenti; ritorno alla preparazione',()=>{
+ const f=fixture();
+ for(const action of ['audio','rules']){
+  f.click({action});assert.match(f.root.innerHTML,/modal-backdrop menu-sheet/);assert.match(f.root.innerHTML,/classic-home portal-route/);assert.match(f.root.innerHTML,/portal-back/);
+  f.click({action:'close'});assert.doesNotMatch(f.root.innerHTML,/modal-backdrop menu-sheet/);assert.match(f.root.innerHTML,/Prepara la partita/);
+ }
+ f.click({strategy:'0'});assert.match(f.root.innerHTML,/menu-sheet/);assert.match(f.root.innerHTML,/Strategia · Falco/);f.cleanup();
+});
+test('statistiche: pagina a colonna con cronologia espandibile, senza tabella orizzontale',()=>{
+ const f=fixture();f.worker.emit({type:'PROFILE',profile:{name:'Comandante',results:[{date:'2026-10-30',players:3,rank:1,points:86,reason:'risiko',duration:180000,name:'Comandante'}]}});
+ f.click({action:'profile'});
+ assert.match(f.root.innerHTML,/profile-page portal-column/);assert.match(f.root.innerHTML,/match-history/);assert.match(f.root.innerHTML,/details class="portal-section"/);assert.doesNotMatch(f.root.innerHTML,/<table/);
+ mkdirSync('artifacts/previews',{recursive:true});writeFileSync('artifacts/previews/profile-1.6.html',f.root.innerHTML);
+ f.click({action:'audio'});writeFileSync('artifacts/previews/audio-1.6.html',f.root.innerHTML);f.cleanup();
+});
+
+// Inspect every render, not just the final state: the old camera reset lasted
+// only for the presentation and was hidden by its subsequent restore.
+for(const placementPhase of ['SETUP_PLACEMENT','REINFORCEMENT'] as const)test(`zoom: ${placementPhase} e attacchi fuori inquadratura non cambiano la camera, neanche durante gli effetti`,()=>{
+ const f=fixture(true,true,true),originalSet=globalThis.setTimeout,originalClear=globalThis.clearTimeout;
+ let serial=0;const timers=new Map<number,()=>void>();
+ globalThis.setTimeout=((fn:()=>void)=>{const id=++serial;timers.set(id,fn);return id;}) as never;
+ globalThis.clearTimeout=((id:number)=>timers.delete(id)) as never;
+ const camera=()=>f.root.innerHTML.match(/id="world-map"[^>]*viewBox="([^"]+)"/)![1];
+ const flush=()=>{for(let n=0;timers.size&&n<1000;n++){const [id,fn]=timers.entries().next().value!;timers.delete(id);fn();}};
+ try{
+  f.click({action:'new'});
+  let s=createGame({players:3,name:'Zoom',difficulties:['medio','medio'],turnSeconds:180,seed:31});
+  s.active=0;s.phase=placementPhase;s.reinforcements=5;s.round=6;
+  if(placementPhase==='REINFORCEMENT')s.players.forEach(p=>p.setupRemaining=0);
+  s.board[0]={owner:0,armies:9};s.board[29]={owner:1,armies:1};
+  f.worker.emit({type:'STATE',state:project(s)});
+  for(let n=0;n<4;n++)f.click({action:'zoom-in'});
+  for(const command of [{type:'PLACE',territory:0,count:1},{type:'ATTACK',from:0,to:29}] as const){
+   if(command.type==='ATTACK'){s.phase='ATTACK';s.players.forEach(p=>p.setupRemaining=0);s.revision++;f.worker.emit({type:'STATE',state:project(s)});}
+   const before=camera(),after=applyCommand(s,0,command),transition=makeTransition(s,after)!;
+   assert.ok(transition);f.worker.emit({type:'TRANSITION',transition});
+   assert.equal(camera(),before,'Nessun fotogramma a mappa completa');
+   f.click({action:'zoom-in'});f.click({action:'names'});const changed=camera();
+   assert.notEqual(changed,before,'Il giocatore può cambiare zoom durante gli effetti');
+   flush();assert.equal(camera(),changed,'Il completamento non deve ripristinare uno zoom vecchio');
+   assert.ok(f.worker.messages.some(m=>m.type==='PRESENTED'&&m.id===transition.id));s=after;
+  }
+  // A state update can cancel an animation (pause/resume/watchdog).
+  s.phase='REINFORCEMENT';s.pending=null;s.reinforcements=2;s.revision++;
+  f.worker.emit({type:'STATE',state:project(s)});
+  const after=applyCommand(s,0,{type:'PLACE',territory:0,count:1}),t=makeTransition(s,after)!;
+  f.worker.emit({type:'TRANSITION',transition:t});const before=camera();
+  f.worker.emit({type:'STATE',state:project({...after,paused:true})});flush();assert.equal(camera(),before);
+  f.click({action:'reset-map'});f.click({action:'names'});assert.equal(camera(),'0 0 1240 690');
+ }finally{f.cleanup();globalThis.setTimeout=originalSet;globalThis.clearTimeout=originalClear;}
 });

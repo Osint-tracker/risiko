@@ -1,6 +1,22 @@
-# RisiKo Offline 1.5.0 — Torneo per Android
+# RisiKo Offline 1.7.0 — Torneo per Android e iPhone
 
 Gioco single-player in italiano: un umano contro 2–4 bot. Solo obiettivi Torneo da 86 punti, difesa fino a tre dadi, distribuzione iniziale con limite continentale del 50%. Antartide facoltativa, disattivata di default. Il badge da 12 carri è una soglia grafica, non un nuovo limite.
+
+## Aggiornamento 1.7.0 — zoom stabile e iPhone
+
+Attacchi, piazzamenti e animazioni mantengono lo zoom scelto dal giocatore. Nessun allargamento temporaneo della mappa per mostrare territori fuori inquadratura.
+
+Progetto iPhone incluso in `ios/`: su Mac con Xcode 26+, esegui `npm ci`, `npm run ios:setup`, `npm run ios:open`. La compilazione/firma nativa va verificata su Mac o nel workflow iOS: non è stata eseguita in questo ambiente Linux. L’APK resta solo Android.
+
+[Installazione iPhone e TestFlight](docs/IPHONE.md) · [Dettagli aggiornamento](docs/AGGIORNAMENTO-1.7.0.md).
+
+## Aggiornamento 1.6.0 — menu coerenti e correzioni tattiche
+
+Statistiche, regole, audio, strategie e risultati passano allo stile verticale azzurro/blu della home. I bot Medio/Difficile/Survival riconoscono le incursioni convenienti sui continenti avversari, riservano rinforzi ai propri accessi e gestiscono le attese entro il tempo del turno.
+
+La verifica include scenari degli errori segnalati dal giocatore, eseguiti anche sulla 1.5.0, e una nuova arena con avversari indipendenti e cronometro attivo: `npm run benchmark:arena`. Non si considera la sola percentuale di vittorie contro altri bot una prova di forza contro umani.
+
+Dettagli e limiti: [AGGIORNAMENTO-1.6.0.md](docs/AGGIORNAMENTO-1.6.0.md). Anteprime statiche: [statistiche](docs/profile-1.6-preview.html), [audio](docs/audio-1.6-preview.html).
 
 ## Aggiornamento 1.5.0 — home verticale e pianificatore IA
 

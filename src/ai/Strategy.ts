@@ -1,3 +1,4 @@
+import {forcingAttacks,defensiveCommitments,criticalGarrison,hostileNeighbors} from './Tactics.ts';
 import {mapFor,objectives} from '../data/mapGraph.ts';
 import {owned,border,canAttack,moveBounds,validTris,reinforcement,total} from '../engine/RisikoRulesEngine.ts';
 import {conquestOdds,diceDistribution,inferObjectiveWeights} from './BotAI.ts';
@@ -72,7 +73,7 @@ export function rankAttacks(v:GameView,p=botPolicy(v.players[v.active].botPolicy
    const other=enemies(v,from).filter(id=>id!==to);
    const risk=Math.max(0,...other.map(id=>conquestOdds(v.board[id].armies,2)));
    score-=risk*holding(v,from,p)*.35;
-   score-=Math.max(0,...enemies(v,to).filter(id=>id!==from).map(id=>conquestOdds(v.board[id].armies,remaining)))*gain(v,to,p)*.22;
+   score-=Math.max(0,...hostileNeighbors(v,to).filter(id=>id!==from).map(id=>conquestOdds(v.board[id].armies,remaining)))*gain(v,to,p)*.22;
   }
   out.push({from,to,score,win:e.win});
  }
@@ -81,8 +82,9 @@ export function rankAttacks(v:GameView,p=botPolicy(v.players[v.active].botPolicy
 /** Whole reserve investments, not one-army marginal improvements. Saved until consumed. */
 function greedyReinforcementPlan(v:GameView):number[]{
  summaries.delete(v);
- const p=botPolicy(v.players[v.active].botPolicy),w=clone(v),plan:number[]=[];
- let left=v.phase==='SETUP_PLACEMENT'?Math.min(v.setupBatch,v.players[v.active].setupRemaining):v.reinforcements;
+ const p=botPolicy(v.players[v.active].botPolicy),w=clone(v),plan=defensiveCommitments(v);
+ for(const id of plan)w.board[id].armies++;refresh(w);
+ let left=(v.phase==='SETUP_PLACEMENT'?Math.min(v.setupBatch,v.players[v.active].setupRemaining):v.reinforcements)-plan.length;
  while(left>0){
   let best={id:owned(w,w.active)[0],count:1,score:-Infinity};
   for(const id of owned(w,w.active)){
@@ -116,10 +118,11 @@ export function reinforcementPlan(v:GameView,level:Difficulty):number[]{
  const base=greedyReinforcementPlan(v);
  if(level==='medio'||v.phase==='SETUP_PLACEMENT'||base.length<3||v.round<=botPolicy(v.players[v.active].botPolicy).graceRounds)return base;
  const p=botPolicy(v.players[v.active].botPolicy),front=owned(v,v.active).filter(id=>border(v,id));
+ const protectedPlan=defensiveCommitments(v),free=base.length-protectedPlan.length;
  const candidates=[base];
  for(const id of front){
-  candidates.push(Array(base.length).fill(id));
-  const reserve=Math.floor(base.length*.3);
+  candidates.push([...protectedPlan,...Array(free).fill(id)]);
+  const reserve=protectedPlan.length+Math.floor(free*.3);
   candidates.push([...base.slice(0,reserve),...Array(base.length-reserve).fill(id)]);
  }
  // Discard duplicate allocations; placement ordering does not change a campaign.
@@ -152,6 +155,7 @@ function occupation(v:GameView,from:number,to:number,min:number,max:number,p:Bot
  const fronts=[enemies(v,from),enemies(v,to)];
  const values=fronts.map(list=>list.map(id=>gain(v,id,p)));
  const importance=[holding(v,from,p),holding(v,to,p)];
+ max=Math.max(min,Math.min(max,v.board[from].armies-criticalGarrison(v,from,p)));
  for(let n=min;n<=max;n++){
   const armies=[v.board[from].armies-n,v.board[to].armies+n];
   const risk=fronts.map((list,i)=>Math.max(0,...list.map(e=>conquestOdds(v.board[e].armies,armies[i])))*importance[i]);
@@ -237,6 +241,8 @@ export function attackDecision(v:GameView,level:Difficulty,rng:()=>number,mood?:
  summaries.delete(v);
  const p=botPolicy(v.players[v.active].botPolicy);
  if(v.round<=p.graceRounds)return {command:{type:'NEXT'},alternatives:[],samples:0};
+ const forcing=forcingAttacks(v);
+ if(forcing.length)return {command:{type:'ATTACK',from:forcing[0].from,to:forcing[0].to},alternatives:forcing,samples:0};
  const roots=rankAttacks(v,p,mood).slice(0,level==='survival'?6:level==='difficile'?4:3);
  // Medium uses a short chance-weighted continuation; deeper levels sample actual branches.
  if(level==='medio'){

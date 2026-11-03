@@ -26,6 +26,12 @@ try{
  assert.equal(await page.locator('.portrait-notice').isVisible(),false);
  assert.equal(await page.locator('[data-bot]').count(),0);
  await page.screenshot({path:'artifacts/browser/portrait-home.png',fullPage:true});
+ await page.locator('.portal-menu [data-action="profile"]').click();
+ await page.locator('.profile-page.portal-column').waitFor();
+ assert.equal(await page.locator('.portrait-notice').isVisible(),false);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+ await page.screenshot({path:'artifacts/browser/portrait-statistics.png'});
+ await page.locator('.portal-brand').click();
  await page.locator('.portal-play').click();
  await page.locator('[data-bot="0"]').selectOption('survival');
  assert.equal(await page.locator('[data-bot="0"]').inputValue(),'survival');
@@ -187,6 +193,18 @@ try{
  await clickTerritory(page,0);await clickTerritory(page,1);
  await page.locator('.floating-panel').waitFor();assert.equal(await page.locator('.modal-backdrop').count(),0);
  const panel=await page.locator('.floating-panel').boundingBox();assert.ok(panel.height<=390*.6+1&&panel.width<=360);
+ // Start the attack with its territories outside the zoomed viewport. Observe
+ // every camera mutation, so a temporary zoom-out cannot hide behind a restore.
+ for(let i=0;i<4;i++)await page.locator('[data-action="zoom-in"]').click();
+ const attackCamera=await page.locator('#world-map').getAttribute('viewBox');
+ await page.evaluate(()=>{
+  window.__cameraFrames=[document.querySelector('#world-map').getAttribute('viewBox')];
+  window.__cameraObserver=new MutationObserver(records=>{
+   for(const record of records)if(record.type==='attributes'&&record.target.id==='world-map')window.__cameraFrames.push(record.oldValue);
+   const current=document.querySelector('#world-map')?.getAttribute('viewBox');if(current)window.__cameraFrames.push(current);
+  });
+  window.__cameraObserver.observe(document.querySelector('#scene'),{subtree:true,childList:true,attributes:true,attributeFilter:['viewBox'],attributeOldValue:true});
+ });
  await page.locator('[data-action="roll"]').click();await page.locator('.effects-layer.rolling').waitFor();
  assert.equal(await page.locator('.clash-origin').count(),1);assert.equal(await page.locator('.clash-impact').count(),1);
  const timer=await page.locator('#timer').innerText();await wait(100);assert.equal(await page.locator('#timer').innerText(),timer);
@@ -195,6 +213,9 @@ try{
  await page.screenshot({path:'artifacts/browser/dice-rolling.png'});
  await page.locator('#map-fx.impact-now').waitFor();await page.screenshot({path:'artifacts/browser/clash.png'});
  await page.locator('[data-action="confirm-move"]').waitFor();
+ const attackFrames=await page.evaluate(()=>{window.__cameraObserver.disconnect();return [...window.__cameraFrames,document.querySelector('#world-map').getAttribute('viewBox')];});
+ assert.ok(attackFrames.length>1);assert.ok(attackFrames.every(frame=>frame===attackCamera),'Nessun rimbalzo della camera durante attacco/conquista');
+ await page.locator('[data-action="reset-map"]').click();
  const move=page.locator('.move-panel');
  const moveRect=await move.boundingBox();assert.ok(moveRect.width<=290&&moveRect.height<=390*.6+1);
  assert.equal(await move.evaluate(el=>el.scrollHeight<=el.clientHeight+1),true,'Tutti i controlli di spostamento devono essere visibili senza scorrere');

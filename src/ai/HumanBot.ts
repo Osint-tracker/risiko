@@ -60,8 +60,14 @@ export function humanDecision(v: GameView, level: Difficulty, rng: () => number,
 }
 
 /** Timing randomness is independent of the engine and decision RNGs. */
-export function decisionDelay(v: GameView, next: Command, previous: Command | null, speed: number, rng: () => number): number {
+export function decisionDelay(v: GameView, next: Command, previous: Command | null, speed: number, rng: () => number, level?: Difficulty): number {
   if (speed === 0) return 0;
+  if(level&&level!=='facile'){
+    const base=next.type==='PLACE'?350+rng()*250:next.type==='ATTACK'?550+rng()*450:500+rng()*500;
+    const remaining=v.phase==='SETUP_PLACEMENT'?30000:Math.max(0,v.remainingMs-500);
+    const steps=Math.max(8,v.reinforcements+v.players[v.active].totalArmies*.65+v.players[v.active].territoryCount);
+    return Math.min(base/speed,remaining/steps);
+  }
   let delay: number;
   if (next.type === 'PLACE' && previous?.type === 'PLACE') {
     delay = next.territory === previous.territory ? 400 + rng() * 500 : 1000 + rng() * 1000;

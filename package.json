@@ -1,6 +1,6 @@
 {
   "name": "risiko-offline",
-  "version": "1.5.0",
+  "version": "1.7.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,12 @@
     "apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
     "test:ui": "node scripts/browser-test.mjs",
     "benchmark:ai": "node scripts/benchmark-ai.mjs",
-    "benchmark:planner": "node scripts/benchmark-planner.mjs"
+    "benchmark:planner": "node scripts/benchmark-planner.mjs",
+    "benchmark:arena": "node scripts/benchmark-arena.mjs",
+    "ios:setup": "node scripts/ios-setup.mjs",
+    "ios:sync": "node scripts/ios-setup.mjs",
+    "ios:open": "cap open ios",
+    "ios:verify": "node scripts/verify-ios.mjs"
   },
   "dependencies": {
     "react": "19.0.0",

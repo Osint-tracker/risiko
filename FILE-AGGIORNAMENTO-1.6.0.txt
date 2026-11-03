@@ -1,0 +1,11 @@
+AGGIORNAMENTO COMPLETO 1.6.0 (Android versionCode 10)
+
+1. Estrai lo ZIP: package.json, src/, tests/, scripts/, android/ e .github/ sono alla radice.
+2. Sostituisci i file con lo stesso percorso nel repository. Non creare una seconda cartella risiko-offline e non rinominare i duplicati.
+3. Conserva .github/ ed esegui il workflow Android: scarica l’APK dall’artifact risiko-offline-debug dopo tutti i check.
+4. Installa l’APK come aggiornamento per mantenere i salvataggi, se firmato con la stessa chiave della versione già installata.
+
+Menu verticali coerenti con la home; correzioni tattiche a Medio, Difficile e Survival; Facile e regole invariati.
+131 test superati, TypeScript, build Vite e cap sync riusciti. Test browser mantenuto in CI: qui bloccato prima dell’avvio da listen EPERM.
+Confronto sui primi 12 nuovi test: 1.5.0 fallisce 8, 1.6.0 passa tutti. Arena con avversari indipendenti e tempo di turno attivo: 18 partite, nessun timeout del candidato. Non è una certificazione di forza contro umani.
+Dettagli: docs/AGGIORNAMENTO-1.6.0.md. Anteprime statiche: docs/profile-1.6-preview.html e docs/audio-1.6-preview.html.
