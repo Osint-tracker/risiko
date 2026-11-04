@@ -193,6 +193,10 @@ try{
  await clickTerritory(page,0);await clickTerritory(page,1);
  await page.locator('.floating-panel').waitFor();assert.equal(await page.locator('.modal-backdrop').count(),0);
  const panel=await page.locator('.floating-panel').boundingBox();assert.ok(panel.height<=390*.6+1&&panel.width<=360);
+ const zoomReachable=await page.locator('[data-action="zoom-in"]').evaluate(button=>{
+  const r=button.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===button;
+ });
+ assert.ok(zoomReachable,'Il pannello di combattimento non deve coprire i controlli zoom');
  // Start the attack with its territories outside the zoomed viewport. Observe
  // every camera mutation, so a temporary zoom-out cannot hide behind a restore.
  for(let i=0;i<4;i++)await page.locator('[data-action="zoom-in"]').click();

@@ -1,4 +1,6 @@
-# Installazione su iPhone
+# Installazione nativa su iPhone
+
+Per la versione gratuita senza rinnovi della firma e senza Mac, usa la [PWA](PWA-IPHONE.md). Le istruzioni seguenti riguardano solo la versione nativa con Xcode.
 
 Questa versione contiene un progetto **iPhone**, non un'applicazione per Mac. Usa lo stesso gioco offline, motore, bot, grafica e icona di Android. Il Mac serve come macchina di compilazione e firma.
 

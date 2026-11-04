@@ -1,0 +1,303 @@
+VERIFICHE 1.8.0
+
+143 test superati. Typecheck, build web e sync Android riusciti.
+Nessuna prova browser completa o prova su iPhone fisico eseguita qui.
+I workflow Android e Pages conservano i test browser con clic reali.
+Nessun APK/IPA compilato o firmato in questa consegna.
+
+Suite completa
+
+
+> risiko-offline@1.8.0 test
+> node --test --test-isolation=none tests/*.test.ts
+
+✔ occasione ignorata: rompe an, accesso 12→42, 3/4/5 giocatori (35.813179ms)
+✔ occasione ignorata: rompe an, accesso 24→43, 3/4/5 giocatori (6.896864ms)
+✔ occasione ignorata: rompe an, accesso 41→43, 3/4/5 giocatori (5.976509ms)
+✔ occasione ignorata: rompe oc, accesso 37→38, 3/4/5 giocatori (7.028152ms)
+✔ occasione ignorata: rompe eu, accesso 2→13, 3/4/5 giocatori (6.803694ms)
+✔ occasione ignorata: rompe eu, accesso 26→19, 3/4/5 giocatori (6.636102ms)
+✔ occasione ignorata: rompe eu, accesso 20→16, 3/4/5 giocatori (6.870184ms)
+✔ occasione ignorata: rompe eu, accesso 34→18, 3/4/5 giocatori (6.832417ms)
+✔ Europa del bot: otto rinforzi mettono almeno tre difensori sui quattro accessi contro stack umani da dodici (8.220936ms)
+✔ tris: sette carte utilizzabili vengono scambiate prima dei piazzamenti, nei limiti delle 130 armate (6.260457ms)
+✔ occupazione: sposta la forza verso il nuovo fronte se il territorio di origine è ormai interno (0.988246ms)
+✔ il pacing reale non consuma il turno prima di poter eseguire una sequenza di attacchi (0.806273ms)
+✔ difesa persistente: protegge entrambi gli accessi antartici e quello oceanico durante piazzamenti reali (7.191908ms)
+✔ tris consecutivi: usa entrambi i tris disponibili prima di iniziare a piazzare (1.438904ms)
+✔ animazione conquista: conteggi autentici, nessun fotogramma a zero, vettore e marcia (2.722134ms)
+✔ animazione aggiuntivi: aggiorna entrambi i contatori una sola volta (0.891702ms)
+✔ interruzione animazioni cancella i callback e non invia un secondo completamento (0.653462ms)
+✔ I dadi si fermano a 350 ms; l’esito appare dopo il rotolamento e una sola volta (0.699512ms)
+✔ Velocità Istantaneo salta gli effetti dei bot, preservando la presentazione per l’umano (0.62491ms)
+✔ Antartide: grafo simmetrico, tre rotte richieste e modalità classica isolata (0.275294ms)
+✔ distribuzione Antartide 3/4/5: totali invariati, mai un continente iniziale, mani da tre (14.69213ms)
+✔ bonus polare, attraversamenti, confini e spostamenti funzionano in entrambi i sensi (0.69761ms)
+✔ carte polari: ID jolly conservati, tris e bonus territorio, salvataggio e punteggio (1.445525ms)
+✔ bot medio/difficile completano Antartide e difendono le nuove frontiere (1.072883ms)
+✔ Antartide: sei partite complete 3/4/5 con bot medi e difficili, invarianti dopo ogni azione (30581.833081ms)
+✔ audio: sblocco dal gesto, un impatto per volta, mute, preferenze e rilascio (0.74485ms)
+✔ audio procedurale senza campioni: effetti, mute, aptica opt-in e cancellazione dei suoni programmati (0.848576ms)
+✔ backup: stato completo classico/Antartide, profilo, RNG, carte segrete e Undo sopravvivono al giro JSON (4.898208ms)
+✔ backup: file errati, versioni nuove, dati strutturalmente corrotti e prototipi vengono rifiutati (11.323082ms)
+✔ backup: ripristino atomico conserva gioco e statistiche precedenti se la transazione viene annullata (2.561402ms)
+✔ tocchi browser: centro libero, click normale senza forzare sovrapposizioni (0.530328ms)
+✔ tocchi browser: centro sotto HUD, seleziona un punto libero dello stesso territorio (0.194592ms)
+✔ tocchi browser: territorio completamente coperto, errore esplicito senza click falso (0.77118ms)
+✔ HUD: snapshot coerente supera tutti i controlli geometrici (0.241743ms)
+✔ HUD: un elemento mancante produce un errore identificabile, non null.y né un falso successo (0.505821ms)
+✔ HUD: restano rilevate sovrapposizioni, elementi nascosti e overflow (0.418239ms)
+✔ HUD: lettura atomica, senza richieste locator che possano attraversare due render (0.384739ms)
+✔ zoom: misura carro e viewBox nello stesso snapshot e diagnostica una mappa assente (0.331779ms)
+✔ CI: stdout/stderr vengono conservati e il codice di errore non è mascherato (8.11092ms)
+✔ CI: un comando riuscito mantiene il codice zero (5.020632ms)
+✔ CI SDK: successo, senza mascherare gli errori (9.956616ms)
+✔ CI SDK: errore licenze, senza mascherare gli errori (8.373415ms)
+✔ CI SDK: errore installazione, senza mascherare gli errori (9.200118ms)
+✔ CI SDK: diagnostica esplicita quando il runner non contiene sdkmanager (3.7432ms)
+✔ 42 territories: symmetric graph, 164 points and six continent totals (0.375605ms)
+✔ 16 objectives: 86 points and published overlaps, with three documented source errata (1.08402ms)
+✔ 44-card deck has 14 of each regular symbol and 2 jokers (0.11975ms)
+✔ setup: balanced territory counts, continent caps and armies for 3/4/5 players (14.939081ms)
+✔ invalid and out-of-turn commands are atomic (0.418029ms)
+✔ reinforcements have no minimum of three (0.214092ms)
+✔ tris values, territory bonuses, joker restrictions and 130 army cap (0.402004ms)
+✔ maximum dice, no inferior dice attack, fourth-round protection (0.203546ms)
+✔ dice distributions include defense ties and exact 3v3 expectation (0.102544ms)
+✔ seeded battle sorts dice, compares pairs and conserves losses (0.482686ms)
+✔ border garrison and mandatory conquest exception (0.447343ms)
+✔ strategic movement is adjacent and ends the turn (0.394994ms)
+✔ seven-card cap: no forced tris at five; draw once; recycle discards (0.696387ms)
+✔ timer: complete compulsory tasks, no automatic card exchange, skip attacks (1.652516ms)
+✔ timeout post-conquest performs mandatory transfer before finishing (0.354333ms)
+✔ sdadata begins only on last active player of round 20 and skips 3 conquests (0.427002ms)
+✔ sdadata thresholds advance on anchor rotation, including eliminated anchor (0.45178ms)
+✔ projection hides other cards/objectives and blind levels until game over (0.483568ms)
+✔ JSON save/resume preserves subsequent dice, cards and AI choices (0.440473ms)
+✔ all three strategies complete legal games at each table size (39075.642512ms)
+✔ objective completion wins in the conquest action, before an optional move (0.598019ms)
+✔ elimination transfers random cards only up to seven, excess goes to discard (0.527644ms)
+✔ sdadata rolls exactly two dice and closes when sum meets threshold (0.569296ms)
+✔ orientamento nativo: menu verticale, tavolo orizzontale, nessuna richiesta duplicata (0.21945ms)
+✔ pannelli attacco, dadi e conquista non coprono zoom, barra laterale e comandi (1.765315ms)
+✔ posizione manuale libera mantenuta; finestra vincolata allo schermo dopo rotazione/ridimensionamento (0.136736ms)
+✔ contrattacco: sfrutta un territorio lasciato con una sola armata, anche fuori obiettivo (38.195727ms)
+✔ rinforzi: concentra la riserva per sbloccare un attacco anziché distribuirla in incrementi inutili (2.710196ms)
+✔ spostamento: le armate interne avanzano di un collegamento verso il fronte (0.454344ms)
+✔ preferenza interrompi bonus cambia davvero il bersaglio, non solo la legalità del comando (0.713192ms)
+✔ simulazioni limitate, riproducibili, senza mutare la vista né leggere obiettivi avversari (143.446057ms)
+✔ Facile mantiene il comportamento precedente nelle fasi decisionali (1.677874ms)
+✔ Survival rispetta la tregua e non aggiunge sortite casuali (39.521472ms)
+✔ Difficile e Survival costruiscono una forza per la campagna sudamericana, non due fronti sottodimensionati (13.114029ms)
+✔ occupazione: conserva la difesa del continente conquistato invece di svuotarne il passaggio (0.581295ms)
+✔ setup completo 3/4/5: contatori pubblici, mani da tre, nessuna armata persa (263.804017ms)
+✔ rinforzi normali: trenta carri in un comando sono consentiti (0.387443ms)
+✔ transizione attacco conserva origine, dadi reali, perdite e stato precedente (1.051561ms)
+✔ pesca: animazione solo dopo conquista; identità carta riservata al destinatario (1.499304ms)
+✔ scambio: solo le proprie carte vengono trasmesse nella presentazione (0.669406ms)
+✔ fortificazione, pesca e sdadata mantengono ordine e risultati (0.479611ms)
+✔ watchdog: ACK esatto, duplicati ignorati e scadenza limitata (0.128723ms)
+✔ timeout con molti piazzamenti non supera gli otto secondi di presentazione (0.909668ms)
+✔ tempi umani: intervalli contestuali, velocità e limite residuo (0.469085ms)
+✔ personalità privata e compatibilità con salvataggi privi del contesto IA (20.290983ms)
+✔ sortita disperata: pochi rinforzi, tre lanci massimi, cooldown (16.115975ms)
+✔ immagini locali: figure militari, sagome, obiettivi, dadi con pallini (0.480382ms)
+✔ nove partite con personalità: mosse legali e conclusione a tutte le difficoltà (27552.051637ms)
+✔ PWA: cache completa e avvio offline sotto /risiko/, compresi Worker, audio e pagina iPhone (21.948878ms)
+✔ PWA: download incompleto non viene dichiarato pronto; aggiornamento non interrompe la versione attiva (3.03248ms)
+✔ iPhone: la vista assistita scambia dimensioni solo sul tavolo verticale; menu e landscape reale invariati (0.127992ms)
+✔ Android/iOS nativi: nessun Service Worker, redirect, iframe o rotazione web (0.247793ms)
+✔ conquista con 1/2/3 dadi trasferisce subito il minimo, senza mostrare zero (1.411303ms)
+✔ i carri aggiuntivi partono da zero e rispettano la guarnigione (0.87766ms)
+✔ timeout non sposta nuovamente il minimo già trasferito (0.389666ms)
+✔ vecchio salvataggio di conquista: conversione idempotente e immutabile (0.690068ms)
+✔ conquista che completa un obiettivo trasferisce il minimo una sola volta (0.428053ms)
+✔ i bot scelgono solo rinforzi aggiuntivi validi dopo la conquista (1.626045ms)
+✔ sortite: solo <=8 territori e <3 rinforzi; soglie 6/3/2% (92.845426ms)
+✔ sortita controllata dopo i tris e prima del piazzamento; bersaglio scelto dopo i rinforzi (0.958983ms)
+✔ sortite: tentativo fallito non ripetuto, cooldown e stop a metà forze (25.262993ms)
+✔ tregua per bot: nessun attacco prima della scadenza, altre fasi consentite (2.678578ms)
+✔ stima esatta conserva probabilità e superstiti plausibili (0.136065ms)
+✔ ogni preferenza disattivata produce comunque comandi legali (85.2538ms)
+✔ difficile sfrutta il bersaglio debole e rifiuta un attacco senza probabilità di successo (9.943674ms)
+✔ Undo ripristina armate, riserva e inferenze; resta disponibile dopo l’ultimo rinforzo fino ad Attacco (1.183059ms)
+✔ Undo non annulla la dotazione iniziale né scambi; il timeout conserva le armate e chiude la cronologia (0.466001ms)
+✔ Countdown 45 minuti: esclusi setup e pausa, chiusura a punti alla scadenza, nessuna Sdadata (0.43204ms)
+✔ Countdown risolve una conquista precedente senza azzerare né duplicare la guarnigione (0.450207ms)
+✔ Andamento punti: ogni bot vede solo i propri valori fino alla classifica finale (0.716828ms)
+✔ Snapshot locale completo: ripresa con Undo, no perdita silenziosa su JSON corrotto o quota esaurita (0.810058ms)
+✔ Statistiche: dadi dell’umano in attacco/difesa, esclusi altri bot e Sdadata; media punti tavolo e vecchi record (0.370477ms)
+✔ Rotte su entrambe le mappe: punti di costa finiti e distinti dai centri; badge 12 puramente estetico (1.989552ms)
+✔ Tick ordinari e scadenze conservano gli snapshot precedenti, anche dopo una lunga cronologia (9.961081ms)
+✔ lobby renders all bot slots, defaults and blind selectors without real levels (4.224903ms)
+✔ table renders 42 territories, hidden objectives, timer and battle controls (6.385893ms)
+✔ new game requires confirmation before replacing a save (1.46988ms)
+✔ commands carry actor-independent revision and unique request id (2.02835ms)
+✔ results reveal blind difficulty and all objectives only after conclusion (1.227446ms)
+✔ background pause during compulsory conquest never traps the resume controls (2.817307ms)
+✔ setup UI distingue schierati, riserva e mano, evidenzia solo i propri territori (1.500526ms)
+✔ carte militari selezionabili: invia solo il tris scelto e mostra il bonus (3.595567ms)
+✔ spostamento obbligatorio usa finestra flottante senza oscurare la plancia (1.409079ms)
+✔ carte e selezione restano aperte tra attacchi e cambi di turno dei bot (5.059248ms)
+✔ finestra conquista mostra minimo trasferito e selettore aggiuntivi a zero (1.38973ms)
+✔ strategie per bot: caselle, tregua, applica a tutti e configurazione della nuova partita (2.158487ms)
+✔ Antartide facoltativa: menu, plancia completa e ripresa con inquadratura estesa (4.756093ms)
+✔ Home Torneo: Countdown 45 minuti, Antartide off, velocità e personalità personalizzabili (1.682911ms)
+✔ Widget obiettivo mostra punti, mappa punti e bonus; Undo passa attraverso il protocollo dei comandi (2.787041ms)
+✔ I tick del timer non ricostruiscono la plancia né fanno perdere la finestra carte (2.046508ms)
+✔ home verticale: menu reale, preparazione separata e Survival per tutti i bot (0.77845ms)
+✔ selezione attacco: solo bersagli legali evidenziati, nessun territorio estraneo attenuato (1.837573ms)
+✔ menu: audio, regole e strategie usano pagine verticali coerenti; ritorno alla preparazione (2.317124ms)
+✔ statistiche: pagina a colonna con cronologia espandibile, senza tabella orizzontale (13.786673ms)
+✔ zoom: SETUP_PLACEMENT e attacchi fuori inquadratura non cambiano la camera, neanche durante gli effetti (7.906871ms)
+✔ zoom: REINFORCEMENT e attacchi fuori inquadratura non cambiano la camera, neanche durante gli effetti (7.791017ms)
+✔ PWA e backup: menu web, stato offline esplicito e conferma separata dal ripristino (0.669788ms)
+✔ Worker: salvataggio prima degli effetti, timer fermo, ACK, pausa e watchdog (133.364652ms)
+✔ Worker integration: persist before publish, private projection, duplicate requests and save failure (87.299387ms)
+ℹ tests 143
+ℹ suites 0
+ℹ pass 143
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 98654.504903
+
+
+TypeScript
+
+
+> risiko-offline@1.8.0 typecheck
+> tsc --noEmit
+
+
+
+Build web e sincronizzazione Android
+
+
+> risiko-offline@1.8.0 android:sync
+> npm run build && cap sync android
+
+
+> risiko-offline@1.8.0 build
+> node scripts/build.mjs
+
+vite v7.0.0 building for production...
+
+./pwa-shell.css doesn't exist at build time, it will remain unchanged to be resolved at runtime
+transforming...
+✓ 45 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/pwa.html                            1.07 kB │ gzip:  0.56 kB
+dist/index.html                          1.08 kB │ gzip:  0.55 kB
+dist/assets/server.worker-C1ZJkDEY.js   74.68 kB
+dist/assets/app-BdZpItRO.css           105.70 kB │ gzip: 23.16 kB
+dist/assets/pwa-DaxpgkK2.js              0.75 kB │ gzip:  0.46 kB
+dist/assets/platform-D_FCNNuL.js         1.15 kB │ gzip:  0.64 kB
+dist/assets/app-BgScgRwp.js            292.50 kB │ gzip: 99.38 kB
+✓ built in 1.58s
+PWA: 17 file offline, revisione a2dbd774626801d1c0d0.
+✔ Copying web assets from dist to android/app/src/main/assets/public in 7.93ms
+✔ Creating capacitor.config.json in android/app/src/main/assets in 512.94μs
+✔ copy android in 14.77ms
+✔ Updating Android plugins in 1.15ms
+✔ update android in 36.59ms
+[info] Sync finished in 0.069s
+
+
+Pacchetto PWA
+
+
+> risiko-offline@1.8.0 pwa:verify
+> node scripts/verify-pwa.mjs
+
+PWA verificata: 17 risorse offline, percorsi relativi e icone PNG valide.
+
+
+Pacchetto web/Android: controllo statico
+
+Verifica statica: 19 file locali, import risolti, nessun endpoint remoto, orientamento home/plancia e permesso Internet rimosso nel manifest sorgente.
+
+
+iPhone nativo: controllo statico
+
+
+> risiko-offline@1.8.0 ios:verify
+> node scripts/verify-ios.mjs
+
+Configurazione iPhone verificata (controllo statico; non sostituisce compilazione Xcode e prova sul dispositivo).
+
+
+Browser UI: bloccato prima di avviare il browser (listen EPERM)
+
+
+> risiko-offline@1.8.0 test:ui
+> node scripts/browser-test.mjs
+
+file:///workspace/risiko-offline/scripts/browser-test.mjs:15
+ for(let i=0;i<100;i++){if(server.exitCode!==null)throw new Error('Server non disponibile: '+logs);try{if((await fetch('http://127.0.0.1:4173')).ok){connected=true;break;}}catch{}await wait(200);}
+                                                        ^
+
+Error: Server non disponibile: node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EPERM: operation not permitted 0.0.0.0:4173
+    at Server.setupListenHandle [as _listen2] (node:net:2145:21)
+    at listenInCluster (node:net:2224:12)
+    at node:net:2448:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2203:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EPERM',
+  errno: -1,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 4173
+}
+
+Node.js v24.19.0
+
+    at file:///workspace/risiko-offline/scripts/browser-test.mjs:15:57
+
+Node.js v24.19.0
+
+
+Browser PWA: bloccato prima di avviare il browser (listen EPERM)
+
+
+> risiko-offline@1.8.0 test:pwa
+> node scripts/pwa-test.mjs
+
+file:///workspace/risiko-offline/scripts/pwa-test.mjs:14
+ let ready=false;for(let i=0;i<60;i++){if(server.exitCode!==null)throw Error(logs);try{if((await fetch(base)).ok){ready=true;break;}}catch{}await wait(100);}assert.ok(ready);
+                                                                       ^
+
+Error: node:events:487
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EPERM: operation not permitted 127.0.0.1:4174
+    at Server.setupListenHandle [as _listen2] (node:net:2145:21)
+    at listenInCluster (node:net:2224:12)
+    at node:net:2448:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:2203:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EPERM',
+  errno: -1,
+  syscall: 'listen',
+  address: '127.0.0.1',
+  port: 4174
+}
+
+Node.js v24.19.0
+
+    at file:///workspace/risiko-offline/scripts/pwa-test.mjs:14:72
+
+Node.js v24.19.0
+
+

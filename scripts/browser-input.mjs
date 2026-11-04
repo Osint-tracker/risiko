@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 // Pick a point that a real pointer can reach. force:true sends the pointer to
 // the covering element; it does not dispatch a click to an obscured SVG path.
-export async function clickTerritory(page, id) {
+export async function clickTerritory(page, id, performClick) {
  const territory=page.locator(`[data-territory="${id}"]`);
  const point=await territory.evaluate(element=>{
   const box=element.getBoundingClientRect(),hit=element.querySelector('.territory-hit')?.getBoundingClientRect();
@@ -22,7 +22,8 @@ export async function clickTerritory(page, id) {
   return null;
  });
  assert.ok(point,`Territorio ${id}: nessun punto raggiungibile dal puntatore; controllare sovrapposizioni o inquadratura.`);
- await territory.click({position:point,timeout:5000});
+ if(performClick)await performClick(territory,point);
+ else await territory.click({position:point,timeout:5000});
 }
 
 export async function browserDiagnostics(page) {
