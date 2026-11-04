@@ -1,3 +1,4 @@
+import {parseBackup,type Backup} from './Backup.ts';
 import {diceHistogram} from './TournamentStats.ts';
 import {objectivePoints} from '../data/mapGraph.ts';
 import {owned} from '../engine/RisikoRulesEngine.ts';
@@ -99,6 +100,17 @@ export class StorageService {
       name,
       results: results.sort((a, b) => b.date - a.date)
     };
+  }
+  async restoreBackup(input:Backup):Promise<void>{
+    const backup=parseBackup(JSON.stringify(input)),db=await this.open();
+    // One transaction: quota errors/aborts leave both the old game and history intact.
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(['game','profile','results'],'readwrite');
+      if(backup.game)tx.objectStore('game').put({...backup.game,paused:true},'current');else tx.objectStore('game').delete('current');
+      tx.objectStore('profile').put(backup.profile.name,'name');
+      tx.objectStore('results').clear();for(const result of backup.profile.results)tx.objectStore('results').put(result,result.id);
+      tx.oncomplete=()=>resolve();tx.onerror=tx.onabort=()=>reject(tx.error??new Error('Importazione interrotta: backup precedente conservato.'));
+    });
   }
   async setName(name: string) {
     const db = await this.open();

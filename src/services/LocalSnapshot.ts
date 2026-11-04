@@ -8,3 +8,5 @@ export function writeLocalSnapshot(state:GameState):boolean{
 export function readLocalSnapshot():GameState|null{
  try{const raw=localStorage.getItem(snapshotKey);if(!raw)return null;const state=JSON.parse(raw);assertState(state);return state;}catch{return null;}
 }
+
+export function clearLocalSnapshot(){try{localStorage.removeItem(snapshotKey);}catch{}}

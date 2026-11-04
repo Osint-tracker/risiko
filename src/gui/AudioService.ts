@@ -15,7 +15,7 @@ export class GameAudio {
    this.context??=new AudioContext();
    if(this.context.state==='suspended')await this.context.resume();
    const context=this.context;
-   this.loading??=fetch('/audio/clash.wav').then(r=>{if(!r.ok)throw Error('Audio locale non disponibile');return r.arrayBuffer();}).then(b=>context.decodeAudioData(b)).then(b=>{this.buffer=b;}).catch(()=>{this.loading=null;});
+   this.loading??=fetch('./audio/clash.wav').then(r=>{if(!r.ok)throw Error('Audio locale non disponibile');return r.arrayBuffer();}).then(b=>context.decodeAudioData(b)).then(b=>{this.buffer=b;}).catch(()=>{this.loading=null;});
    await this.loading;
   }catch{}
  }

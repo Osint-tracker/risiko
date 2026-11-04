@@ -16,23 +16,33 @@ export function effectMarkup(e: VisualEffect, t: Transition) {
   return `<div class="map-effect-caption" role="status">${escapeHtml(player.name)} · ${e.kind==='place'?`${e.count>0?'+':''}${e.count} in ${escapeHtml(territories[e.to].name)}`:`${escapeHtml(territories[e.from].name)} → ${escapeHtml(territories[e.to].name)} · ${e.count} carri`}</div>`;
 }
 
-export function positionPanel(root: HTMLElement, panel: HTMLElement, ids: number[]) {
-  const svg = root.querySelector<SVGSVGElement>('#world-map');
-  const bounds = root.getBoundingClientRect(), width = panel.offsetWidth, height = panel.offsetHeight;
-  const points = ids.flatMap(id => {
-    const matrix = svg?.getScreenCTM();
-    if (!svg || !matrix) return [];
-    const p = svg.createSVGPoint(); p.x=territories[id].x; p.y=territories[id].y;
-    const screen = p.matrixTransform(matrix); return [{x:screen.x,y:screen.y}];
-  });
-  const left = bounds.left + 80, right = Math.max(bounds.left+8, bounds.right-width-66);
-  const top = bounds.top+65, bottom = Math.max(bounds.top+8, bounds.bottom-height-75);
-  const choices = [{x:left,y:bottom},{x:right,y:bottom},{x:left,y:top},{x:right,y:top}];
-  const score = (c: {x:number;y:number}) => points.reduce((s,p)=>s+(p.x>c.x-30&&p.x<c.x+width+30&&p.y>c.y-30&&p.y<c.y+height+30?1000:0),0);
-  choices.sort((a,b)=>score(a)-score(b));
-  const c=choices[0]; panel.style.left=`${Math.max(8,Math.min(innerWidth-width-8,c.x))}px`; panel.style.top=`${Math.max(8,Math.min(innerHeight-height-8,c.y))}px`;
-  panel.style.transform='none';
+type Rect={left:number;top:number;right:number;bottom:number;priority?:number};
+type Point={x:number;y:number};
+/** Keep floating panels clear of controls, using measured rectangles instead of fixed offsets. */
+export function panelPosition(bounds:Rect,width:number,height:number,points:Point[],blocked:Rect[],preferred?:Point):Point{
+ const minX=bounds.left+8,minY=bounds.top+8,maxX=Math.max(minX,bounds.right-width-8),maxY=Math.max(minY,bounds.bottom-height-8);
+ const clamp=(p:Point)=>({x:Math.max(minX,Math.min(maxX,p.x)),y:Math.max(minY,Math.min(maxY,p.y))});
+ const xs=[minX,maxX,(minX+maxX)/2],ys=[minY,maxY,(minY+maxY)/2];
+ for(const r of blocked){xs.push(r.left-width-8,r.right+8);ys.push(r.top-height-8,r.bottom+8);}
+ const choices=[...(preferred?[clamp(preferred)]:[]),...xs.flatMap(x=>ys.map(y=>clamp({x,y})))];
+ const score=(p:Point)=>{
+  const overlap=blocked.reduce((sum,r)=>sum+Math.max(0,Math.min(p.x+width,r.right)-Math.max(p.x,r.left))*Math.max(0,Math.min(p.y+height,r.bottom)-Math.max(p.y,r.top))*(r.priority??1),0);
+  const obscured=points.filter(t=>t.x>p.x-30&&t.x<p.x+width+30&&t.y>p.y-30&&t.y<p.y+height+30).length;
+  return overlap*10000+obscured*1000+(preferred?Math.hypot(p.x-preferred.x,p.y-preferred.y)*.01:0);
+ };
+ return choices.reduce((best,p)=>score(p)<score(best)?p:best,choices[0]);
 }
+export function positionPanel(root:HTMLElement,panel:HTMLElement,ids:number[],preferred?:Point){
+ const svg=root.querySelector<SVGSVGElement>('#world-map'),width=panel.offsetWidth,height=panel.offsetHeight;
+ const points=ids.flatMap(id=>{
+  const matrix=svg?.getScreenCTM();if(!svg||!matrix)return [];
+  const p=svg.createSVGPoint();p.x=territories[id].x;p.y=territories[id].y;const screen=p.matrixTransform(matrix);return [{x:screen.x,y:screen.y}];
+ });
+ const blocked=Array.from(root.querySelectorAll<HTMLElement>('.reference-zoom,.reference-sidebar,.command-deck,.table-footer,.players-row')).map(el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height,priority:el.matches('.players-row')?1:1000};}).filter(r=>r.width>0&&r.height>0);
+ const c=panelPosition({left:0,top:0,right:innerWidth,bottom:innerHeight},width,height,points,blocked,preferred);
+ panel.style.left=`${c.x}px`;panel.style.top=`${c.y}px`;panel.style.transform='none';
+}
+
 export function bindPanelDrag(panel: HTMLElement) {
   const handle=panel.querySelector<HTMLElement>('[data-drag-handle]');
   if(!handle)return;
@@ -48,7 +58,10 @@ export function bindPanelDrag(panel: HTMLElement) {
     panel.style.top=`${Math.max(6,Math.min(innerHeight-panel.offsetHeight-6,drag.top+e.clientY-drag.y))}px`;
     panel.style.transform='none';
   };
-  handle.onpointerup=handle.onpointercancel=()=>{drag=null;};
+  handle.onpointerup=handle.onpointercancel=()=>{
+    drag=null;const root=panel.closest<HTMLElement>('.app-shell');
+    if(root)positionPanel(root,panel,[],{x:parseFloat(panel.style.left)||0,y:parseFloat(panel.style.top)||0});
+  };
 }
 
 /** Runs on a separate layer: no full-page render between dice frames. */

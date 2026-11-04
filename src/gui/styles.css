@@ -410,3 +410,5 @@ input{user-select:text;-webkit-user-select:text}
 .classic-home:not(.portal-home):not(.portal-route) .classic-lobby{display:block;width:min(100%,480px);max-width:480px;flex:1;min-height:0;margin:0 auto;padding:8px}
 .classic-home:not(.portal-home):not(.portal-route) .box-art{display:none}
 .classic-settings{height:100%}.classic-settings .settings-scroll{display:block!important}.classic-settings .lobby-basics,.classic-settings .lobby-opponents{width:100%;border:0;padding:0}.classic-settings .lobby-opponents{margin-top:22px}.classic-settings .home-player-strip{display:none}.classic-settings .settings-title{display:block}.classic-settings .settings-actions{display:flex;flex-direction:column;align-items:stretch;margin-top:12px}.classic-settings .settings-actions button{width:100%;max-width:none!important}
+
+.backup-download{display:block;text-align:center;padding:12px;text-decoration:none}.backup-picker{display:flex;flex-direction:column;gap:12px;padding:14px;background:#004a65;border:1px solid #8ed4e3;border-radius:6px}.backup-picker input{max-width:100%;font-size:12px}.menu-sheet .audio-switch{cursor:pointer}

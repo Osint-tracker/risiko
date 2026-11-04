@@ -1,3 +1,4 @@
+import {makeBackup,parseBackup} from '../services/Backup.ts';
 import {createGame, applyCommand, advanceClock, project, random, assertState} from './RisikoRulesEngine.ts';
 import {humanDecision, decisionDelay} from '../ai/HumanBot.ts';
 import {makeTransition, PresentationGate} from './presentation.ts';
@@ -89,6 +90,19 @@ ctx.onmessage = ({data}) => enqueue(async () => {
       speed = [1, 2, 4, 0].includes(data.speed) ? data.speed : 1;
       planned = null;
       break;
+    case 'EXPORT_BACKUP': {
+      if(state){clearPresentation();await commit({...state,paused:true});}
+      const backup=makeBackup(state,await storage.profile());
+      post({type:'BACKUP_FILE',text:JSON.stringify(backup)});break;
+    }
+    case 'IMPORT_BACKUP': {
+      const backup=parseBackup(data.text);
+      await storage.restoreBackup(backup);
+      clearPresentation();previousBot=null;state=backup.game?{...backup.game,paused:true}:null;
+      publishedGameId=state?.id??'';publishedCount=state?.log.length??0;
+      post({type:'BACKUP_RESTORED',profile:backup.profile,state:state?project(state,0):null});
+      post({type:'LOCAL_SAVE',state});break;
+    }
     case 'PROFILE': post({type: 'PROFILE', profile: await storage.profile()}); break;
     case 'COMMAND': {
       if (!state) throw new Error('Nessuna partita attiva.');

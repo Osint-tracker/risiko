@@ -1,8 +1,11 @@
+import {initWebApp,redirectForApple,webStatus,installWebApp,updateWebApp,sendWebOrientation} from '../pwa/client.ts';
+import {isNativeApp,isAppleMobile,rotationAssistance} from '../pwa/platform.ts';
+import {parseBackup,MAX_BACKUP_BYTES,type Backup} from '../services/Backup.ts';
 import {setGameOrientation} from './orientation.ts';
 import {seaRoute} from './mapGeometry.ts';
 import {conquestOdds} from '../ai/BotAI.ts';
 import {tournamentStats} from '../services/TournamentStats.ts';
-import {readLocalSnapshot,writeLocalSnapshot} from '../services/LocalSnapshot.ts';
+import {readLocalSnapshot,writeLocalSnapshot,clearLocalSnapshot} from '../services/LocalSnapshot.ts';
 import {GameAudio} from './AudioService.ts';
 import {botPolicy,policyOptions} from '../ai/policy.ts';
 import { allTerritories as territories, objectives, allCards as cards, colors, mapFor } from '../data/mapGraph.ts';
@@ -43,9 +46,12 @@ const tank = '<path d="M2 10h26l-3-5h-7V2h-7v3H7zM4 12h22a4 4 0 010 8H4a4 4 0 01
 const tankIcon = `<svg viewBox="0 0 34 22" class="tank-icon" aria-hidden="true">${tank}</svg>`;
 const duration = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 export function mountGame(root: HTMLElement): () => void {
+  if(redirectForApple())return ()=>{};
   const sounds=new GameAudio();
   const sound=(kind='tap')=>kind==='battle'?sounds.clash():sounds.tap();
   let strategyBot=0;
+  let backupURL='',backupText='',importText='',importPreview:Backup|null=null;
+  const backupFilename=()=>`risiko-backup-${new Date().toISOString().slice(0,10)}.json`;
   let objectiveExpanded=false,blitzStop=3;
   let localSaveWarning=false;
   const worker = new Worker(new URL('../engine/server.worker.ts', import.meta.url), {
@@ -160,7 +166,7 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function home() {
     const wins=profile.results.filter(r=>r.rank===1).length;
-    return `<main class="classic-home portal-home"><header class="portal-header"><b>RisiKo<span>!</span></b><span>TORNEO · OFFLINE</span><button data-action="audio" aria-label="Impostazioni audio">♫</button></header><section class="portal-column"><button class="home-player-strip" data-action="profile"><span class="home-player-emblem">R</span><span><strong>${escape(profile.name)}</strong><small>${profile.results.length} PARTITE · ${wins} VITTORIE</small></span><span aria-hidden="true">›</span></button><div class="portal-banner"><img src="./app-icon.jpg" alt="La tua plancia RisiKo con il comandante a quattro zampe"/><span>IL TUO TAVOLO. LA TUA STRATEGIA.</span></div><button class="portal-play" data-action="configure" ${ready?'':'disabled'}><span>▶</span><span>${ready?'GIOCA':'CARICAMENTO…'}<small>PREPARA LA BATTAGLIA</small></span></button>${hasGame?`<button class="portal-resume" data-action="resume">▶ RIPRENDI PARTITA <small>Turno ${state?.round??0}</small></button>`:''}<nav class="portal-menu" aria-label="Menu principale"><button data-action="profile"><span>▥</span> LE TUE STATISTICHE <b>›</b></button><button data-action="configure"><span>⚑</span> PARTITA E STRATEGIE BOT <b>›</b></button><button data-action="survival"><span>★</span> SURVIVAL <small>Bot al massimo livello</small><b>›</b></button><button data-action="audio"><span>♫</span> AUDIO E VIBRAZIONE <b>›</b></button><button data-action="rules"><span>?</span> COME SI GIOCA <b>›</b></button></nav><footer class="portal-footer">1 giocatore · 2–4 bot · Salvataggio automatico<br>Regular con Sdadata oppure Countdown</footer></section></main>`;
+    return `<main class="classic-home portal-home"><header class="portal-header"><b>RisiKo<span>!</span></b><span>TORNEO · OFFLINE</span><button data-action="audio" aria-label="Impostazioni audio">♫</button></header><section class="portal-column"><button class="home-player-strip" data-action="profile"><span class="home-player-emblem">R</span><span><strong>${escape(profile.name)}</strong><small>${profile.results.length} PARTITE · ${wins} VITTORIE</small></span><span aria-hidden="true">›</span></button><div class="portal-banner"><img src="./app-icon.jpg" alt="La tua plancia RisiKo con il comandante a quattro zampe"/><span>IL TUO TAVOLO. LA TUA STRATEGIA.</span></div><button class="portal-play" data-action="configure" ${ready?'':'disabled'}><span>▶</span><span>${ready?'GIOCA':'CARICAMENTO…'}<small>PREPARA LA BATTAGLIA</small></span></button>${hasGame?`<button class="portal-resume" data-action="resume">▶ RIPRENDI PARTITA <small>Turno ${state?.round??0}</small></button>`:''}<nav class="portal-menu" aria-label="Menu principale"><button data-action="profile"><span>▥</span> LE TUE STATISTICHE <b>›</b></button><button data-action="configure"><span>⚑</span> PARTITA E STRATEGIE BOT <b>›</b></button><button data-action="survival"><span>★</span> SURVIVAL <small>Bot al massimo livello</small><b>›</b></button><button data-action="audio"><span>♫</span> AUDIO E VIBRAZIONE <b>›</b></button><button data-action="rules"><span>?</span> COME SI GIOCA <b>›</b></button>${!isNativeApp()?'<button data-action="install"><span>↓</span> INSTALLA E OFFLINE <b>›</b></button><button data-action="backup"><span>▣</span> SALVATAGGI E BACKUP <b>›</b></button>':''}</nav><footer class="portal-footer">1 giocatore · 2–4 bot · Salvataggio automatico<br>Regular con Sdadata oppure Countdown${!isNativeApp()?`<br><span role="status">${webStatus.ready?'✓ Pronto offline':webStatus.error?'Offline non ancora pronto':'Download per uso offline…'}</span>`:''}</footer></section></main>`;
   }
   function setup() {
     return `<main class="classic-home"><header class="classic-header"><div class="classic-brand"><b>RisiKo<span>!</span></b><small>TORNEO · OFFLINE</small></div><nav><button data-action="audio" aria-label="Impostazioni audio">♫ Audio</button><button data-action="profile">${escape(profile.name)} · Profilo</button><button data-action="rules">Regole</button></nav></header><section class="classic-lobby"><aside class="box-art">${statsMarkup()}<div class="box-map">${mapMarkup(true)}</div><div class="box-caption">${config.antarctica?44:42} TERRITORI · 3–5 GIOCATORI</div></aside><section class="classic-settings"><div class="home-player-strip"><span class="home-player-emblem">R</span><div><strong>${escape(profile.name)}</strong><small>IL TUO TAVOLO · TORNEO</small></div><button data-action="profile">${profile.results.length} partite · ${profile.results.filter(r=>r.rank===1).length} vittorie ›</button></div><button class="menu-back" data-action="home">‹ Menu principale</button><div class="settings-title"><h1>Prepara la partita <small class="initial-armies">${({3:35,4:30,5:25} as Record<number,number>)[config.players]} armate iniziali</small></h1><div class="settings-actions">${hasGame?`<button class="resume-button" data-action="resume">RIPRENDI PARTITA · Turno ${state?.round??0} ▶</button>`:''}<button class="primary start-button" data-action="new" ${ready?'':'disabled'}><span>▶</span><span class="play-caption">${ready?'GIOCA':'CARICAMENTO…'}<small>ENTRA IN BATTAGLIA</small></span></button></div></div><div class="settings-scroll"><section class="lobby-basics" aria-label="Impostazioni partita"><label class="field-label" for="player-name">IL TUO NOME</label><input id="player-name" maxlength="24" value="${escape(config.name)}" autocomplete="off"/><div class="lobby-row"><div><span class="field-label">GIOCATORI</span><div class="segmented">${[3,4,5].map(n=>`<button data-count="${n}" class="${config.players===n?'active':''}">${n}</button>`).join('')}</div></div><div><label class="field-label" for="turn-time">TEMPO PER TURNO</label><select id="turn-time">${[60,120,180,240,300,600].map(n=>`<option value="${n}" ${config.turnSeconds===n?'selected':''}>${n/60} minuti</option>`).join('')}</select></div></div><div class="lobby-row"><div><label class="field-label" for="end-mode">FINE PARTITA TORNEO</label><select id="end-mode"><option value="regular" ${config.endMode!=='countdown'?'selected':''}>Regular · 20 giri + Sdadata</option><option value="countdown" ${config.endMode==='countdown'?'selected':''}>Countdown · a tempo</option></select></div><div>${config.endMode==='countdown'?`<label class="field-label" for="countdown-minutes">DURATA PARTITA</label><select id="countdown-minutes">${[30,45,60].map(n=>`<option value="${n}" ${config.countdownMinutes===n?'selected':''}>${n} minuti</option>`).join('')}</select>`:`<label class="field-label" for="bot-speed">VELOCITÀ BOT</label><select id="bot-speed">${[[1,'Normale'],[2,'Veloce'],[0,'Istantaneo']].map(([n,label])=>`<option value="${n}" ${config.botSpeed===n?'selected':''}>${label}</option>`).join('')}</select>`}</div></div>${config.endMode==='countdown'?`<label class="field-label" for="bot-speed">VELOCITÀ BOT</label><select id="bot-speed">${[[1,'Normale'],[2,'Veloce'],[0,'Istantaneo']].map(([n,label])=>`<option value="${n}" ${config.botSpeed===n?'selected':''}>${label}</option>`).join('')}</select>`:''}<label class="antarctica-option"><input id="antarctica-mode" type="checkbox" ${config.antarctica?'checked':''}/><span><b>Modalità Antartide</b><small>2 territori · +2 armate per turno se controlli entrambi</small></span></label></section><section class="lobby-opponents" aria-label="Avversari"><div class="opponents-heading"><span class="field-label">AVVERSARI</span><button data-action="blind-all" class="text-button">Tutti casuali ↻</button></div><div class="bot-slots">${config.difficulties.map((d,i)=>`<div class="bot-slot" style="--player:${colors[i+1]}"><span class="bot-avatar">${armyToken(i+1,colors[i+1])}</span><div class="bot-info"><strong>${['Falco','Vega','Atlas','Ombra'][i]}</strong><small>${d==='casuale'?'Bot ? · livello segreto':'BOT IA'}</small></div><select data-bot="${i}" aria-label="Difficoltà ${['Falco','Vega','Atlas','Ombra'][i]}">${['facile','medio','difficile','survival','casuale'].map(l=>`<option value="${l}" ${l===d?'selected':''}>${levelNames[l]}</option>`).join('')}</select><button class="strategy-button" data-strategy="${i}">Strategia</button></div>`).join('')}</div></section></div><small class="classic-footnote">Salvataggio automatico · Nessuna connessione richiesta</small><details class="mobile-tournament-stats"><summary>Statistiche Torneo ▾</summary>${statsMarkup()}</details></section></section></main>`;
@@ -242,10 +248,20 @@ export function mountGame(root: HTMLElement): () => void {
     return `<div class="classic-home portal-route">${header()}<main class="profile-page portal-column"><button class="text-button" data-action="home">‹ Menu principale</button><span class="eyebrow">LE TUE STATISTICHE</span><h1>${escape(profile.name)}</h1><p class="muted">Livello locale ${1 + Math.floor(xp / 100)} · ${xp} XP · Statistiche conservate su questo dispositivo</p><div class="stat-grid">${[[n, 'Partite giocate'], [wins, 'Vittorie'], [mean, 'Media punti'], [n ? Math.round(100 * rows.filter(r => r.reason === 'risiko').length / n) + '%' : '—', 'Fine per RisiKo!'], [n ? Math.round(100 * rows.filter(r => r.reason === 'sdadata').length / n) + '%' : '—', 'Fine per sdadata'], [n ? duration(rows.reduce((sum, r) => sum + r.duration, 0) / n) : '—', 'Durata media']].map(([v, l]) => `<div><strong>${v}</strong><span>${l}</span></div>`).join('')}</div>${statsMarkup()}<h2>Le tue partite</h2>${!n ? '<div class="empty-state">La tua storia comincia dalla prossima mossa.<br>Completa una partita per registrare il primo risultato.</div>' : `<div class="match-history">${rows.map(r=>`<details class="portal-section"><summary><span>${new Date(r.date).toLocaleDateString('it-IT')} · ${r.rank}° posto</span><b>${r.points} pt</b></summary><dl><div><dt>Tavolo</dt><dd>${r.players} giocatori${r.antarctica?' · Antartide':''}</dd></div><div><dt>Conclusione</dt><dd>${r.reason==='risiko'?'RisiKo!':r.reason==='countdown'?'Countdown':'Sdadata'}</dd></div><div><dt>Durata</dt><dd>${duration(r.duration)}</dd></div></dl></details>`).join('')}</div>`}<h2>Classifica personale</h2><div class="local-ranking">${[...rows].sort((a, b) => b.points - a.points || a.rank - b.rank).slice(0, 10).map((r, i) => `<div><span>${i + 1}.</span><b>${escape(r.name)}</b><span>${new Date(r.date).toLocaleDateString('it-IT')}</span><strong>${r.points} pt</strong></div>`).join('') || '<p class="muted">Le dieci migliori prestazioni appariranno qui.</p>'}</div></main></div>`;
   }
   function modalMarkup() {
-    if (!modal || !state && !['rules','replace','strategy','audio'].includes(modal)) return '';
+    if (!modal || !state && !['rules','replace','strategy','audio','install','backup','import-confirm'].includes(modal)) return '';
     let content = '',
       cls = '';
     const s = state;
+    if(modal==='install'){
+      content=`<h2>Installa RisiKo</h2><p>${webStatus.ready?'✓ Gioco pronto offline. Puoi avviarlo senza connessione.':webStatus.error?escape(webStatus.error):'Preparazione offline in corso: tieni aperta questa pagina con Internet attivo.'}</p><p>${isAppleMobile()?'In Safari: Condividi → Aggiungi alla schermata Home. Se compare, lascia attivo «Apri come app web». Poi avvia RisiKo dalla nuova icona.':'Usa «Installa app» nel menu del browser, oppure il pulsante qui sotto se disponibile.'}</p><button class="primary" data-action="pwa-install">${isAppleMobile()?'Richiedi conservazione dati':'Installa app / conserva dati'}</button><p>Esporta periodicamente un backup: cancellare i dati del sito elimina partita e statistiche.</p>${isAppleMobile()?`<label class="audio-switch"><input id="web-rotation" type="checkbox" ${rotationAssistance()?'checked':''}/> Rotazione assistita della plancia su iPhone</label><p>La plancia si dispone in orizzontale anche se Safari non può ruotare lo schermo. I menu restano verticali. Se necessario, gira l’iPhone con il lato superiore verso sinistra.</p>`:''}<button class="secondary" data-action="pwa-update">${webStatus.update?'Aggiorna alla nuova versione':'Controlla aggiornamenti'}</button>`;
+    }
+    if(modal==='backup'){
+      content=`<h2>Salvataggi e backup</h2><p>Il file conserva la partita completa e le statistiche. Salvalo in File o iCloud Drive per recuperarlo anche dopo la cancellazione dei dati del sito.</p><button class="primary" data-action="export-backup">Prepara backup</button>${backupURL?`<a class="secondary backup-download" href="${backupURL}" download="${backupFilename()}">Scarica file JSON</a><button class="secondary" data-action="share-backup">Condividi / Salva in File</button>`:''}<label class="backup-picker">Importa un backup<input id="backup-file" type="file" accept=".json,application/json"/></label><p>Prima della sostituzione vedrai un riepilogo. Il file contiene anche gli obiettivi dei bot: conservalo come salvataggio personale.</p>`;
+    }
+    if(modal==='import-confirm'&&importPreview){
+      const b=importPreview;
+      content=`<h2>Ripristinare questo backup?</h2><p>${escape(b.profile.name)} · ${escape(new Date(b.createdAt).toLocaleString('it-IT'))}<br>${b.profile.results.length} partite nelle statistiche<br>${b.game?`${b.game.players.length} giocatori · giro ${b.game.round}${b.game.antarctica?' · Antartide':''}`:'Nessuna partita salvata'}</p><p>La partita e le statistiche attuali saranno sostituite. Se vuoi conservarle, torna indietro ed esporta prima un backup.</p><button class="primary" data-action="confirm-import">Sostituisci e ripristina</button><button class="secondary" data-action="backup">Annulla</button>`;
+    }
     if(modal==='strategy'){
       const policy=config.botPolicies![strategyBot];cls='strategy-window';
       content=`<h2>Strategia · ${['Falco','Vega','Atlas','Ombra'][strategyBot]}</h2><p>Le caselle definiscono le priorità di questo bot per la prossima partita. La partita salvata mantiene le strategie scelte al suo avvio.</p><label class="grace-field">Personalità <select id="bot-personality">${['equilibrato','stratega','incursore','conquistatore'].map(personality=>`<option value="${personality}" ${policy.personality===personality?'selected':''}>${personality}</option>`).join('')}</select></label><div class="policy-list">${policyOptions.map(([key,label,hint])=>`<label><input type="checkbox" data-policy="${key}" ${policy[key]?'checked':''}/><span><strong>${label}</strong><small>${hint}</small></span></label>`).join('')}</div><label class="grace-field">Tregua iniziale <select id="grace-rounds">${[0,1,2,3].map(n=>`<option value="${n}" ${policy.graceRounds===n?'selected':''}>${n===0?'Nessuna':n+' giri'}</option>`).join('')}</select></label><p class="policy-note">Durante la tregua il bot difende e rinforza, ma non attacca.</p><div class="policy-actions"><button class="secondary" data-action="policy-all">Applica a tutti</button><button class="text-button" data-action="policy-reset">Ripristina consigliati</button></div>`;
@@ -352,8 +368,7 @@ export function mountGame(root: HTMLElement): () => void {
     previewMove();
     const panel=root.querySelector<HTMLElement>('[data-floating]');
     if(panel){
-      if(panelPosition){panel.style.left=`${Math.max(6,Math.min(innerWidth-panel.offsetWidth-6,panelPosition.x))}px`;panel.style.top=`${Math.max(6,Math.min(innerHeight-panel.offsetHeight-6,panelPosition.y))}px`;panel.style.transform='none';}
-      else positionPanel(root,panel,[selected,target].filter((n): n is number=>n!==null));
+      positionPanel(root,panel,[selected,target].filter((n): n is number=>n!==null),panelPosition??undefined);
       bindPanelDrag(panel);
     }
   }
@@ -564,6 +579,17 @@ export function mountGame(root: HTMLElement): () => void {
     }
     if(el.dataset.strategy!==undefined){strategyBot=Number(el.dataset.strategy);modal='strategy';render();return;}
     switch (el.dataset.action) {
+      case 'install': modal='install';render();break;
+      case 'pwa-install': void installWebApp().then(()=>toast('Su iPhone aggiungi l’app alla Home dal menu Condividi di Safari.')).catch(()=>toast('Usa il menu del browser per installare.'));break;
+      case 'pwa-update': updateWebApp();toast('Controllo aggiornamenti: serve una connessione.');break;
+      case 'backup': modal='backup';render();break;
+      case 'export-backup': send({type:'EXPORT_BACKUP'});toast('Preparazione del backup…');break;
+      case 'share-backup': {
+        const file=new File([backupText],backupFilename(),{type:'application/json'});
+        if(navigator.canShare?.({files:[file]}))void navigator.share({files:[file],title:'Backup RisiKo'}).catch(()=>{});
+        else toast('Usa «Scarica file JSON» e conserva il file scaricato.');break;
+      }
+      case 'confirm-import': if(importPreview){send({type:'IMPORT_BACKUP',text:importText});importPreview=null;importText='';modal='backup';render();}break;
       case 'audio': modal='audio';render();break;
       case 'audio-test': void sounds.unlock().then(()=>{sounds.clash();if(!sounds.ready)toast('Tocca ancora Prova il clash per attivare l’audio.');});break;
       case 'policy-all': config.botPolicies=Array.from({length:4},()=>({...config.botPolicies![strategyBot]}));toast('Strategia applicata a tutti i bot');break;
@@ -717,6 +743,13 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function change(e: Event) {
     const el = e.target as HTMLInputElement;
+    if(el.id==='web-rotation'){try{localStorage.setItem('risiko-web-rotation',el.checked?'on':'off');}catch{}sendWebOrientation(screen==='table'?'landscape':'portrait');return;}
+    if(el.id==='backup-file'){
+      const file=el.files?.[0];if(!file)return;
+      if(file.size>MAX_BACKUP_BYTES){toast('File troppo grande: massimo 12 MB.');return;}
+      void file.text().then(raw=>{importPreview=parseBackup(raw);importText=raw;modal='import-confirm';render();}).catch(error=>toast(error instanceof Error?error.message:'File non leggibile.'));
+      return;
+    }
     if(el.id==='end-mode'){config.endMode=el.value as 'regular'|'countdown';render();return;}
     if(el.id==='countdown-minutes')config.countdownMinutes=Number(el.value);
     if(el.id==='bot-speed')config.botSpeed=Number(el.value);
@@ -764,7 +797,11 @@ export function mountGame(root: HTMLElement): () => void {
     }
   });
   document.addEventListener('visibilitychange', visibility);
-  globalThis.addEventListener?.('resize',fitMapTargets);
+  const onViewportResize=()=>{
+    fitMapTargets();
+    root.querySelectorAll<HTMLElement>('[data-floating]').forEach(panel=>positionPanel(root,panel,[selected,target].filter((n):n is number=>n!==null)));
+  };
+  globalThis.addEventListener?.('resize',onViewportResize);
   const nativePause = () => {
     blitz = false;
     send({
@@ -784,7 +821,16 @@ export function mountGame(root: HTMLElement): () => void {
       }
       return;
     }
-    if(data.type==='LOCAL_SAVE'){if(!writeLocalSnapshot(data.state)&&!localSaveWarning){localSaveWarning=true;toast('Copia locale non disponibile; il salvataggio principale resta in IndexedDB.');}return;}
+    if(data.type==='LOCAL_SAVE'){if(!data.state){clearLocalSnapshot();return;}if(!writeLocalSnapshot(data.state)&&!localSaveWarning){localSaveWarning=true;toast('Copia locale non disponibile; il salvataggio principale resta in IndexedDB.');}return;}
+    if(data.type==='BACKUP_FILE'){
+      if(backupURL)URL.revokeObjectURL(backupURL);backupText=data.text;
+      backupURL=URL.createObjectURL(new Blob([backupText],{type:'application/json'}));modal='backup';render();return;
+    }
+    if(data.type==='BACKUP_RESTORED'){
+      cancelPresentation();state=null;profile=data.profile;config.name=profile.name;screen='home';modal=null;
+      hasGame=!!data.state&&data.state.phase!=='GAME_OVER';
+      if(data.state)receiveState(data.state);else render();toast('Backup ripristinato. La partita è in pausa.');return;
+    }
     if (data.type === 'ERROR') {
       pendingCommand = false;
       blitz = false;
@@ -852,7 +898,7 @@ export function mountGame(root: HTMLElement): () => void {
             type: 'PROFILE'
           });
         }
-        if (state!.paused) { modal=null; blitz=false; }
+        if (state!.paused) { if(screen==='table')modal=null; blitz=false; }
         if (screen==='table' && !state!.paused && state!.phase === 'POST_CONQUEST_MOVE' && state!.active === 0) {
           selected = state!.pending!.from;
           target = state!.pending!.to;
@@ -886,12 +932,14 @@ export function mountGame(root: HTMLElement): () => void {
       }
     }
   worker.onerror = e => toast(`Errore del motore: ${e.message}`);
+  const disposeWebApp=initWebApp(()=>{if(screen==='home'||modal==='install')render();});
   render();
   send({
     type: 'INIT', presentation: true, snapshot:readLocalSnapshot()
   });
   return () => {
-    globalThis.removeEventListener?.('resize',fitMapTargets);
+    disposeWebApp();if(backupURL)URL.revokeObjectURL(backupURL);
+    globalThis.removeEventListener?.('resize',onViewportResize);
     if(mapFrame!==null)cancelAnimationFrame(mapFrame);
     if(dialogExit)clearTimeout(dialogExit);
     cancelPresentation();

@@ -1,0 +1,17 @@
+AGGIORNAMENTO COMPLETO 1.8.0 (build 12)
+
+Sostituisci i file agli stessi percorsi nel repository. Non aggiungere una seconda cartella risiko-offline. Mantieni la cartella nascosta .github/.
+
+CORREZIONE DEL LOG: la finestra di combattimento misurava male lo spazio disponibile e copriva il pulsante +. Adesso evita zoom e comandi e si riposiziona dopo trascinamenti e ridimensionamenti. I test mantengono clic reali: nessun force-click per aggirare la sovrapposizione.
+
+ANDROID: usa il workflow android.yml come prima. La rotazione nativa continua a usare GameOrientation. Installa l'APK come aggiornamento con lo stesso identificatore e la stessa firma per conservare i salvataggi.
+
+IPHONE GRATIS VIA PWA: non serve un APK, un IPA, Xcode o un abbonamento Apple. Configura Settings > Pages > Source > GitHub Actions; avvia Actions > Pubblica PWA su GitHub Pages. Dopo i controlli, apri il link pubblicato in Safari e scegli Condividi > Aggiungi alla schermata Home. Attendi Pronto offline anche nella finestra avviata dalla nuova icona.
+
+La rotazione assistita adatta la plancia a landscape su iPhone; non forza l'orientamento di iOS. Menu verticali e opzione per disattivare l'assistenza. Non modifica il percorso di orientamento Android nativo.
+
+BACKUP: nella versione web usa Salvataggi e backup per esportare partita e statistiche in un file JSON e ripristinarli con conferma. Il ripristino sostituisce i dati locali. Conserva un backup prima di cancellare dati Safari o cambiare URL.
+
+TEST: esiti effettivi in docs/VERIFICHE-1.8.0.txt. Browser locale bloccato prima dell'avvio da listen EPERM; i workflow eseguono i test veri prima di pubblicare o produrre l'APK. Nessun sito già pubblicato e nessun IPA firmato incluso.
+
+GUIDA: docs/PWA-IPHONE.md.

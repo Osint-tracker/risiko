@@ -409,3 +409,13 @@ for(const placementPhase of ['SETUP_PLACEMENT','REINFORCEMENT'] as const)test(`z
   f.click({action:'reset-map'});f.click({action:'names'});assert.equal(camera(),'0 0 1240 690');
  }finally{f.cleanup();globalThis.setTimeout=originalSet;globalThis.clearTimeout=originalClear;}
 });
+
+test('PWA e backup: menu web, stato offline esplicito e conferma separata dal ripristino',()=>{
+ const f=fixture(false,false);
+ assert.match(f.root.innerHTML,/INSTALLA E OFFLINE/);assert.match(f.root.innerHTML,/SALVATAGGI E BACKUP/);
+ f.click({action:'install'});assert.match(f.root.innerHTML,/Preparazione offline in corso/);assert.match(f.root.innerHTML,/Aggiornamenti|aggiornamenti/);
+ f.click({action:'close'});f.click({action:'backup'});assert.match(f.root.innerHTML,/backup-file/);
+ f.click({action:'export-backup'});assert.equal(f.worker.messages.at(-1).type,'EXPORT_BACKUP');
+ assert.ok(!f.worker.messages.some(m=>m.type==='IMPORT_BACKUP'));
+ f.cleanup();
+});

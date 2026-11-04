@@ -1,6 +1,18 @@
-# RisiKo Offline 1.7.0 — Torneo per Android e iPhone
+# RisiKo Offline 1.8.0 — Android, iPhone e PWA
 
 Gioco single-player in italiano: un umano contro 2–4 bot. Solo obiettivi Torneo da 86 punti, difesa fino a tre dadi, distribuzione iniziale con limite continentale del 50%. Antartide facoltativa, disattivata di default. Il badge da 12 carri è una soglia grafica, non un nuovo limite.
+
+## Aggiornamento 1.8.0 — PWA gratuita su iPhone
+
+PWA installabile dalla Home di Safari, avvio offline dopo il primo download completo, backup/importazione di partita e statistiche. Rotazione assistita della plancia iPhone, con menu verticali; Android nativo conserva il suo plugin e non carica la cornice web.
+
+Corretto anche il pannello d'attacco che copriva il pulsante zoom e bloccava il test browser della 1.7.0.
+
+- [Pubblicazione su GitHub Pages e installazione iPhone](docs/PWA-IPHONE.md)
+- [Dettagli aggiornamento e verifica](docs/AGGIORNAMENTO-1.8.0.md)
+- Build: `npm run build`; verifica pacchetto: `npm run pwa:verify`; test Chromium/WebKit: `npm run test:pwa` dopo la build e l'installazione dei browser Playwright.
+
+Il workflow manuale **Pubblica PWA su GitHub Pages** esegue i test e pubblica il sito. Nessun account Apple Developer richiesto per la PWA. La build nativa Android segue il workflow precedente.
 
 ## Aggiornamento 1.7.0 — zoom stabile e iPhone
 

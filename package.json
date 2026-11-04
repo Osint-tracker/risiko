@@ -1,12 +1,12 @@
 {
   "name": "risiko-offline",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
-    "build:react": "vite build",
+    "build:react": "node scripts/build.mjs",
     "test": "node --test --test-isolation=none tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "android:sync": "npm run build && cap sync android",
@@ -18,7 +18,9 @@
     "ios:setup": "node scripts/ios-setup.mjs",
     "ios:sync": "node scripts/ios-setup.mjs",
     "ios:open": "cap open ios",
-    "ios:verify": "node scripts/verify-ios.mjs"
+    "ios:verify": "node scripts/verify-ios.mjs",
+    "test:pwa": "node scripts/pwa-test.mjs",
+    "pwa:verify": "node scripts/verify-pwa.mjs"
   },
   "dependencies": {
     "react": "19.0.0",
