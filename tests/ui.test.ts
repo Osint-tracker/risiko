@@ -32,6 +32,12 @@ function fixture(holdEffects=false,prepare=true,trackMap=false) {
     insertAdjacentHTML(){}, getScreenCTM(){return null;}
   };
   const effects={innerHTML:'',className:'',style:{setProperty(){}},classList:{add(){},remove(){}},querySelector(){return null;}};
+  const dialogs={
+    firstElementChild:null,
+    get innerHTML(){return html.match(/<div id="dialogs">([\s\S]*?)<\/div><div id="effects"/)?.[1]??'';},
+    set innerHTML(value:string){html=html.replace(/(<div id="dialogs">)[\s\S]*?(<\/div><div id="effects")/,(_m,a,b)=>a+value+b);},
+    querySelector(){return null;},querySelectorAll(){return [];},contains(){return false;}
+  };
   const root = {
     set innerHTML(v: string) {
       html = v;
@@ -40,6 +46,7 @@ function fixture(holdEffects=false,prepare=true,trackMap=false) {
       return html;
     },
     querySelector(selector:string) {
+      if(holdEffects&&selector==='#dialogs')return dialogs;
       if(trackMap&&selector==='#world-map'&&html.includes('id="world-map"'))return map;
       return holdEffects&&selector==='#effects'?effects:null;
     },
@@ -467,5 +474,25 @@ for(const automatic of [true,false])test(`ripresa dalla Home: stesso stato già 
   f.click({action:'home'});f.worker.emit({type:'STATE',state:structuredClone(view)});
   f.click({slot:s.id});f.worker.emit({type:'STATE',state:structuredClone(view)});
   assert.match(f.root.innerHTML,/class="pause-card"/);
+ }finally{f.cleanup();}
+});
+
+test('carte: selezione e rimozione dal tris hanno identità distinte anche durante un turno bot',()=>{
+ const f=fixture(true);f.click({action:'new'});
+ const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});
+ s.phase='ATTACK';s.active=1;s.players[0].cards=[0,3,6,9,12,15,18];
+ try{
+  f.worker.emit({type:'STATE',state:project(s)});f.click({action:'cards'});
+  for(const id of [0,3,6])f.click({card:String(id)});
+  for(const id of s.players[0].cards)assert.equal((f.root.innerHTML.match(new RegExp(`data-card="${id}"`,'g'))??[]).length,1,'Ogni carta ha un solo pulsante nella mano');
+  assert.equal((f.root.innerHTML.match(/data-remove-card=/g)??[]).length,3);
+  const before=project(s),after=project({...s,revision:1});
+  f.worker.emit({type:'TRANSITION',transition:{id:'remove-during-bot',before,after,effects:[{kind:'draw',player:1}],speed:1}});
+  f.click({removeCard:'3'});
+  assert.match(f.root.innerHTML,/data-card="3" aria-pressed="false"/);
+  assert.doesNotMatch(f.root.innerHTML,/data-remove-card="3"/);
+  f.click({removeCard:'3'});assert.match(f.root.innerHTML,/data-card="3" aria-pressed="false"/,'Rimuovere due volte non deve riselezionare');
+  f.click({card:'3'});assert.match(f.root.innerHTML,/data-card="3" aria-pressed="true"/);
+  assert.equal((f.root.innerHTML.match(/data-remove-card="3"/g)??[]).length,1);
  }finally{f.cleanup();}
 });
