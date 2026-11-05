@@ -6,6 +6,10 @@ import {resolveMapPointers} from '../src/gui/mapPointer.ts';
 // A transparent neighbour may be the DOM hit without being the intended target.
 // Clicking the SVG (not an obscured territory group) respects that distinction.
 export async function clickTerritory(page, id, performClick) {
+ // Unlike locator.click(), our geometric probe fails immediately. Synchronize
+ // it with the known exit lifecycle, not a sleep or an arbitrary retry. An
+ // active modal still fails normally; a stuck exit gets its own timeout.
+ await page.locator('#dialogs .dialog-leaving').waitFor({state:'detached',timeout:5000});
  const territory=page.locator(`[data-territory="${id}"]`),svg=page.locator('#world-map');
  const candidates=await territory.evaluate(element=>{
   const box=element.getBoundingClientRect();
