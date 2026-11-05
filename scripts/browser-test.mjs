@@ -2,6 +2,7 @@ import {spawn} from 'node:child_process';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {clickTerritory,browserDiagnostics} from './browser-input.mjs';
 import {pauseBrowserGame,leaveGameForFixture} from './browser-session.mjs';
+import {completeBrowserSetup} from './browser-setup.mjs';
 import {readBoardLayout,assertBoardLayout,readMapScale} from './browser-layout.mjs';
 import {setTimeout as wait} from 'node:timers/promises';
 import assert from 'node:assert/strict';
@@ -70,7 +71,10 @@ try{
  
 
  await page.locator('[data-global-level="casuale"]').click();assert.equal(await page.getByText('Bot ? · livello segreto',{exact:true}).count(),3);
- await page.locator('[data-count="3"]').click();await page.locator('[data-action="new"]').click();
+ await page.locator('[data-count="3"]').click();
+ await page.locator('#seed-details > summary').click();
+ await page.locator('#match-seed').fill('browser-regression-2.0');
+ await page.locator('[data-action="new"]').click();
  await page.locator('.game-table').waitFor();assert.equal(await page.locator('[data-territory]').count(),42);
  assert.equal(await page.evaluate(async()=>{await document.fonts.load('900 15px RisikoCounter','0123456789');return document.fonts.check('900 15px RisikoCounter','0123456789');}),true,'Il carattere dei carri deve essere incorporato e caricato');
  async function setPacing(speed,filter='all'){
@@ -91,25 +95,7 @@ try{
   await page.locator('.game-table[data-phase="SETUP_PLACEMENT"]').waitFor();
   await setPacing(0,'summary');
   console.log(`Setup: ${territoryCount} territori umani, ${expected} armate da piazzare`);
-  let clicks=0;const deadline=Date.now()+60000;
-  while(Date.now()<deadline){
-   const phase=await page.locator('.game-table').getAttribute('data-phase');if(phase!=='SETUP_PLACEMENT')break;
-   const human=await page.locator('.game-table').getAttribute('data-active')==='0';
-   if(human&&await page.locator('#effects > *').count()===0){
-    assert.equal(await page.locator('.placement-plus').count(),territoryCount);
-    const plus=await page.locator('.placement-plus-hit').first().boundingBox();assert.ok(plus.width>=43.9&&plus.height>=43.9,'Area touch + almeno 44 px');
-    const revision=Number(await page.locator('.game-table').getAttribute('data-revision'));
-    const id=Number(await page.locator('.territory.placeable').first().getAttribute('data-territory'));
-    const before=Number(await page.locator(`[data-token="${id}"] .tank-number`).textContent());
-    await clickTerritory(page,id);
-    await page.waitForFunction(({revision,id,before})=>{
-     const table=document.querySelector('.game-table'),number=document.querySelector(`[data-token="${id}"] .tank-number`);
-     return table&&Number(table.getAttribute('data-revision'))>revision&&Number(number?.textContent)===before+1;
-    },{revision,id,before},{timeout:5000});clicks++;
-   }else await wait(100);
-  }
-  assert.equal(clicks,expected,'Devono essere piazzate tutte le armate della riserva iniziale');
-  assert.notEqual(await page.locator('.game-table').getAttribute('data-phase'),'SETUP_PLACEMENT');
+  await completeBrowserSetup(page,expected,territoryCount);
  }
  await completeSetup(21,14);
  // Geometry and zoom require one stable position, not a live instant-speed bot turn.
