@@ -53,3 +53,5 @@
 
 .battle-hit-tank{width:19px;height:15px;vertical-align:middle;filter:drop-shadow(0 0 2px #fb7185)}
 .app-shell.on-board .modal,.app-shell.on-board .fx-window{background:linear-gradient(#075c76,#003b53);border-color:#9be3ee;color:#f0fcff}
+/* A fading dialog is already closed: its backdrop must not block the board. */
+.dialog-leaving,.dialog-leaving *{pointer-events:none!important}

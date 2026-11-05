@@ -254,7 +254,12 @@ export function mountGame(root: HTMLElement): () => void {
     if(markup===dialogMarkup)return;
     if(dialogExit){clearTimeout(dialogExit);dialogExit=null;}
     if(!markup && host.firstElementChild?.classList.contains('consultation') && !state?.paused && screen==='table'){
-      dialogMarkup='';host.firstElementChild.classList.add('dialog-leaving');
+      dialogMarkup='';
+      const leaving=host.firstElementChild as HTMLElement;
+      // Closing is logical immediately; the remaining 160ms are visual only.
+      // Disable the backdrop AND its descendants, including keyboard focus.
+      leaving.inert=true;leaving.setAttribute('aria-hidden','true');
+      leaving.classList.add('dialog-leaving');
       dialogExit=setTimeout(()=>{if(!dialogMarkup)host.innerHTML='';dialogExit=null;},160);
       return;
     }
