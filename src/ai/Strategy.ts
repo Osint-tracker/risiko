@@ -1,3 +1,4 @@
+import {budgetExpired} from './Budget.ts';
 import {forcingAttacks,defensiveCommitments,criticalGarrison,hostileNeighbors} from './Tactics.ts';
 import {mapFor,objectives} from '../data/mapGraph.ts';
 import {owned,border,canAttack,moveBounds,validTris,reinforcement,total} from '../engine/RisikoRulesEngine.ts';
@@ -40,7 +41,7 @@ function refresh(v:GameView){
 function holding(v:GameView,id:number,p:BotPolicy):number{
  const {territories,continents}=mapFor(v),s=summary(v),ci=s.continentOf[id],c=continents[ci];
  const count=s.continentCounts[ci][v.active],length=s.members[ci].length;
- return 1+(goal(v).includes(id)?territories[id].points*.65:0)+(p.continents?c.bonus*(count===length?4:count/length):0);
+ return 1+(goal(v).includes(id)?territories[id].points*(p.personality==='stratega'?.95:.65):0)+(p.continents?c.bonus*(count===length?4:count/length):0);
 }
 function gain(v:GameView,to:number,p:BotPolicy,mood?:BotMood):number{
  const {territories,continents}=mapFor(v),g=goal(v),enemy=v.board[to].owner;
@@ -48,9 +49,9 @@ function gain(v:GameView,to:number,p:BotPolicy,mood?:BotMood):number{
  const s=summary(v),ci=s.continentOf[to],c=continents[ci],length=s.members[ci].length;
  const missing=length-s.continentCounts[ci][v.active],enemyCount=s.continentCounts[ci][enemy];
  let n=2+(g.includes(to)?territories[to].points*(p.personality==='stratega'?1.7:1.15):0);
- if(v.conquests===0&&v.players[v.active].cardCount<7)n+=p.personality==='conquistatore'?7:5;
+ if(v.conquests===0&&v.players[v.active].cardCount<7)n+=p.personality==='incursore'?9:5;
  if(p.weakBorders)n+=Math.max(0,4-v.board[to].armies)*1.3;
- if(p.continents)n+=c.bonus*(missing===1?9:missing<=3?3/missing:0)+(s.campaign===ci?c.bonus*2.5:0);
+ if(p.continents)n+=(p.personality==='conquistatore'?1.45:1)*c.bonus*(missing===1?9:missing<=3?3/missing:0)+(s.campaign===ci?c.bonus*2.5:0);
  if(p.breakBonus&&enemyCount===length)n+=c.bonus*(p.personality==='incursore'?10:7);
  if(p.disruptGrowth&&enemyCount<length&&enemyCount>=length-2)n+=c.bonus*2;
  if(p.eliminate&&s.counts[enemy]===1)n+=10+Math.min(7-v.players[v.active].cardCount,v.players[enemy].cardCount)*4;
@@ -66,13 +67,15 @@ export function rankAttacks(v:GameView,p=botPolicy(v.players[v.active].botPolicy
   const a=v.board[from].armies,d=v.board[to].armies,e=conquestEstimate(a,d);
   const value=gain(v,to,p,mood);
   // Normal campaigns must preserve force. Rare desperate sorties are handled separately.
-  if(e.win<(value>=50?.48:.65))continue;
+  const risk={equilibrato:.65,stratega:.72,incursore:.59,conquistatore:.63}[p.personality??'equilibrato'];
+  if(e.win<(value>=50?.48:risk))continue;
   const remaining=Math.max(1,Math.floor(e.survivors)-1);
   let score=e.win*value-(1-e.win)*(a-1)*1.2-(a-e.survivors)*1.1;
   if(p.reserve){
+   const reserveFactor=p.personality==='stratega'?1.35:p.personality==='incursore'?.8:1;
    const other=enemies(v,from).filter(id=>id!==to);
    const risk=Math.max(0,...other.map(id=>conquestOdds(v.board[id].armies,2)));
-   score-=risk*holding(v,from,p)*.35;
+   score-=risk*holding(v,from,p)*.35*reserveFactor;
    score-=Math.max(0,...hostileNeighbors(v,to).filter(id=>id!==from).map(id=>conquestOdds(v.board[id].armies,remaining)))*gain(v,to,p)*.22;
   }
   out.push({from,to,score,win:e.win});
@@ -109,6 +112,7 @@ function greedyReinforcementPlan(v:GameView):number[]{
    }
    if(best.score===-Infinity||(!border(w,best.id)&&border(w,id)))best={id,count:1,score:border(w,id)?1:0};
   }
+  if(budgetExpired())best.count=left;
   plan.push(...Array(best.count).fill(best.id));w.board[best.id].armies+=best.count;summaries.delete(w);left-=best.count;
  }
  return plan;
@@ -133,21 +137,23 @@ export function reinforcementPlan(v:GameView,level:Difficulty):number[]{
  const shortlist=deployed.map((a,i)=>({...a,index:i,score:position(a.view,v.active,p)+Math.max(0,rankAttacks(a.view,p)[0]?.score??0)*.6})).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,level==='survival'?8:5);
  if(!shortlist.some(a=>a.index===0))shortlist.push({...deployed[0],index:0,score:0});
  let best=base,bestScore=-Infinity;
- for(const choice of shortlist){
-  let sum=0,sq=0;
-  for(let sample=0;sample<samples;sample++){
+ const sums=shortlist.map(()=>0),squares=shortlist.map(()=>0);let completed=0;
+ for(let sample=0;sample<samples;sample++){
+  const values:number[]=[];
+  for(const choice of shortlist){
+   if(budgetExpired())break;
    const w=clone(choice.view),random=rngFrom(0x51f15e+v.round*7919+sample*104729);
    for(let step=0;step<depth;step++){
-    const attack=rankAttacks(w,p)[0];if(!attack||attack.score<=0)break;
-    fight(w,attack,random);
+    if(budgetExpired())break;
+    const attack=rankAttacks(w,p)[0];if(!attack||attack.score<=0)break;fight(w,attack,random);
     if(goal(w).every(id=>w.board[id].owner===v.active))break;
    }
-   const value=position(w,v.active,p)+(w.conquests>0&&v.players[v.active].cardCount<7?5:0);
-   sum+=value;sq+=value*value;
+   values.push(position(w,v.active,p)+(w.conquests>0&&v.players[v.active].cardCount<7?5:0));
   }
-  const mean=sum/samples,score=mean-Math.sqrt(Math.max(0,sq/samples-mean*mean))*.15;
-  if(score>bestScore){bestScore=score;best=choice.plan;}
+  if(budgetExpired()||values.length!==shortlist.length)break;
+  completed++;values.forEach((value,i)=>{sums[i]+=value;squares[i]+=value*value;});
  }
+ if(completed)shortlist.forEach((choice,i)=>{const mean=sums[i]/completed,score=mean-Math.sqrt(Math.max(0,squares[i]/completed-mean*mean))*.15;if(score>bestScore){bestScore=score;best=choice.plan;}});
  return best;
 }
 function occupation(v:GameView,from:number,to:number,min:number,max:number,p:BotPolicy):number{
@@ -257,28 +263,35 @@ export function attackDecision(v:GameView,level:Difficulty,rng:()=>number,mood?:
  }
  if(!roots.length)return {command:{type:'NEXT'},alternatives:[],samples:0};
  const samples=level==='survival'?48:24,depth=level==='survival'?8:5,seed=Math.floor(rng()*0xffffffff);
- const weights=v.players.map(x=>inferObjectiveWeights(v,x.id)),hold:number[]=[];
- for(let i=0;i<samples;i++){const w=clone(v);replies(w,v.active,rngFrom(seed+i*7919),weights,level==='survival'?2:1);hold.push(position(w,v.active,p));}
- const alternatives=roots.map(a=>{
-  const sums=[0,0],squares=[0,0];
-  for(let i=0;i<samples;i++){
-   const first=clone(v),random=rngFrom(seed+i*7919),firstCapture=fight(first,a,random)?1:0;
-   // Compare two policies by their averages, never cherry-pick a lucky branch after seeing its dice.
+ const weights=v.players.map(x=>inferObjectiveWeights(v,x.id));
+ const sums=roots.map(()=>[0,0]),squares=roots.map(()=>[0,0]);let completed=0;
+ for(let i=0;i<samples;i++){
+  if(budgetExpired())break;
+  const holdingView=clone(v);replies(holdingView,v.active,rngFrom(seed+i*7919),weights,level==='survival'?2:1);const hold=position(holdingView,v.active,p);
+  const batch:number[][]=[];
+  for(const a of roots){
+   if(budgetExpired())break;
+   const first=clone(v),random=rngFrom(seed+i*7919),firstCapture=fight(first,a,random)?1:0,values:number[]=[];
    for(const policy of [0,1]){
     const w=clone(first);let captured=firstCapture;
-    if(policy===1)for(let j=1;j<depth;j++){const next=rankAttacks(w,p)[0];if(!next||next.score<=1)break;if(fight(w,next,random))captured++;if(goal(w).every(id=>w.board[id].owner===v.active))break;}
-    if(goal(w).every(id=>w.board[id].owner===v.active)){sums[policy]+=10000;squares[policy]+=100000000;continue;}
+    if(policy===1)for(let j=1;j<depth;j++){if(budgetExpired())break;const next=rankAttacks(w,p)[0];if(!next||next.score<=1)break;if(fight(w,next,random))captured++;if(goal(w).every(id=>w.board[id].owner===v.active))break;}
+    if(goal(w).every(id=>w.board[id].owner===v.active)){values.push(10000);continue;}
     const card=v.conquests===0&&captured&&w.players[v.active].cardCount<7?5:0;
     replies(w,v.active,rngFrom(seed+i*7919),weights,level==='survival'?2:1);
-    const delta=position(w,v.active,p)-hold[i]+card;sums[policy]+=delta;squares[policy]+=delta*delta;
+    values.push(position(w,v.active,p)-hold+card);
    }
+   batch.push(values);
   }
-  const values=sums.map((sum,i)=>{const mean=sum/samples,variance=Math.max(0,squares[i]/samples-mean*mean);return mean-Math.sqrt(variance)*.12;});
-  const simulation=Math.max(...values);
+  if(budgetExpired()||batch.length!==roots.length)break;
+  completed++;batch.forEach((values,r)=>values.forEach((value,p)=>{sums[r][p]+=value;squares[r][p]+=value*value;}));
+ }
+ const alternatives=roots.map((a,r)=>{
+  if(!completed)return {...a,simulation:a.score};
+  const simulation=Math.max(...sums[r].map((sum,i)=>{const mean=sum/completed;return mean-Math.sqrt(Math.max(0,squares[r][i]/completed-mean*mean))*.12;}));
   return {...a,simulation,score:a.score*.45+simulation*.55};
  }).sort((a,b)=>b.score-a.score||a.from-b.from||a.to-b.to);
  const best=alternatives[0];
- return {command:best.score>0?{type:'ATTACK',from:best.from,to:best.to}:{type:'NEXT'},alternatives,samples};
+ return {command:best.score>0?{type:'ATTACK',from:best.from,to:best.to}:{type:'NEXT'},alternatives,samples:completed};
 }
 function frontDistances(v:GameView){
  const distances=v.board.map(()=>Infinity),queue=owned(v,v.active).filter(id=>border(v,id));queue.forEach(id=>distances[id]=0);

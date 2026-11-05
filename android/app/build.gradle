@@ -6,8 +6,8 @@ android {
   applicationId = 'it.local.risiko'
   minSdk = rootProject.ext.minSdkVersion
   targetSdk = rootProject.ext.targetSdkVersion
-  versionCode = 12
-  versionName = '1.8.0'
+  versionCode = 13
+  versionName = '2.0.0'
   testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
  }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21 }

@@ -85,8 +85,8 @@ test('I dadi si fermano a 350 ms; l’esito appare dopo il rotolamento e una sol
  });
 });
 
-test('Velocità Istantaneo salta gli effetti dei bot, preservando la presentazione per l’umano',()=>{
+test('Filtro effetti indipendente dalla velocità: solo riepilogo salta i bot',()=>{
  const {s,n}=conquest();assert.equal(makeTransition(s,n,0)!.speed,2);
  s.players[0].human=false;n.players[0].human=false;
- assert.equal(makeTransition(s,n,0),null);assert.equal(makeTransition(s,n,2)!.speed,2);
+ assert.equal(makeTransition(s,n,0)!.speed,4);assert.equal(makeTransition(s,n,0,0,'summary'),null);assert.equal(makeTransition(s,n,2)!.speed,2);
 });

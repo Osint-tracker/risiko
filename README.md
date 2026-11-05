@@ -1,6 +1,17 @@
-# RisiKo Offline 1.8.0 — Android, iPhone e PWA
+# RisiKo Offline 2.0.0 — Android, iPhone e PWA
 
-Gioco single-player in italiano: un umano contro 2–4 bot. Solo obiettivi Torneo da 86 punti, difesa fino a tre dadi, distribuzione iniziale con limite continentale del 50%. Antartide facoltativa, disattivata di default. Il badge da 12 carri è una soglia grafica, non un nuovo limite.
+Gioco offline in italiano per 3–5 partecipanti: un umano contro i bot oppure più umani in Pass & Play, sempre con almeno un umano. Solo obiettivi Torneo da 86 punti, difesa fino a tre dadi, distribuzione iniziale con limite continentale del 50%. Antartide facoltativa, disattivata di default. Il badge da 12 carri è una soglia grafica, non un nuovo limite.
+
+## Aggiornamento 2.0.0 — Atlante
+
+Redesign navy/ottone/avorio, menu verticali, preparazione con seed condivisibile, Pass & Play privato, slot e profili multipli, scenari/editor, tutorial, replay e analisi. Restano esclusivamente gli obiettivi Torneo.
+
+- [Installazione dello ZIP con sole modifiche](docs/AGGIORNAMENTO-2.0.md)
+- [Verifiche e limiti della consegna](docs/VERIFICHE-2.0.md)
+- [Specifica integrativa 2.0](docs/SPECIFICA-2.0.md)
+- Anteprime: `node scripts/export-previews.mjs`, poi apri `artifacts/previews-2.0/index.html`.
+
+Le sezioni seguenti documentano le release precedenti.
 
 ## Aggiornamento 1.8.0 — PWA gratuita su iPhone
 

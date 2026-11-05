@@ -100,8 +100,8 @@ test('sortita disperata: pochi rinforzi, tre lanci massimi, cooldown',()=>{
  const safe=project(active());safe.round=4;assert.equal(humanDecision(safe,'facile',()=>0).context.episode,null);
 });
 test('immagini locali: figure militari, sagome, obiettivi, dadi con pallini',()=>{
- for(const id of [0,1,2,42]){const html=cardFace(id);assert.doesNotMatch(html,/[♜♟♞]/);assert.match(html,/military-icon/);}
- assert.match(cardFace(0),/card-country/);assert.match(cardFace(42),/JOLLY/);assert.match(objectiveMap(10),/objective-id">10/);
+ for(const id of [0,1,2,42]){const html=cardFace(id);assert.doesNotMatch(html,/[♜♟♞]/);assert.match(html,id===42?/compass-rose/:/military-icon/);}
+ assert.match(cardFace(0),/card-country/);assert.match(cardFace(42),/Jolly/);assert.match(objectiveMap(10),/objective-id">10/);
  assert.equal((dieMarkup(6,'#123456').match(/class="die-face/g)??[]).length,6);
 });
 test('nove partite con personalità: mosse legali e conclusione a tutte le difficoltà',()=>{

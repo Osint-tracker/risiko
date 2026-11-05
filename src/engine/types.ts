@@ -7,6 +7,7 @@ export type Player = {
   name: string;
   color: string;
   human: boolean;
+  profileId?: string;
   difficulty: Difficulty;
   blind: boolean;
   objective: number;
@@ -41,7 +42,14 @@ export type GameEvent = {
   losses?: number[];
 };
 export type GameState = {
-  version: 1;
+version: 1|2;
+  recordResults?:boolean;
+  tutorialStep?: number;
+  initialSeed?: number;
+  seedLabel?: string;
+  custom?: boolean;
+  analysis?: {round:number;player:number;message:string}[];
+  replay?: import('./Replay.ts').TurnSnapshot[];
   manualReinforcement?: boolean;
   placementHistory?: {territory:number;count:number;belief:number[]|null}[];
   scoreHistory?: {round:number;player:number;points:number[]}[];
@@ -98,7 +106,11 @@ export type BotContext = {
   logIndex: number;
   episode: { from: number; to: number; initialArmies: number; rolls: number } | null;
 };
+export type Participant = {name:string;human:boolean;profileId?:string;difficulty?:Difficulty|'casuale'};
 export type GameConfig = {
+  participants?: Participant[];
+  seedLabel?: string;
+  custom?: boolean;
   manualReinforcement?: boolean;
   endMode?: 'regular' | 'countdown';
   countdownMinutes?: number;
@@ -146,7 +158,9 @@ export type PublicPlayer = Omit<Player, 'difficulty' | 'objective' | 'cards' | '
   points?: number;
   outside?: number;
 };
-export type GameView = Omit<GameState, 'rng' | 'aiRng' | 'deck' | 'discard' | 'beliefs' | 'players' | 'lastCommandId' | 'botContexts' | 'placementHistory' | 'scoreHistory'> & {
+export type GameView = Omit<GameState, 'rng' | 'aiRng' | 'deck' | 'discard' | 'beliefs' | 'players' | 'lastCommandId' | 'botContexts' | 'placementHistory' | 'scoreHistory' | 'replay' | 'analysis'> & {
+  replay?: import('./Replay.ts').TurnSnapshot[];
+  analysis?: {round:number;player:number;message:string}[];
   undoAvailable?: boolean;
   scoreHistory?: {round:number;player:number;points:(number|null)[]}[];
   players: PublicPlayer[];

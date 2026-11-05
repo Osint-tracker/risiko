@@ -10,7 +10,7 @@ export function tankModel(color:string){
 }
 export function armyBadge(count:number,color:string){
  const tier=count>=10?'gold':count>=5?'silver':'standard';
- return `<g class="army-shield tier-${tier}" data-tier="${tier}"><circle class="shield-rim" cx="48" cy="29" r="13" fill="#111827" stroke="${count>=10?'#e7ba50':count>=5?'#c4d0dd':color}" stroke-width="2"/><circle cx="48" cy="29" r="10.5" fill="none" stroke="${color}" stroke-width="1"/><text class="tank-number" x="48" y="34" text-anchor="middle" style="font-size:${counterFontSize(count)-1}px">${count}</text>${count>=10?'<path class="prestige-star" d="M48 12L49.4 15L53 15.3L50.2 17.5L51 21L48 19.3L45 21L45.8 17.5L43 15.3L46.6 15Z" fill="#f6d97a"/>':''}${count>=12?'<path class="army-strength" d="M37 43H59" stroke="#f8ce5b" stroke-width="2"/>':''}</g>`;
+ return `<g class="army-shield tier-${tier}" data-tier="${tier}"><circle class="shield-rim" cx="48" cy="29" r="13" fill="#111827" stroke="${count>=10?'#e7ba50':count>=5?'#c4d0dd':color}" stroke-width="2"/><circle cx="48" cy="29" r="10.5" fill="none" stroke="${color}" stroke-width="1"/><text class="tank-number" x="48" y="34" text-anchor="middle" style="font-size:${Math.max(12,counterFontSize(count)-1)}px">${count}</text>${count>=10?'<path class="prestige-star" d="M48 12L49.4 15L53 15.3L50.2 17.5L51 21L48 19.3L45 21L45.8 17.5L43 15.3L46.6 15Z" fill="#f6d97a"/>':''}${count>=12?'<path class="army-strength" d="M37 43H59" stroke="#f8ce5b" stroke-width="2"/>':''}</g>`;
 }
 export function armyToken(count: number, color: string) {
  return `<svg class="army-token" viewBox="0 0 64 46" aria-label="${count} carri">${tankModel(color)}${armyBadge(count,color)}</svg>`;
@@ -39,17 +39,17 @@ function silhouette(id: number) {
   const t = territories[id], n = t.path.match(/-?\d+(?:\.\d+)?/g)!.map(Number);
   const xs = n.filter((_,i) => i % 2 === 0), ys = n.filter((_,i) => i % 2 === 1);
   const x = Math.min(...xs)-4, y = Math.min(...ys)-4, w = Math.max(...xs)-x+4, h = Math.max(...ys)-y+4;
-  return `<svg class="card-country" viewBox="${x} ${y} ${w} ${h}" aria-hidden="true"><path d="${t.path}" fill="${territoryColors[id]}" stroke="#d8edb6" stroke-width="1"/></svg>`;
+  return `<svg class="card-country" viewBox="${x} ${y} ${w} ${h}" aria-hidden="true"><path d="${t.path}" fill="${territoryColors[id]}" stroke="#786444" stroke-width="1"/></svg>`;
 }
 export function cardFace(id?: number) {
   if (id === undefined) return '<div class="card-face card-back"><span>RisiKo!</span><small>OFFLINE</small></div>';
   const c = cards[id];
-  if (c.symbol === 'jolly') return `<div class="card-face card-jolly">${['cavaliere','fante','cannone'].map(s => `<div>${militaryIcon(s)}</div>`).join('')}<strong>JOLLY</strong></div>`;
+  if (c.symbol === 'jolly') return `<div class="card-face card-jolly"><svg class="compass-rose" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="35" fill="none" stroke="currentColor"/><path d="M50 1L59 39L91 9L61 41L99 50L61 59L91 91L59 61L50 99L41 61L9 91L39 59L1 50L39 41L9 9L41 39Z"/><circle cx="50" cy="50" r="7" fill="#0b1f2e"/></svg><strong>Jolly</strong></div>`;
   return `<div class="card-face"><div class="card-symbol">${militaryIcon(c.symbol)}</div>${silhouette(c.territory!)}<strong>${escapeHtml(territories[c.territory!].name)}</strong><small>${c.symbol}</small></div>`;
 }
 export function objectiveMap(id: number, antarctica=false) {
   const goal = objectives[id-1], map=mapFor({antarctica}), territories=map.territories;
-  return `<div class="objective-card"><svg class="objective-mini" viewBox="${antarctica?'220 0 840 815':'220 45 840 580'}" role="img" aria-label="Mappa obiettivo ${id}"><rect x="0" y="0" width="1240" height="${map.height}" fill="#065266"/>${territories.map(t => `<path d="${t.path}" fill="${goal.territories.includes(t.id)?'#b5dc58':'#bae4ea'}" stroke="#398b87" stroke-width="1"/>`).join('')}</svg><span class="objective-id">${id}</span></div>`;
+  return `<div class="objective-card"><svg class="objective-mini" viewBox="${antarctica?'220 0 840 815':'220 45 840 580'}" role="img" aria-label="Mappa obiettivo ${id}"><rect x="0" y="0" width="1240" height="${map.height}" fill="#e4d8b9"/>${territories.map(t => `<path d="${t.path}" fill="${goal.territories.includes(t.id)?'#48694c':'#c8bfa9'}" stroke="#8c8267" stroke-width="1"/>`).join('')}</svg><span class="objective-id">${id}</span></div>`;
 }
 const pipPositions: Record<number,number[][]> = {
   1:[[15,15]],2:[[8,8],[22,22]],3:[[8,8],[15,15],[22,22]],4:[[8,8],[22,8],[8,22],[22,22]],
@@ -60,5 +60,7 @@ export function pips(n: number) {
 }
 export function dieMarkup(n: number, color: string, index = 0) {
   const other = [1,2,3,4,5,6].filter(x=>x!==n && x!==7-n);
-  return `<span class="visual-die" role="img" aria-label="Dado ${n}" style="--die-color:${color};--i:${index};--pip-color:${color==='#f0d846'?'#173340':'white'}"><span class="die-cube">${[n,7-n,...other].map((v,i)=>`<span class="die-face face-${i}">${pips(v)}</span>`).join('')}</span></span>`;
+  return `<span class="visual-die" role="img" aria-label="Dado ${n}" style="--die-color:${color};--i:${index};--pip-color:${(color==='#f0d846'||color==='#F2E7D3')?'#173340':'white'}"><span class="die-cube">${[n,7-n,...other].map((v,i)=>`<span class="die-face face-${i}">${pips(v)}</span>`).join('')}</span></span>`;
 }
+
+export function crest(){return `<svg class="atlas-crest" viewBox="0 0 170 64" aria-hidden="true"><g fill="currentColor">${[0,1,2,3,4,5].map(i=>`<ellipse cx="${28-i*2}" cy="${52-i*7}" rx="3" ry="8" transform="rotate(${-40+i*12} ${28-i*2} ${52-i*7})"/><ellipse cx="${142+i*2}" cy="${52-i*7}" rx="3" ry="8" transform="rotate(${40-i*12} ${142+i*2} ${52-i*7})"/>`).join('')}<path d="M28 57Q80 69 142 57" fill="none" stroke="currentColor"/><g transform="translate(59 9) scale(1.05)">${tankModel('#c8a45a')}</g></g></svg>`;}

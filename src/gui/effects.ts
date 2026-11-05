@@ -8,7 +8,7 @@ export function effectMarkup(e: VisualEffect, t: Transition) {
   const player = t.before.players[e.player];
   if (e.kind === 'battle') {
     const attack=[...e.attack].sort((a,b)=>b-a),defense=[...e.defense].sort((a,b)=>b-a);
-    return `<section class="battle-window fx-window" data-floating role="status" aria-label="Combattimento"><header data-drag-handle>COMBATTIMENTO ${player.human?'<button data-action="blitz" class="stop-blitz">Ferma blitz</button>':''}</header><div class="conquest-odds">Probabilità di conquista: <b>${Math.round(conquestOdds(t.before.board[e.from].armies,t.before.board[e.to].armies)*100)}%</b></div><div class="battle-sides">${[[e.from,attack,'#d93829','ATTACCO',e.losses[0]],[e.to,defense,'#2784df','DIFESA',e.losses[1]]].map(([id,dice,color,label,loss],i)=>`<div class="battle-side side-${i}"><small>${label}</small><strong>${escapeHtml(territories[id as number].name)}</strong><div class="dice-bowl">${(dice as number[]).map((n,j)=>dieMarkup(n,color as string,j+i*3)).join('')}</div><span class="loss-label">−${loss} carri</span></div>`).join('')}</div><div class="battle-comparison">${attack.slice(0,defense.length).map((n,i)=>`<span class="dice-pair ${n>defense[i]?'defender-lost':'attacker-lost'}" style="--pair:${i}">${n} ${n>defense[i]?'›':'≤'} ${defense[i]} <svg class="battle-hit-tank" viewBox="0 0 50 36" aria-hidden="true">${tankModel(n>defense[i]?'#2784df':'#d93829')}</svg><b>${n>defense[i]?'difesa −1':'attacco −1'}</b></span>`).join('')}</div>${e.conquered?'<p class="conquest-label">Territorio conquistato!</p>':''}</section>`;
+    return `<section class="battle-window fx-window" data-floating role="status" aria-label="Combattimento"><header data-drag-handle>COMBATTIMENTO ${player.human?'<button data-action="blitz" class="stop-blitz">Ferma blitz</button>':''}</header><div class="conquest-odds">Probabilità di conquista: <b>${Math.round(conquestOdds(t.before.board[e.from].armies,t.before.board[e.to].armies)*100)}%</b></div><div class="battle-sides">${[[e.from,attack,'#d93829','ATTACCO',e.losses[0]],[e.to,defense,'#F2E7D3','DIFESA',e.losses[1]]].map(([id,dice,color,label,loss],i)=>`<div class="battle-side side-${i}"><small>${label}</small><strong>${escapeHtml(territories[id as number].name)}</strong><div class="dice-bowl">${(dice as number[]).map((n,j)=>dieMarkup(n,color as string,j+i*3)).join('')}</div><span class="loss-label">−${loss} carri</span></div>`).join('')}</div><div class="battle-comparison">${attack.slice(0,defense.length).map((n,i)=>`<span class="dice-pair ${n>defense[i]?'defender-lost':'attacker-lost'}" style="--pair:${i}">${n} ${n>defense[i]?'›':'≤'} ${defense[i]} <svg class="battle-hit-tank" viewBox="0 0 50 36" aria-hidden="true">${tankModel(n>defense[i]?'#F2E7D3':'#d93829')}</svg><b>${n>defense[i]?'difesa −1':'attacco −1'}</b></span>`).join('')}</div>${e.conquered?'<p class="conquest-label">Territorio conquistato!</p>':''}</section>`;
   }
   if (e.kind === 'sdadata') return `<section class="fx-window sdadata-window" role="status"><header>SDADATA · ${escapeHtml(player.name)}</header><div class="dice-bowl">${e.dice.map((n,i)=>dieMarkup(n,player.color,i)).join('')}</div><p class="battle-comparison">${e.dice.join(' + ')} = ${e.dice.reduce((a,b)=>a+b,0)} · chiusura ≤ ${e.threshold}</p></section>`;
   if (e.kind === 'draw') return `<section class="card-reward" role="status"><h2>${e.player===t.before.viewer?'HAI RICEVUTO UNA CARTA':`${escapeHtml(player.name)} pesca una carta`}</h2><div class="reward-flight"><div class="reward-flip ${e.card===undefined?'hidden-card':''}"><div class="reward-back">${cardFace()}</div><div class="reward-front">${cardFace(e.card)}</div></div></div></section>`;
@@ -33,12 +33,14 @@ export function panelPosition(bounds:Rect,width:number,height:number,points:Poin
  return choices.reduce((best,p)=>score(p)<score(best)?p:best,choices[0]);
 }
 export function positionPanel(root:HTMLElement,panel:HTMLElement,ids:number[],preferred?:Point){
+ const stage=root.querySelector<HTMLElement>('.map-stage');
+ if(stage)panel.style.maxHeight=`${Math.max(180,stage.getBoundingClientRect().height-12)}px`;
  const svg=root.querySelector<SVGSVGElement>('#world-map'),width=panel.offsetWidth,height=panel.offsetHeight;
  const points=ids.flatMap(id=>{
   const matrix=svg?.getScreenCTM();if(!svg||!matrix)return [];
   const p=svg.createSVGPoint();p.x=territories[id].x;p.y=territories[id].y;const screen=p.matrixTransform(matrix);return [{x:screen.x,y:screen.y}];
  });
- const blocked=Array.from(root.querySelectorAll<HTMLElement>('.reference-zoom,.reference-sidebar,.command-deck,.table-footer,.players-row')).map(el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height,priority:el.matches('.players-row')?1:1000};}).filter(r=>r.width>0&&r.height>0);
+ const blocked=Array.from(root.querySelectorAll<HTMLElement>('.reference-zoom,.reference-sidebar,.command-deck,.board-top,.players-row')).map(el=>{const r=el.getBoundingClientRect();return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height,priority:el.matches('.players-row')?1:1000};}).filter(r=>r.width>0&&r.height>0);
  const c=panelPosition({left:0,top:0,right:innerWidth,bottom:innerHeight},width,height,points,blocked,preferred);
  panel.style.left=`${c.x}px`;panel.style.top=`${c.y}px`;panel.style.transform='none';
 }
@@ -82,7 +84,7 @@ export function playTransition(root: HTMLElement, t: Transition, finished: () =>
   function badge(id:number, delta:number, owner:number, duration:number) {
     if(!delta)return;
     const point=territories[id], color=t.before.players[owner].color;
-    root.querySelector('#map-fx')?.insertAdjacentHTML('beforeend',`<g class="army-delta ${delta<0?'army-loss':''}" transform="translate(${point.x-19} ${point.y-34})" style="--counter-ms:${duration}ms"><g class="delta-rise"><path d="${tankShape}" fill="${color}"/><text x="17" y="20" style="font-size:${counterFontSize(delta,true)}px">${delta>0?'+':'−'}${Math.abs(delta)}</text></g></g>`);
+    root.querySelector('#map-fx')?.insertAdjacentHTML('beforeend',`<g class="army-delta ${delta<0?'army-loss':''}" transform="translate(${point.x-19} ${point.y-34})" style="--counter-ms:${duration}ms"><g class="delta-rise">${tankModel(color)}<rect x="30" y="18" width="34" height="22" rx="11" fill="#111827" stroke="${color}"/><text x="47" y="34" style="font-size:${counterFontSize(delta,true)}px">${delta>0?'+':'−'}${Math.abs(delta)}</text></g></g>`);
   }
   function travel(from:number,to:number,color:string,duration:number,arrow=false){
     const a=territories[from],b=territories[to],dx=b.x-a.x,dy=b.y-a.y;

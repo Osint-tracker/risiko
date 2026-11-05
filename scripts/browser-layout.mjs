@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 export async function readBoardLayout(page) {
  return page.evaluate(()=>{
   const table=document.querySelector('.game-table');
-  const selectors=['.players-row','.map-stage','.command-deck','.table-footer','.reference-zoom','.reference-sidebar'];
+  const selectors=['.board-top','.map-stage','.board-bottom','.players-row','.command-deck','.reference-zoom','.reference-sidebar'];
   const boxes=Object.fromEntries(selectors.map(selector=>{
    const element=table?.querySelector(selector);
    if(!element||!element.getClientRects().length)return [selector,null];
@@ -18,15 +18,18 @@ export async function readBoardLayout(page) {
 
 export function assertBoardLayout(snapshot) {
  const context=`fase ${snapshot.phase}, giocatore ${snapshot.active}, revisione ${snapshot.revision}`;
- for(const selector of ['.players-row','.map-stage','.command-deck','.table-footer','.reference-zoom','.reference-sidebar']) {
+ for(const selector of ['.board-top','.map-stage','.board-bottom','.players-row','.command-deck','.reference-zoom','.reference-sidebar']) {
   const box=snapshot.boxes[selector];
   assert.ok(box&&[box.x,box.y,box.width,box.height].every(Number.isFinite)&&box.width>0&&box.height>0,`HUD assente o non visibile: ${selector} (${context}). Snapshot: ${JSON.stringify(snapshot)}`);
  }
- const rows=['.players-row','.map-stage','.command-deck','.table-footer'];
+ const rows=['.board-top','.map-stage','.board-bottom'];
  for(let i=1;i<rows.length;i++) {
   const previous=snapshot.boxes[rows[i-1]],current=snapshot.boxes[rows[i]];
   assert.ok(current.y>=previous.y+previous.height-1,`HUD sovrapposto: ${rows[i-1]} / ${rows[i]} (${context})`);
  }
+ const bottom=snapshot.boxes['.board-bottom'];
+ for(const selector of ['.players-row','.command-deck']){const b=snapshot.boxes[selector];assert.ok(b.y>=bottom.y-1&&b.y+b.height<=bottom.y+bottom.height+1,`HUD fuori dalla barra inferiore: ${selector}`);}
+ const players=snapshot.boxes['.players-row'],commands=snapshot.boxes['.command-deck'];assert.ok(players.x+players.width<=commands.x+1,'Giocatori e comandi sovrapposti');
  const zoom=snapshot.boxes['.reference-zoom'],rail=snapshot.boxes['.reference-sidebar'];
  assert.ok(zoom.x+zoom.width<=rail.x,'Zoom e Cronologia devono stare in colonne distinte');
  assert.ok(snapshot.scrollWidth<=snapshot.viewportWidth+1,'La pagina non deve scorrere orizzontalmente');

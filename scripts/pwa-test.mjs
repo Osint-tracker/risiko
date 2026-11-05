@@ -39,18 +39,18 @@ try{
   }
   await game.locator('.portal-resume').waitFor();
   await game.locator('[data-action="install"]').click();await game.getByText(/Gioco pronto offline/).waitFor({timeout:30000});await tap(game.locator('[data-action="close"]'));
-  await game.locator('.portal-resume').click();await game.locator('.game-table[data-phase="REINFORCEMENT"]').waitFor();
+  await game.locator('.portal-resume').click();await game.locator('.pause-card').waitFor();await tap(game.locator('[data-action="resume"]'));await game.locator('.game-table[data-phase="REINFORCEMENT"]').waitFor();
   if(ios){await page.locator('#web-stage.assisted').waitFor();assert.ok(await game.evaluate(()=>innerWidth>innerHeight));assert.equal(await game.locator('.portrait-notice').isVisible(),false);}
   await clickTerritory(game,22,tap);await game.waitForFunction(()=>document.querySelector('[data-token="22"] .tank-number')?.textContent==='3');await game.locator('#effects > *').waitFor({state:'detached'});
   const before=await game.locator('#world-map').getAttribute('viewBox');await tap(game.locator('[data-action="zoom-in"]'));assert.notEqual(await game.locator('#world-map').getAttribute('viewBox'),before);
   await tap(game.locator('[data-action="cards"]'));await game.getByText('LE TUE CARTE',{exact:true}).waitFor();await tap(game.locator('[data-action="close"]'));
   await page.screenshot({path:`artifacts/pwa/${name}-board.png`});
-  await tap(game.locator('[data-action="pause"]'));await tap(game.locator('.pause-card [data-action="home"]'));await game.locator('.portal-home').waitFor();
+  await tap(game.locator('[data-action="game-menu"]'));await tap(game.locator('[data-action="pause"]'));await tap(game.locator('.pause-card [data-action="home"]'));await game.locator('.atlas-home').waitFor();
   if(ios){await page.locator('#web-stage:not(.assisted)').waitFor();assert.ok(await game.evaluate(()=>innerHeight>innerWidth));}
   await game.locator('[data-action="backup"]').click();await game.locator('[data-action="export-backup"]').click();await game.locator('.backup-download').waitFor();
   const raw=await game.locator('.backup-download').evaluate(a=>fetch(a.href).then(r=>r.text()));const backup=parseBackup(raw);assert.equal(backup.game.board[22].armies,3);
   await game.locator('#backup-file').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{}')});await game.getByText(/Backup non valido/).waitFor();assert.equal(await game.locator('[data-action="confirm-import"]').count(),0);
-  await game.locator('#backup-file').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(raw)});await game.locator('[data-action="confirm-import"]').click();await game.locator('.portal-home').waitFor();
+  await game.locator('#backup-file').setInputFiles({name:'backup.json',mimeType:'application/json',buffer:Buffer.from(raw)});await game.locator('[data-action="confirm-import"]').click();await game.locator('.atlas-home').waitFor();
   await context.setOffline(true);await page.reload();
   const offlineGame=ios?await page.locator('#game-frame').elementHandle().then(el=>el.contentFrame()):page;
   await offlineGame.locator('.portal-resume').waitFor();await offlineGame.locator('.portal-resume').click();await offlineGame.locator('.game-table').waitFor();
@@ -60,7 +60,7 @@ try{
   if(!ios){
    const native=await browser.newContext({viewport:{width:844,height:390}});
    await native.addInitScript(()=>{window.nativeOrientationCalls=[];window.Capacitor={isNativePlatform:()=>true,nativePromise:async(plugin,method,options)=>{window.nativeOrientationCalls.push({plugin,method,options});}};});
-   const p=await native.newPage();await p.goto(base);await p.locator('.portal-home').waitFor();assert.equal(await p.locator('iframe').count(),0);assert.equal(await p.locator('[data-action="install"]').count(),0);assert.equal(await p.evaluate(()=>navigator.serviceWorker.controller),null);assert.equal(await p.evaluate(()=>window.nativeOrientationCalls[0].plugin),'GameOrientation');await native.close();
+   const p=await native.newPage();await p.goto(base);await p.locator('.atlas-home').waitFor();assert.equal(await p.locator('iframe').count(),0);assert.equal(await p.locator('[data-action="install"]').count(),0);assert.equal(await p.evaluate(()=>navigator.serviceWorker.controller),null);assert.equal(await p.evaluate(()=>window.nativeOrientationCalls[0].plugin),'GameOrientation');await native.close();
   }
   await browser.close();browser=null;console.log(`${name}: offline, Worker, audio, backup e orientamento verificati.`);
  }

@@ -6,6 +6,7 @@ import {createGame,owned} from '../src/engine/RisikoRulesEngine.ts';
 import type {GameState} from '../src/engine/types.ts';
 
 test('Worker integration: persist before publish, private projection, duplicate requests and save failure',async()=>{
+ const archiveOriginal={list:StorageService.prototype.list,slots:StorageService.prototype.slots,localProfiles:StorageService.prototype.localProfiles};
  const original={save:StorageService.prototype.save,load:StorageService.prototype.load,profile:StorageService.prototype.profile,setName:StorageService.prototype.setName,restore:StorageService.prototype.restoreBackup,interval:globalThis.setInterval};
  let durable:GameState|null=null,fail=false,writes=0,currentProfile={name:'Test',results:[]};
  const messages:any[]=[];
@@ -15,6 +16,7 @@ test('Worker integration: persist before publish, private projection, duplicate 
  StorageService.prototype.profile=async()=>currentProfile;
  StorageService.prototype.restoreBackup=async b=>{if(fail)throw Error('Quota import');durable=b.game?{...structuredClone(b.game),paused:true}:null;currentProfile=structuredClone(b.profile) as typeof currentProfile;};
  StorageService.prototype.setName=async()=>{};
+ StorageService.prototype.list=async()=>[];StorageService.prototype.slots=async()=>durable?[{id:durable.id,name:'Test',updatedAt:1,state:durable}]:[];StorageService.prototype.localProfiles=async()=>[{id:'local',name:'Test'}];
  Object.assign(globalThis,{self:ctx});
  globalThis.setInterval=(()=>0) as never;
  const drain=()=>new Promise<void>(resolve=>setTimeout(resolve,10));
@@ -40,5 +42,21 @@ test('Worker integration: persist before publish, private projection, duplicate 
   const restored=messages.filter(m=>m.type==='BACKUP_RESTORED').at(-1);assert.equal(restored.state.id,replacement.id);assert.equal(restored.state.paused,true);assert.equal(restored.state.rng,undefined);assert.equal(restored.state.players[1].cards,undefined);assert.equal(currentProfile.name,'Imported');
   const durableBefore=structuredClone(durable),ackCount=messages.filter(m=>m.type==='BACKUP_RESTORED').length;
   fail=true;ctx.onmessage!({data:{type:'IMPORT_BACKUP',text:JSON.stringify(exported)}});await drain();assert.deepEqual(durable,durableBefore);assert.equal(messages.filter(m=>m.type==='BACKUP_RESTORED').length,ackCount);
- }finally{StorageService.prototype.save=original.save;StorageService.prototype.load=original.load;StorageService.prototype.profile=original.profile;StorageService.prototype.setName=original.setName;StorageService.prototype.restoreBackup=original.restore;globalThis.setInterval=original.interval;}
+  fail=false;
+  const participants=[{name:'Bot',human:false,difficulty:'survival'},{name:'Marco',human:true,profileId:'marco'},{name:'Anna',human:true,profileId:'anna'}];
+  let hotConfig:any;for(let seed=1;seed<100;seed++){const c={players:3,name:'Marco',difficulties:['medio','medio'],turnSeconds:180,seed,participants};const g=createGame(c as any);if(g.order[0]===1&&g.order[1]===2){hotConfig=c;break;}}
+  assert.ok(hotConfig);const first=messages.length;
+  ctx.onmessage!({data:{type:'NEW',config:hotConfig}});await drain();
+  assert.ok(!messages.slice(first).some(m=>m.type==='STATE'||m.type==='TRANSITION'),'Nessuna proiezione prima del consenso del ricevente');
+  assert.equal(messages.filter(m=>m.type==='LOCAL_SAVE').at(-1).state,null);
+  let curtain=messages.filter(m=>m.type==='PRIVACY').at(-1);assert.deepEqual(Object.keys(curtain).sort(),['color','name','player','token','type']);assert.equal(curtain.name,'Marco');
+  ctx.onmessage!({data:{type:'REVEAL',player:1,token:curtain.token}});await drain();
+  view=messages.filter(m=>m.type==='STATE').at(-1).state;assert.equal(view.viewer,1);assert.equal(view.players[2].cards,undefined);assert.ok(view.players[1].cards);
+  const handoff=messages.length;
+  ctx.onmessage!({data:{type:'COMMAND',actor:1,revision:view.revision,id:'human-1-place',command:{type:'PLACE',territory:owned(view,1)[0],count:3}}});await drain();
+  assert.equal(durable!.active,2);assert.ok(!messages.slice(handoff).some(m=>m.type==='STATE'||m.type==='TRANSITION'));
+  curtain=messages.filter(m=>m.type==='PRIVACY').at(-1);assert.equal(curtain.name,'Anna');const unchanged=durable!.revision;
+  ctx.onmessage!({data:{type:'COMMAND',actor:2,revision:unchanged,id:'before-reveal',command:{type:'PLACE',territory:owned(durable!,2)[0],count:1}}});await drain();assert.equal(durable!.revision,unchanged);
+  ctx.onmessage!({data:{type:'REVEAL',player:2,token:curtain.token}});await drain();view=messages.filter(m=>m.type==='STATE').at(-1).state;assert.equal(view.viewer,2);assert.equal(view.players[1].cards,undefined);assert.equal(view.players[1].objective,undefined);
+ }finally{Object.assign(StorageService.prototype,archiveOriginal);StorageService.prototype.save=original.save;StorageService.prototype.load=original.load;StorageService.prototype.profile=original.profile;StorageService.prototype.setName=original.setName;StorageService.prototype.restoreBackup=original.restore;globalThis.setInterval=original.interval;}
 });

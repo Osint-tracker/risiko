@@ -1,3 +1,5 @@
+import {recordAnalysis} from './Analysis.ts';
+import {recordTurn} from './Replay.ts';
 import {botPolicy} from '../ai/policy.ts';
 import { allTerritories as territories, objectives, colors, objectivePoints, mapFor } from '../data/mapGraph.ts';
 import type { GameConfig, GameState, GameView, Command, GameEvent, BoardCell } from './types.ts';
@@ -81,22 +83,27 @@ function die(s: GameState) {
 }
 export function createGame(config: GameConfig): GameState {
   requireRule([3, 4, 5].includes(config.players), 'Il tavolo deve avere 3, 4 o 5 giocatori.');
-  requireRule(Number.isInteger(config.turnSeconds) && config.turnSeconds >= 60 && config.turnSeconds <= 600, 'Tempo turno non valido.');
+  requireRule(Number.isInteger(config.turnSeconds) && (config.turnSeconds >= 60 && config.turnSeconds <= 600 || config.custom === true && config.turnSeconds === 0), 'Tempo turno non valido.');
   requireRule(config.difficulties.length === config.players - 1 && config.difficulties.every(d => ['facile', 'medio', 'difficile', 'survival', 'casuale'].includes(d)), 'Difficoltà non valida.');
   requireRule(config.antarctica===undefined||typeof config.antarctica==='boolean', 'Modalità non valida.');
   const {territories,continents,cards}=mapFor(config);
   requireRule(!config.endMode||['regular','countdown'].includes(config.endMode),'Fine partita non valida.');
   requireRule(config.countdownMinutes===undefined||[30,45,60].includes(config.countdownMinutes),'Durata Countdown non valida.');
+  requireRule(typeof config.name==='string','Nome non valido.');
+  requireRule(config.seed===undefined||Number.isInteger(config.seed)&&config.seed>=0&&config.seed<=0xffffffff,'Seed non valido.');
+  requireRule(config.seedLabel===undefined||typeof config.seedLabel==='string'&&config.seedLabel.length<=20000,'Codice partita non valido.');
+  if(config.participants){requireRule(Array.isArray(config.participants)&&config.participants.every(p=>p&&typeof p.human==='boolean'&&typeof p.name==='string'&&(p.profileId===undefined||typeof p.profileId==='string')&&(p.difficulty===undefined||['facile','medio','difficile','survival','casuale'].includes(p.difficulty))),'Partecipanti non validi.');requireRule(config.participants.length===config.players&&config.participants.some(p=>p.human),'Serve almeno un umano.');const ids=config.participants.filter(p=>p.human&&p.profileId).map(p=>p.profileId);requireRule(new Set(ids).size===ids.length,'Un profilo non può occupare due posti.');}
   const rng = (config.seed ?? Math.floor(Math.random() * 4294967295)) >>> 0 || 1;
   const s: GameState = {
-    version: 1,
+    version: 2,
+    initialSeed: rng, seedLabel: config.seedLabel??String(rng), custom: config.custom===true, replay: [],
     manualReinforcement: config.manualReinforcement===true,
     endMode: config.endMode??'regular',
     matchRemainingMs: (config.countdownMinutes??45)*60000,
     placementHistory: [],
     scoreHistory: [],
     antarctica: config.antarctica===true,
-    id: `${Date.now().toString(36)}-${rng.toString(36)}`,
+    id: crypto.randomUUID(),
     revision: 0,
     rng,
     aiRng: (rng ^ 0x9e3779b9) >>> 0 || 1,
@@ -129,12 +136,14 @@ export function createGame(config: GameConfig): GameState {
   s.players = Array.from({
     length: config.players
   }, (_, id) => {
-    const requested = id === 0 ? 'medio' : config.difficulties[id - 1];
+    const participant=config.participants?.[id];
+    const requested = participant?.difficulty ?? (id === 0 ? 'medio' : config.difficulties[id - 1]);
     return {
       id,
-      name: id === 0 ? config.name.trim().slice(0, 24) || 'Comandante' : ['', 'Falco', 'Vega', 'Atlas', 'Ombra'][id],
+      name: participant?.name.trim().slice(0,24) || (id === 0 ? config.name.trim().slice(0, 24) || 'Comandante' : ['', 'Falco', 'Vega', 'Atlas', 'Ombra'][id]),
+      profileId:participant?.profileId ?? (id===0?'local':''),
       color: colors[id],
-      human: id === 0,
+      human: participant?.human ?? id === 0,
       difficulty: requested === 'casuale' ? (['facile', 'medio', 'difficile'] as const)[Math.floor(random(s) * 3)] : requested,
       blind: requested === 'casuale',
       objective: objectiveDeck[id],
@@ -144,7 +153,7 @@ export function createGame(config: GameConfig): GameState {
         4: 30,
         5: 25
       } as Record<number, number>)[config.players],
-      botPolicy: botPolicy(config.botPolicies?.[id-1]),
+      botPolicy: botPolicy(config.botPolicies?.[id===0?4:id-1]),
       eliminated: false
     };
   });
@@ -348,7 +357,8 @@ export function applyCommand(input: GameState, actor: number, command: Command):
   requireRule(input.phase !== 'GAME_OVER', 'La partita è conclusa.');
   requireRule(!input.paused, 'Partita in pausa.');
   requireRule(actor === input.active, 'Non è il tuo turno.');
-  const s = structuredClone(input),
+  const {replay,analysis,log,scoreHistory,...body}=input;
+  const s:GameState = {...structuredClone(body),log:[...log],...(scoreHistory?{scoreHistory:[...scoreHistory]}:{}),...(replay?{replay}:{}),...(analysis?{analysis}:{})},
     p = s.players[s.active];
   switch (command.type) {
     case 'PLACE':
@@ -495,8 +505,11 @@ export function applyCommand(input: GameState, actor: number, command: Command):
         if (s.phase !== 'GAME_OVER') endTurn(s);
         break;
       }
+    default: throw new RuleError('Comando non riconosciuto.');
   }
   s.revision++;
+  recordTurn(input,s);
+  recordAnalysis(input,s,command);
   assertState(s);
   return s;
 }
@@ -513,9 +526,10 @@ export function advanceClock(input: GameState, delta: number): GameState {
         s=structuredClone(s);
         // Old pending saves may not yet have transferred the compulsory garrison.
         if(s.pending&&s.pending.transferred===undefined){s.board[s.pending.from].armies-=s.pending.min;s.board[s.pending.to].armies+=s.pending.min;}
-        finish(s,'countdown');s.revision++;assertState(s);return s;
+        finish(s,'countdown');s.revision++;recordTurn(input,s);assertState(s);return s;
       }
     }
+    if(s.turnSeconds===0)return s;
     s.remainingMs = Math.max(0, s.remainingMs - delta);
     if (!s.remainingMs) return applyCommand(s, s.active, {
       type: 'TIMEOUT'
@@ -533,16 +547,17 @@ export function project(s: GameState, viewer = 0): GameView {
     players,
     lastCommandId,
     botContexts,
-    placementHistory,scoreHistory,
+    placementHistory,scoreHistory,replay,analysis,
     ...publicState
-  } = structuredClone(s);
+  } = s;
   return {
-    ...publicState,
+    ...structuredClone(publicState),
     undoAvailable: s.active===viewer && s.phase==='REINFORCEMENT' && !!placementHistory?.length,
     scoreHistory: scoreHistory?.map(row=>({...row,points:row.points.map((n,i)=>i===viewer||s.phase==='GAME_OVER'?n:null)})),
     viewer,
+    ...(s.phase==='GAME_OVER'?structuredClone({replay,analysis}):{}),
     deckCount: deck.length,
-    players: players.map(p => {
+    players: structuredClone(players).map(p => {
       const {
           difficulty,
           objective,
@@ -591,7 +606,10 @@ export function assertState(s: GameState) {
   requireRule(s.manualReinforcement===undefined||typeof s.manualReinforcement==='boolean','Fase rinforzi salvata non valida.');
   requireRule(s.antarctica===undefined||typeof s.antarctica==='boolean', 'Modalità salvata non valida.');
   const {territories,cards}=mapFor({antarctica:s.antarctica===true});
-  requireRule(s.version === 1 && s.board.length === territories.length, 'Salvataggio incompatibile.');
+  requireRule([1,2].includes(s.version) && s.board.length === territories.length, 'Salvataggio incompatibile.');
+  requireRule(Number.isInteger(s.active)&&!!s.players[s.active],'Giocatore attivo non valido.');
+  requireRule(s.players.some(p=>p.human),'Serve almeno un giocatore umano.');
+  requireRule(s.players.every((p,i)=>p.id===i&&typeof p.human==='boolean'),'Partecipanti non validi.');
   requireRule([3, 4, 5].includes(s.players.length), 'Numero giocatori non valido.');
   requireRule(new Set(s.order).size === s.players.length && s.order.every(id => s.players[id]), 'Ordine di gioco non valido.');
   for (let i = 0; i < territories.length; i++) {

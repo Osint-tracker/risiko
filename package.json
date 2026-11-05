@@ -1,6 +1,6 @@
 {
   "name": "risiko-offline",
-  "version": "1.8.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,7 +20,8 @@
     "ios:open": "cap open ios",
     "ios:verify": "node scripts/verify-ios.mjs",
     "test:pwa": "node scripts/pwa-test.mjs",
-    "pwa:verify": "node scripts/verify-pwa.mjs"
+    "pwa:verify": "node scripts/verify-pwa.mjs",
+    "benchmark:progression": "node scripts/benchmark-progression.mjs"
   },
   "dependencies": {
     "react": "19.0.0",

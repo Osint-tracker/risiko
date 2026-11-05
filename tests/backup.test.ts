@@ -18,8 +18,8 @@ test('backup: stato completo classico/Antartide, profilo, RNG, carte segrete e U
 test('backup: file errati, versioni nuove, dati strutturalmente corrotti e prototipi vengono rifiutati',()=>{
  const original=makeBackup(game(),profile);
  for(const change of [
-  (b:any)=>b.version=2,(b:any)=>b.game.active=9,(b:any)=>b.game.order=['0','1','2'],
-  (b:any)=>b.game.players[1].human=true,(b:any)=>b.game.board[0].armies=-1,
+  (b:any)=>b.version=99,(b:any)=>b.game.active=9,(b:any)=>b.game.order=['0','1','2'],
+  (b:any)=>b.game.players[1].human='yes',(b:any)=>b.game.board[0].armies=-1,
   (b:any)=>b.game.players[1].color='red" onload="bad', (b:any)=>b.game.phase='UNKNOWN',
   (b:any)=>b.profile.results[0].rank=10,(b:any)=>b.game.deck=[],(b:any)=>b.game.log=[{type:'onDiceRolled',player:0,message:'',attack:[8]}]
  ]){const b=structuredClone(original);change(b);assert.throws(()=>parseBackup(JSON.stringify(b)));}
@@ -38,5 +38,5 @@ test('backup: ripristino atomico conserva gioco e statistiche precedenti se la t
  await assert.rejects(storage.restoreBackup(backup),/Quota/);assert.deepEqual(saved,before);
  fail=false;await storage.restoreBackup(backup);assert.equal(saved.game.current.paused,true);assert.equal(saved.game.current.antarctica,true);assert.equal(saved.profile.name,profile.name);assert.deepEqual(Object.keys(saved.results),['old']);assert.equal(saved.results.old.points,100);
  await storage.restoreBackup(makeBackup(null,{name:'Empty',results:[]}));assert.equal(saved.game.current,undefined);assert.deepEqual(saved.results,{});
- assert.deepEqual(requests[0],['game','profile','results']);
+ assert.deepEqual(requests[0],['game','profile','results','slots','profiles','scenarios']);
 });

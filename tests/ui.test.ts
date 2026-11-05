@@ -151,7 +151,7 @@ test('table renders 42 territories, hidden objectives, timer and battle controls
   writeFileSync('docs/board-preview.svg', svg.replace('class="world-map ', 'class="world-map reference-table ').replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace('<defs>', `<style>${css}</style><defs>`));
   f.cleanup();
 });
-test('new game requires confirmation before replacing a save', () => {
+test('new game creates another slot without replacing the existing save', () => {
   const f = fixture();
   f.worker.emit({
     type: 'READY',
@@ -160,11 +160,8 @@ test('new game requires confirmation before replacing a save', () => {
   f.click({
     action: 'new'
   });
-  assert.match(f.root.innerHTML, /verrà sostituita/);
-  assert.ok(!f.worker.messages.some(x => x.type === 'NEW'));
-  f.click({
-    action: 'confirm-new'
-  });
+  assert.doesNotMatch(f.root.innerHTML, /verrà sostituita/);
+  assert.ok(!f.worker.messages.some(x=>x.type==='SLOT_EDIT'&&x.action==='delete'));
   assert.ok(f.worker.messages.some(x => x.type === 'NEW'));
   f.cleanup();
 });
@@ -227,7 +224,7 @@ test('background pause during compulsory conquest never traps the resume control
 test('setup UI distingue schierati, riserva e mano, evidenzia solo i propri territori',()=>{
  const f=fixture();f.click({action:'new'});const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:3});s.active=0;
  f.worker.emit({type:'STATE',state:project(s)});
- assert.match(f.root.innerHTML,/SCHIERATI/);assert.match(f.root.innerHTML,/Da piazzare <b>21<\/b>/);assert.match(f.root.innerHTML,/Questa mano: <b>3<\/b>/);
+ assert.match(f.root.innerHTML,/Schierati 14\/35/);assert.match(f.root.innerHTML,/Riserva 21/);assert.match(f.root.innerHTML,/Mano: 3/);
  assert.equal((f.root.innerHTML.match(/class="placement-plus"/g)??[]).length,14);
  assert.equal((f.root.innerHTML.match(/data-token="\d+"/g)??[]).length,42);
  assert.doesNotMatch(f.root.innerHTML,/class="point-badge"/);f.cleanup();
@@ -303,7 +300,7 @@ test('Antartide facoltativa: menu, plancia completa e ripresa con inquadratura e
 });
 
 test('Home Torneo: Countdown 45 minuti, Antartide off, velocità e personalità personalizzabili',()=>{
- const f=fixture();assert.match(f.root.innerHTML,/30 armate iniziali/);assert.match(f.root.innerHTML,/Statistiche Torneo/);
+ const f=fixture();assert.match(f.root.innerHTML,/30 armate iniziali/);assert.match(f.root.innerHTML,/Preparazione partita/);
  f.callbacks.input({target:{id:'end-mode',dataset:{},value:'countdown'}});
  assert.match(f.root.innerHTML,/value="45" selected/);
  f.callbacks.input({target:{id:'bot-speed',dataset:{},value:'2'}});
@@ -340,7 +337,7 @@ test('I tick del timer non ricostruiscono la plancia né fanno perdere la finest
 test('home verticale: menu reale, preparazione separata e Survival per tutti i bot',()=>{
  const f=fixture(false,false);
  mkdirSync('artifacts/previews',{recursive:true});writeFileSync('artifacts/previews/home-portrait.html',f.root.innerHTML);
- assert.match(f.root.innerHTML,/portal-home/);assert.match(f.root.innerHTML,/LE TUE STATISTICHE/);
+ assert.match(f.root.innerHTML,/atlas-home/);assert.match(f.root.innerHTML,/Statistiche/);
  assert.doesNotMatch(f.root.innerHTML,/data-bot=/);
  f.click({action:'survival'});assert.equal((f.root.innerHTML.match(/value="survival" selected/g)??[]).length,3);
  f.click({action:'new'});assert.deepEqual(f.worker.messages.find(m=>m.type==='NEW').config.difficulties,['survival','survival','survival']);
@@ -361,7 +358,7 @@ test('menu: audio, regole e strategie usano pagine verticali coerenti; ritorno a
  const f=fixture();
  for(const action of ['audio','rules']){
   f.click({action});assert.match(f.root.innerHTML,/modal-backdrop menu-sheet/);assert.match(f.root.innerHTML,/classic-home portal-route/);assert.match(f.root.innerHTML,/portal-back/);
-  f.click({action:'close'});assert.doesNotMatch(f.root.innerHTML,/modal-backdrop menu-sheet/);assert.match(f.root.innerHTML,/Prepara la partita/);
+  f.click({action:'close'});assert.doesNotMatch(f.root.innerHTML,/modal-backdrop menu-sheet/);assert.match(f.root.innerHTML,/Preparazione partita/);
  }
  f.click({strategy:'0'});assert.match(f.root.innerHTML,/menu-sheet/);assert.match(f.root.innerHTML,/Strategia · Falco/);f.cleanup();
 });
@@ -412,7 +409,7 @@ for(const placementPhase of ['SETUP_PLACEMENT','REINFORCEMENT'] as const)test(`z
 
 test('PWA e backup: menu web, stato offline esplicito e conferma separata dal ripristino',()=>{
  const f=fixture(false,false);
- assert.match(f.root.innerHTML,/INSTALLA E OFFLINE/);assert.match(f.root.innerHTML,/SALVATAGGI E BACKUP/);
+ assert.match(f.root.innerHTML,/Installa offline/);assert.match(f.root.innerHTML,/Backup/);
  f.click({action:'install'});assert.match(f.root.innerHTML,/Preparazione offline in corso/);assert.match(f.root.innerHTML,/Aggiornamenti|aggiornamenti/);
  f.click({action:'close'});f.click({action:'backup'});assert.match(f.root.innerHTML,/backup-file/);
  f.click({action:'export-backup'});assert.equal(f.worker.messages.at(-1).type,'EXPORT_BACKUP');

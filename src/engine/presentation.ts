@@ -16,9 +16,10 @@ export type Transition = {
   speed: number;
 };
 // Only public data or the viewer's own cards enter this transport.
-export function makeTransition(before: GameState, after: GameState, speed = 1, viewer = 0): Transition | null {
+export function makeTransition(before: GameState, after: GameState, speed = 1, viewer = 0, filter = 'all'): Transition | null {
   if (before.id !== after.id || before.revision === after.revision) return null;
-  if(!before.players[before.active].human && speed===0)return null;
+  if(!before.players[before.active].human && filter==='summary')return null;
+  if(!before.players[before.active].human && speed===0 && filter==='all')speed=4;
   if(before.players[before.active].human)speed=speed===0?2:Math.max(1,speed);
   const effects: VisualEffect[] = [];
   for (const e of after.log.slice(before.log.length)) {
@@ -46,6 +47,7 @@ export function makeTransition(before: GameState, after: GameState, speed = 1, v
   // cap the complete sequence below the watchdog, without omitting placements.
   const merged: VisualEffect[] = [];
   for (const e of effects) {
+    if(!before.players[before.active].human&&filter==='involved'&&!(e.kind==='battle'&&(e.defender===viewer||e.conquered)))continue;
     const same=e.kind==='place'?merged.find(x=>x.kind==='place'&&x.player===e.player&&x.to===e.to):undefined;
     if(same?.kind==='place'&&e.kind==='place')same.count+=e.count;else merged.push(e);
   }

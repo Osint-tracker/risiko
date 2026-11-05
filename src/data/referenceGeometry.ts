@@ -45,4 +45,25 @@ const reference:Record<number,[number,number,string]> = {
 40:[932,587,'M916 570L927 568L937 559L947 558L954 548L962 552L963 566L970 575L966 588L968 603L959 616L947 622L933 622L923 628L910 628L904 619L903 608L906 594L903 585L909 574Z'],
 41:[979,615,'M962 552L970 556L977 552L984 542L991 545L990 557L997 569L997 583L1005 595L1008 608L1003 622L993 637L982 643L970 642L960 635L947 635L947 622L959 616L968 603L966 588L970 575L963 566Z M984 650L994 648L999 652L994 660L987 661Z M1030 628L1036 632L1035 642L1029 646L1025 640Z M1024 646L1029 651L1022 660L1014 668L1008 668L1012 659Z'],
 };
-export function referenceShape(id:number){const [x,y,path]=reference[id];let index=0;return{x,y:y-67,path:path.replace(/-?\d+(?:\.\d+)?/g,n=>String(Number(n)-(index++%2?67:0)))};}
+export function referenceShape(id:number){const [x,y,path]=reference[id];let index=0;return{x,y:y-67,path:smoothed[id].replace(/-?\d+(?:\.\d+)?/g,n=>String(Number(n)-(index++%2?67:0)))};}
+
+/** Shared vertices and edges are rounded symmetrically. Junctions stay fixed. */
+type Point=[number,number];
+const pointKey=(p:Point)=>p.join(',');
+const edgeKey=(a:Point,b:Point)=>[pointKey(a),pointKey(b)].sort().join('|');
+const polygons=Object.fromEntries(Object.entries(reference).map(([id,row])=>[id,row[2].split(/(?=M)/).filter(Boolean).map(part=>{const n=part.match(/-?\d+(?:\.\d+)?/g)!.map(Number);return Array.from({length:n.length/2},(_,i)=>[n[i*2],n[i*2+1]] as Point);})]));
+const edgeOwners=new Map<string,Set<string>>();
+for(const [id,parts] of Object.entries(polygons))for(const poly of parts)for(let i=0;i<poly.length;i++){const key=edgeKey(poly[i],poly[(i+1)%poly.length]),set=edgeOwners.get(key)??new Set<string>();set.add(id);edgeOwners.set(key,set);}
+const smoothed:Record<string,string>={};
+for(const [id,parts] of Object.entries(polygons))smoothed[id]=parts.map(poly=>{
+ const corners=poly.map((p,i)=>{
+  const a=poly[(i+poly.length-1)%poly.length],b=poly[(i+1)%poly.length];
+  const left=[...edgeOwners.get(edgeKey(a,p))!].sort().join(','),right=[...edgeOwners.get(edgeKey(p,b))!].sort().join(',');
+  if(left!==right)return {p,enter:p,exit:p};
+  const distA=Math.hypot(a[0]-p[0],a[1]-p[1]),distB=Math.hypot(b[0]-p[0],b[1]-p[1]);
+  const cut=Math.min(3,distA*.2,distB*.2),toward=(q:Point,d:number):Point=>[p[0]+(q[0]-p[0])*cut/d,p[1]+(q[1]-p[1])*cut/d];
+  return {p,enter:toward(a,distA),exit:toward(b,distB)};
+ });
+ const fmt=(p:Point)=>p.map(n=>Number(n.toFixed(3))).join(' ');
+ return `M${fmt(corners[0].enter)}`+corners.map((c,i)=>`${i?'L'+fmt(c.enter):''}Q${fmt(c.p)} ${fmt(c.exit)}`).join('')+'Z';
+}).join(' ');

@@ -1,3 +1,19 @@
+import {combatDock,moveDock} from './views/CombatDock.ts';
+import {cardsView} from './views/CardsView.ts';
+import {boardMap} from './views/BoardMap.ts';
+import {patchElement} from './patchElement.ts';
+import {tutorialSteps} from '../engine/Tutorial.ts';
+import {profileView} from './views/ProfileView.ts';
+import {replayView} from './views/ReplayView.ts';
+import {icon,decorateIcons} from './Icons.ts';
+import {homeView} from './views/HomeView.ts';
+import {setupView,participants} from './views/SetupView.ts';
+import {boardView} from './views/BoardView.ts';
+import {slotsView,profilesView,scenariosView,editorView,type SlotView} from './views/LibraryView.ts';
+import {seedNumber,matchCode,readMatchCode} from '../services/MatchCode.ts';
+import {scenarioFrom,curatedScenarios,scenarioGame,type Scenario} from '../services/Scenarios.ts';
+import type {LocalProfile} from '../services/StorageService.ts';
+import {conquestEstimate} from '../ai/Strategy.ts';
 import {initWebApp,redirectForApple,webStatus,installWebApp,updateWebApp,sendWebOrientation} from '../pwa/client.ts';
 import {isNativeApp,isAppleMobile,rotationAssistance} from '../pwa/platform.ts';
 import {parseBackup,MAX_BACKUP_BYTES,type Backup} from '../services/Backup.ts';
@@ -43,13 +59,22 @@ const levelNames: Record<string, string> = {
   '?': '?'
 };
 const tank = '<path d="M2 10h26l-3-5h-7V2h-7v3H7zM4 12h22a4 4 0 010 8H4a4 4 0 010-8zm1 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm7 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm7 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM16 3h17v3H16z"/>';
-const tankIcon = `<svg viewBox="0 0 34 22" class="tank-icon" aria-hidden="true">${tank}</svg>`;
+const tankIcon = `<svg viewBox="0 0 50 36" class="tank-icon" aria-hidden="true">${tankModel('currentColor')}</svg>`;
 const duration = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 export function mountGame(root: HTMLElement): () => void {
   if(redirectForApple())return ()=>{};
   const sounds=new GameAudio();
   const sound=(kind='tap')=>kind==='battle'?sounds.clash():sounds.tap();
   let strategyBot=0;
+  let inspected:number|null=null,inspectedPlayer=0;
+  let resumeRequested=false;
+  let tutorialDone=false,turnSummary:string[]|null=null;
+  let profileCategory='solo',replayIndex=0;
+  let seedOpen=false,selectedProfile='local',animationFilter='all',mapLayer='standard';
+  let localProfiles:LocalProfile[]=[],slots:SlotView[]=[],scenarios:Scenario[]=[],editingScenario:Scenario|null=null,editorTerritory=0;
+  let privacy:{player:number;name:string;color:string;token:string}|null=null;
+  const viewer=()=>state?.viewer??0;
+
   let backupURL='',backupText='',importText='',importPreview:Backup|null=null;
   const backupFilename=()=>`risiko-backup-${new Date().toISOString().slice(0,10)}.json`;
   let objectiveExpanded=false,blitzStop=3;
@@ -70,7 +95,7 @@ export function mountGame(root: HTMLElement): () => void {
   let lastPresentedId = '';
   let dialogMarkup = '';
   let dialogExit: ReturnType<typeof setTimeout> | null = null;
-  const consulting = () => modal === 'cards' || modal === 'objective';
+  const consulting = () => ['cards','objective','game-menu','audio','rules','player-info'].includes(modal??'');
   let panelKey = '';
   let panelPosition: {x:number;y:number} | null = null;
   let presenting: Transition | null = null;
@@ -98,7 +123,7 @@ export function mountGame(root: HTMLElement): () => void {
     name: 'Comandante',
     difficulties: ['medio', 'medio', 'medio'],
     turnSeconds: 180,
-    botPolicies:['equilibrato','stratega','incursore','conquistatore'].map(personality=>botPolicy({personality:personality as never}))
+    botPolicies:['equilibrato','stratega','incursore','conquistatore','equilibrato'].map(personality=>botPolicy({personality:personality as never}))
   };
   let viewport = {
       x: 0,
@@ -111,12 +136,12 @@ export function mountGame(root: HTMLElement): () => void {
     lastBattleMessage = '',
     toastTimer: ReturnType<typeof setTimeout> | null = null;
   const send = (data: unknown) => worker.postMessage(data);
-  const humanTurn = () => !!state && state.active === 0 && !state.paused && state.phase !== 'GAME_OVER';
+  const humanTurn = () => !privacy && !!state && state.active === state.viewer && !state.paused && state.phase !== 'GAME_OVER';
   function command(c: Command) {
     if (!state || presenting || pendingCommand || !humanTurn()) return;
     pendingCommand = true;
     send({
-      type: 'COMMAND',
+      type: 'COMMAND',actor:state.viewer,
       command: c,
       id: crypto.randomUUID(),
       revision: state.revision
@@ -133,48 +158,17 @@ export function mountGame(root: HTMLElement): () => void {
     }
   }
   function points() {
-    return Math.min(86,state?.players[0].points ?? 0);
+    return Math.min(86,state?.players[state.viewer].points ?? 0);
   }
-  function mapMarkup(preview = false) {
-    const {territories,continents,seaLinks,height}=mapFor(preview?config:state??{});
-    const labels: string[] = [];
-    const spotlight=!preview&&humanTurn()&&selected!==null&&['ATTACK','FORTIFY'].includes(state!.phase);
-    const reachable=(id:number)=>!spotlight?false:state!.phase==='ATTACK'?canAttack(state!,selected!,id):id!==selected&&moveBounds(state!,selected!,id).max>=1;
-    const combo=!preview&&humanTurn()&&state?.phase==='TRIS_EXCHANGE'?(exchangeValue(state,0,cardSelection)>0?cardSelection:validTris(state,0,state.players[0].cards??[]).sort((a,b)=>b.value-a.value)[0]?.cards??[]):[];
-    const bonusIds=combo.map(id=>cards[id].territory).filter((id):id is number=>id!==null&&state!.board[id].owner===0);
-    const s = state,
-      goal = s?.players[0].objective ? objectives[s.players[0].objective! - 1].territories : [];
-    return `<svg id="world-map" class="world-map ${preview ? 'preview' : ''}" viewBox="${preview ? `0 0 1240 ${height}` : `${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`}" role="img" aria-label="Plancia interattiva: ${territories.length} territori"><defs><pattern id="ocean-grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#9addcc" stroke-width=".5" opacity=".25"/></pattern><radialGradient id="ocean"><stop stop-color="#0f1c2e"/><stop offset="1" stop-color="#070d17"/></radialGradient><filter id="continent-rim"><feMorphology in="SourceAlpha" operator="dilate" radius="2.8" result="outer"/><feComposite in="outer" in2="SourceAlpha" operator="out"/><feFlood flood-color="#d49b35" flood-opacity=".65"/><feComposite in2="outer" operator="in"/></filter><pattern id="triangles" width="18" height="16" patternUnits="userSpaceOnUse"><path d="M0 0L9 16L18 0ZM0 16L9 0L18 16Z" fill="none" stroke="#011f2d" stroke-width="2" opacity=".32"/></pattern><linearGradient id="pattern-fade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="white"/><stop offset=".35" stop-color="black"/><stop offset=".65" stop-color="black"/><stop offset="1" stop-color="white"/></linearGradient><mask id="ocean-pattern"><rect width="1240" height="${height}" fill="url(#pattern-fade)"/></mask><pattern id="land-grain" width="17" height="19" patternUnits="userSpaceOnUse"><path d="M1 3L4 2M7 8L11 7M3 15L5 17M14 1L16 5M12 16L16 14" stroke="#ffe9ad" stroke-width=".7" opacity=".14"/><path d="M2 7L5 10M9 1L11 2M9 13L8 17" stroke="#173d25" stroke-width="1" opacity=".2"/></pattern><filter id="terrain"><feTurbulence type="fractalNoise" baseFrequency=".4" numOctaves="3" seed="8" result="noise"/><feColorMatrix in="noise" type="matrix" values=".33 .33 .33 0 0 .33 .33 .33 0 0 .33 .33 .33 0 0 0 0 0 .28 0"/><feComposite in2="SourceGraphic" operator="in"/><feBlend in="SourceGraphic" mode="soft-light"/></filter><filter id="land-shadow"><feDropShadow dx="0" dy="5" stdDeviation="6" flood-opacity=".35"/></filter><symbol id="tank" viewBox="0 0 34 22">${tank}</symbol></defs><rect x="-4000" y="-4000" width="9200" height="9200" fill="#070d17"/><rect width="1240" height="${height}" fill="url(#ocean)"/><rect width="1240" height="${height}" fill="url(#triangles)" mask="url(#ocean-pattern)"/><rect x="0" y="0" width="1240" height="${height}" fill="url(#ocean-grid)"/><g class="map-decoration"><circle cx="620" cy="345" r="290"/><circle cx="620" cy="345" r="190"/><path d="M0 345H1240M620 0V690"/><text x="80" y="450">OCEANO PACIFICO</text><text x="410" y="290">ATLANTICO</text><text x="809" y="580">OCEANO INDIANO</text></g><g class="sea-links">${seaLinks.map(([a, b]) => {
-      const route=seaRoute(territories[a],territories[b]);
-      return `<path d="${route.path}"/>${route.anchors.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="2.3"/>`).join('')}`;
-    }).join('')}</g><g class="continent-outlines" pointer-events="none">${continents.map(c=>`<g stroke="#d49b35" stroke-width="5.6" stroke-linejoin="round">${territories.filter(t=>t.continent===c.id).map(t=>`<path d="${t.path}" fill="none"/>`).join('')}</g>`).join('')}</g><g><g>${territories.map(t => {
-      const cell = s?.board[t.id],
-        p = cell ? s!.players[cell.owner] : null,
-        c = continents.find(c => c.id === t.continent)!,
-        dim = !preview && objectiveView && !goal.includes(t.id),
-        legal = reachable(t.id);
-      const placeable = !preview && humanTurn() && !presenting && cell?.owner === 0 && ['SETUP_PLACEMENT','REINFORCEMENT'].includes(s!.phase);
-      if (!preview) labels.push(`<g data-token="${t.id}" class="territory-label ${dim ? 'dim' : ''}" pointer-events="none"><text class="territory-name" x="${t.x}" y="${t.y-23}">${escape(t.short)}</text><g class="army-map-icon" data-x="${t.x}" data-y="${t.y}" transform="translate(${t.x-22} ${t.y-14}) scale(.7)">${tankModel(p?.color??'#899')}${armyBadge(cell?.armies??0,p?.color??'#899')}</g>${objectiveView?`<g class="objective-points" transform="translate(${t.x-18} ${t.y-45})"><rect width="40" height="17" rx="6"/><text x="20" y="12">+${goal.includes(t.id)?t.points:0} pt</text></g>`:''}${selected===t.id&&spotlight?`<circle class="source-ring" cx="${t.x}" cy="${t.y}" r="30"/>`:''}</g>`);
-      return `<g data-territory="${t.id}" class="territory ${bonusIds.includes(t.id)?'card-bonus-territory':''} ${placeable ? 'placeable' : ''} ${dim ? 'dim' : ''} ${selected === t.id && !preview ? 'selected' : ''} ${target === t.id && !preview ? 'target' : ''} ${legal ? 'attackable' : ''} ${objectiveView && goal.includes(t.id) && !preview ? 'goal' : ''}" tabindex="${preview ? -1 : 0}" role="button" aria-label="${escape(t.name)}: ${t.points} punti${p ? `, ${escape(p.name)}, ${cell!.armies} armate` : ''}"><title>${escape(t.name)} · ${t.points} punti${p ? ` · ${escape(p.name)} · ${cell!.armies} carri` : ''}</title><path class="land" d="${t.path}" fill="${territoryColors[t.id]??c.color}"/><path d="${t.path}" fill="url(#land-grain)" pointer-events="none"/><circle class="territory-hit" cx="${t.x}" cy="${t.y}" r="17" fill="transparent"/>${placeable?`<g class="placement-plus" transform="translate(${t.x+23} ${t.y-5})"><circle r="9"/><path d="M-5 0H5M0-5V5"/></g>`:''}</g>`;
-    }).join('')}</g></g>${labels.join('')}<g class="compass" transform="translate(537 526)"><circle r="37" fill="none" stroke="#4bbed0" stroke-width="2"/><circle r="31" fill="none" stroke="#4bbed0" stroke-width=".7"/><path d="M-25-25L0-10L25-25L10 0L25 25L0 10L-25 25L-10 0Z"/><path d="M0-43L9-9L43 0L9 9L0 43L-9 9L-43 0L-9-9Z"/><path d="M0-43L0 0L9-9ZM43 0L0 0L9 9ZM0 43L0 0L-9 9ZM-43 0L0 0L-9-9Z" style="fill:#6ad8df;stroke:none"/><text x="0" y="-49">N</text><text x="49" y="4">E</text><text x="0" y="59">S</text><text x="-49" y="4">W</text></g></svg>`;
-  }
+  function mapMarkup(preview=false){return boardMap({state,config,viewport,selected,target,modal,inspected,mapLayer,objectiveView,presenting:!!presenting,human:humanTurn(),cardSelection},preview);}
   const header = () => `<header class="portal-header"><button class="portal-brand" data-action="home" aria-label="Menu principale">RisiKo<span>!</span></button><span>TORNEO · OFFLINE</span><button data-action="audio" aria-label="Impostazioni audio">♫</button></header>`;
 
-  function statsMarkup(){
-    const stats=tournamentStats(profile.results),max=Math.max(1,...stats.dice);
-    return `<section class="tournament-stats"><h2>Statistiche Torneo</h2><div class="tournament-stat-grid">${[[stats.played,'Partite'],[stats.wins,'Vittorie'],[stats.winRate+'%','Vittorie %'],[stats.average,'Media punti tavolo'],[stats.risiko,'RisiKo!'],[stats.sdadata,'Vinte in Sdadata']].map(([n,label])=>`<div><strong>${n}</strong><small>${label}</small></div>`).join('')}</div><h3>I tuoi dadi · attacco e difesa</h3><div class="dice-histogram">${stats.dice.map((n,i)=>`<div><span style="height:${4+n/max*48}px"></span><b>${i+1}</b><small>${n}</small></div>`).join('')}</div></section>`;
-  }
-  function home() {
-    const wins=profile.results.filter(r=>r.rank===1).length;
-    return `<main class="classic-home portal-home"><header class="portal-header"><b>RisiKo<span>!</span></b><span>TORNEO · OFFLINE</span><button data-action="audio" aria-label="Impostazioni audio">♫</button></header><section class="portal-column"><button class="home-player-strip" data-action="profile"><span class="home-player-emblem">R</span><span><strong>${escape(profile.name)}</strong><small>${profile.results.length} PARTITE · ${wins} VITTORIE</small></span><span aria-hidden="true">›</span></button><div class="portal-banner"><img src="./app-icon.jpg" alt="La tua plancia RisiKo con il comandante a quattro zampe"/><span>IL TUO TAVOLO. LA TUA STRATEGIA.</span></div><button class="portal-play" data-action="configure" ${ready?'':'disabled'}><span>▶</span><span>${ready?'GIOCA':'CARICAMENTO…'}<small>PREPARA LA BATTAGLIA</small></span></button>${hasGame?`<button class="portal-resume" data-action="resume">▶ RIPRENDI PARTITA <small>Turno ${state?.round??0}</small></button>`:''}<nav class="portal-menu" aria-label="Menu principale"><button data-action="profile"><span>▥</span> LE TUE STATISTICHE <b>›</b></button><button data-action="configure"><span>⚑</span> PARTITA E STRATEGIE BOT <b>›</b></button><button data-action="survival"><span>★</span> SURVIVAL <small>Bot al massimo livello</small><b>›</b></button><button data-action="audio"><span>♫</span> AUDIO E VIBRAZIONE <b>›</b></button><button data-action="rules"><span>?</span> COME SI GIOCA <b>›</b></button>${!isNativeApp()?'<button data-action="install"><span>↓</span> INSTALLA E OFFLINE <b>›</b></button><button data-action="backup"><span>▣</span> SALVATAGGI E BACKUP <b>›</b></button>':''}</nav><footer class="portal-footer">1 giocatore · 2–4 bot · Salvataggio automatico<br>Regular con Sdadata oppure Countdown${!isNativeApp()?`<br><span role="status">${webStatus.ready?'✓ Pronto offline':webStatus.error?'Offline non ancora pronto':'Download per uso offline…'}</span>`:''}</footer></section></main>`;
-  }
-  function setup() {
-    return `<main class="classic-home"><header class="classic-header"><div class="classic-brand"><b>RisiKo<span>!</span></b><small>TORNEO · OFFLINE</small></div><nav><button data-action="audio" aria-label="Impostazioni audio">♫ Audio</button><button data-action="profile">${escape(profile.name)} · Profilo</button><button data-action="rules">Regole</button></nav></header><section class="classic-lobby"><aside class="box-art">${statsMarkup()}<div class="box-map">${mapMarkup(true)}</div><div class="box-caption">${config.antarctica?44:42} TERRITORI · 3–5 GIOCATORI</div></aside><section class="classic-settings"><div class="home-player-strip"><span class="home-player-emblem">R</span><div><strong>${escape(profile.name)}</strong><small>IL TUO TAVOLO · TORNEO</small></div><button data-action="profile">${profile.results.length} partite · ${profile.results.filter(r=>r.rank===1).length} vittorie ›</button></div><button class="menu-back" data-action="home">‹ Menu principale</button><div class="settings-title"><h1>Prepara la partita <small class="initial-armies">${({3:35,4:30,5:25} as Record<number,number>)[config.players]} armate iniziali</small></h1><div class="settings-actions">${hasGame?`<button class="resume-button" data-action="resume">RIPRENDI PARTITA · Turno ${state?.round??0} ▶</button>`:''}<button class="primary start-button" data-action="new" ${ready?'':'disabled'}><span>▶</span><span class="play-caption">${ready?'GIOCA':'CARICAMENTO…'}<small>ENTRA IN BATTAGLIA</small></span></button></div></div><div class="settings-scroll"><section class="lobby-basics" aria-label="Impostazioni partita"><label class="field-label" for="player-name">IL TUO NOME</label><input id="player-name" maxlength="24" value="${escape(config.name)}" autocomplete="off"/><div class="lobby-row"><div><span class="field-label">GIOCATORI</span><div class="segmented">${[3,4,5].map(n=>`<button data-count="${n}" class="${config.players===n?'active':''}">${n}</button>`).join('')}</div></div><div><label class="field-label" for="turn-time">TEMPO PER TURNO</label><select id="turn-time">${[60,120,180,240,300,600].map(n=>`<option value="${n}" ${config.turnSeconds===n?'selected':''}>${n/60} minuti</option>`).join('')}</select></div></div><div class="lobby-row"><div><label class="field-label" for="end-mode">FINE PARTITA TORNEO</label><select id="end-mode"><option value="regular" ${config.endMode!=='countdown'?'selected':''}>Regular · 20 giri + Sdadata</option><option value="countdown" ${config.endMode==='countdown'?'selected':''}>Countdown · a tempo</option></select></div><div>${config.endMode==='countdown'?`<label class="field-label" for="countdown-minutes">DURATA PARTITA</label><select id="countdown-minutes">${[30,45,60].map(n=>`<option value="${n}" ${config.countdownMinutes===n?'selected':''}>${n} minuti</option>`).join('')}</select>`:`<label class="field-label" for="bot-speed">VELOCITÀ BOT</label><select id="bot-speed">${[[1,'Normale'],[2,'Veloce'],[0,'Istantaneo']].map(([n,label])=>`<option value="${n}" ${config.botSpeed===n?'selected':''}>${label}</option>`).join('')}</select>`}</div></div>${config.endMode==='countdown'?`<label class="field-label" for="bot-speed">VELOCITÀ BOT</label><select id="bot-speed">${[[1,'Normale'],[2,'Veloce'],[0,'Istantaneo']].map(([n,label])=>`<option value="${n}" ${config.botSpeed===n?'selected':''}>${label}</option>`).join('')}</select>`:''}<label class="antarctica-option"><input id="antarctica-mode" type="checkbox" ${config.antarctica?'checked':''}/><span><b>Modalità Antartide</b><small>2 territori · +2 armate per turno se controlli entrambi</small></span></label></section><section class="lobby-opponents" aria-label="Avversari"><div class="opponents-heading"><span class="field-label">AVVERSARI</span><button data-action="blind-all" class="text-button">Tutti casuali ↻</button></div><div class="bot-slots">${config.difficulties.map((d,i)=>`<div class="bot-slot" style="--player:${colors[i+1]}"><span class="bot-avatar">${armyToken(i+1,colors[i+1])}</span><div class="bot-info"><strong>${['Falco','Vega','Atlas','Ombra'][i]}</strong><small>${d==='casuale'?'Bot ? · livello segreto':'BOT IA'}</small></div><select data-bot="${i}" aria-label="Difficoltà ${['Falco','Vega','Atlas','Ombra'][i]}">${['facile','medio','difficile','survival','casuale'].map(l=>`<option value="${l}" ${l===d?'selected':''}>${levelNames[l]}</option>`).join('')}</select><button class="strategy-button" data-strategy="${i}">Strategia</button></div>`).join('')}</div></section></div><small class="classic-footnote">Salvataggio automatico · Nessuna connessione richiesta</small><details class="mobile-tournament-stats"><summary>Statistiche Torneo ▾</summary>${statsMarkup()}</details></section></section></main>`;
-  }
+  function home(){return homeView(profile.name,ready,hasGame||slots.length>0,isNativeApp(),webStatus.ready);}
+  function setup(){return setupView(config,ready,localProfiles,seedOpen);}
   function playerCards() {
     return `<aside class="players-row" aria-label="Giocatori">${state!.order.map(id => {
       const p=state!.players[id];
-      return `<article class="player-card ${id===state!.active?'turn-active':''} ${p.eliminated?'eliminated':''}" style="--player:${p.color}"><div class="player-heading"><span class="player-orb"><span></span></span><div class="player-identity"><strong>${escape(p.name)}</strong><small>${p.eliminated?'ELIMINATO':p.human?'TU':`Bot ${levelNames[p.difficulty]} · ${p.botPolicy?.personality??'equilibrato'}`}</small></div>${id===state!.active?'<span class="turn-arrow">▶</span>':''}</div><div class="player-numbers"><span title="Carri">${tankIcon}<b>${p.totalArmies}</b></span><span title="Territori">◇ ${p.territoryCount}</span><span title="Carte">▣ ${p.cardCount}</span><span title="Rinforzi">↑${p.nextReinforcements}</span></div></article>`;
+      return `<button data-player-info="${id}" class="player-card ${id===state!.active?'turn-active':''} ${p.eliminated?'eliminated':''}" style="--player:${p.color}"><div class="player-heading"><span class="player-orb"><span></span></span><div class="player-identity"><strong>${escape(p.name)}</strong><small>${p.eliminated?'ELIMINATO':p.id===state!.viewer?'TU':p.human?'UMANO':`Bot ${levelNames[p.difficulty]} · ${p.botPolicy?.personality??'equilibrato'}`}</small></div>${id===state!.active?'<span class="turn-arrow">▶</span>':''}</div><div class="player-numbers"><span title="Carri">${tankIcon}<b>${p.totalArmies}</b></span><span title="Territori">◇ ${p.territoryCount}</span><span title="Carte">▣ ${p.cardCount}</span><span title="Rinforzi">↑${p.nextReinforcements}</span></div></button>`;
     }).join('')}</aside>`;
   }
   function instructions() {
@@ -196,62 +190,28 @@ export function mountGame(root: HTMLElement): () => void {
         return 'Completa lo spostamento obbligatorio.';
     }
   }
-  function objectiveWidget(){
-    if(!state)return "";
-    const s=state,me=s.players[0];
-    return `<aside class="objective-widget ${objectiveExpanded?'expanded':''}"><button data-action="objective-widget" aria-expanded="${objectiveExpanded}">Obiettivo · <b>${points()} / 86</b> ${objectiveExpanded?'▴':'▾'}</button>${objectiveExpanded?`<p>Punti attuali: ${points()} / 86 per RisiKo!</p>${miniObjective(me.objective!)}<button class="secondary" data-action="objective-view" aria-pressed="${objectiveView}">Mostra Punti su Mappa</button><div class="continent-bonuses">${mapFor(s).continents.map(c=>`<span>${c.name} <b>+${c.bonus}</b></span>`).join('')}</div>`:''}</aside>`;
-  }
-  function table() {
-    const s=state!,me=s.players[0],active=s.players[s.active];
-    const tris=humanTurn()&&s.phase==='TRIS_EXCHANGE'?validTris(s,0,me.cards??[]).sort((a,b)=>b.value-a.value)[0]:null;
-    const setup=s.phase==='SETUP_PLACEMENT',reinforcing=['TRIS_EXCHANGE','REINFORCEMENT'].includes(s.phase);
-    const initial=({3:35,4:30,5:25} as Record<number,number>)[s.players.length];
-    const reserve=setup?active.totalArmies:reinforcing?s.reinforcements:active.totalArmies;
-    const denominator=setup?initial:reinforcing?Math.max(s.reinforcements,active.nextReinforcements):130;
-    const step=setup||reinforcing?0:['ATTACK','POST_CONQUEST_MOVE'].includes(s.phase)?1:s.phase==='FORTIFY'?2:3;
-    return `<main data-phase="${s.phase}" data-active="${s.active}" data-revision="${s.revision}" class="game-table reference-table ${showNames?'':'names-hidden'}">${playerCards()}
-      <section class="map-stage">
-        <div class="map-container">${mapMarkup()}</div>
-        <div class="reference-topbar">
-          <div class="reserve-counter" style="--player:${active.color}" title="${setup?'Armate schierate':'Carri disponibili'}">${armyToken(reserve,active.color)}<div><small>${setup?'SCHIERATI':'DISPONIBILI'}</small><strong>${reserve}<small>/${denominator}</small></strong></div></div>
-          <div class="reference-turn"><span>${active.human?'Il tuo turno':`Il turno di <b style="color:${active.color}">${escape(active.name)}</b>`}</span><strong>${phaseNames[s.phase]}</strong></div>
-          <div class="reference-timer"><span>⌛</span><strong id="timer">${setup?'—':duration(s.remainingMs)}</strong></div>
-        </div>
-        <div class="reference-tools"><button data-action="names">NOMI ${showNames?'⌄':'−'}</button><button data-action="rules" aria-label="Regole">?</button><button data-action="home" aria-label="Menu principale">☰</button></div>
-        <div class="reference-round">${s.endMode==='countdown'?`COUNTDOWN <b id="match-timer">${duration(s.matchRemainingMs??0)}</b> · `:''}${s.round?`GIRO <b>${s.round}</b>${s.endMode==='countdown'?'':' / 20'}`:`PREPARAZIONE · ${escape(active.name)} · Da piazzare <b>${active.setupRemaining}</b> · Questa mano: <b>${s.setupBatch}</b>`}${s.sdadata?`<span class="sdadata-badge">SDADATA ≤ ${s.sdadata.threshold}</span>`:''}</div>
-        <aside class="reference-sidebar"><button class="reference-eye ${objectiveView?'active':''}" data-action="objective-view" aria-label="Vista obiettivo"><span>◉</span><small>${points()} / 86</small></button><button class="${tris?'tris-ready':''}" data-action="cards" aria-label="Carte territorio"><span>▰</span><small>${tris?`Gioca Tris (+${tris.value} carri)`:`CARTE ${me.cardCount}`}</small></button><button data-action="objective" aria-label="Carta obiettivo"><span>◎</span><small>OBIETTIVO</small></button><div class="reference-info"><span>ⓘ</span>${selected===null?'<p>Seleziona<br>un territorio</p>':`<strong>${escape(territories[selected].name)}</strong><p>${territories[selected].points} punti<br>${s.board[selected].armies} carri</p>`}</div><button class="reference-log" data-action="log">▤ Cronologia</button></aside>${objectiveWidget()}
-        <div class="reference-zoom"><button data-action="zoom-out" aria-label="Riduci">−</button><button data-action="reset-map" aria-label="Centra mappa">⌖</button><button data-action="zoom-in" aria-label="Ingrandisci">+</button></div>
-        ${s.lastBattle&&!modal&&!presenting?`<div class="battle-toast"><small>${s.lastBattle.from!==undefined?escape(territories[s.lastBattle.from].short)+' → ':''}${escape(territories[s.lastBattle.territory!].short)}</small><div class="last-dice">${s.lastBattle.attack!.map((n,i)=>dieMarkup(n,'#d93829',i)).join('')}<span>vs</span>${s.lastBattle.defense!.map((n,i)=>dieMarkup(n,'#2784df',i)).join('')}</div></div>`:''}
-        ${s.paused?'<div class="pause-shade"><div class="pause-card"><span class="eyebrow">POSIZIONE SALVATA</span><h2>Partita in pausa</h2><button class="primary" data-action="resume">Riprendi la partita →</button><button class="text-button" data-action="home">Torna al menu</button></div></div>':''}
-      </section>
-      <section class="command-deck"><div class="phase-section"><div class="phase-steps">${phases.map((p,i)=>`<span class="${i===step?'current':''}"><b>${i+1}</b> ${p}</span>`).join('<i>›</i>')}</div><p id="instruction">${instructions()}</p>${humanTurn()&&s.phase==='REINFORCEMENT'?`<div class="placement-amounts" aria-label="Quantità da piazzare">${[1,3,5,10,130].map(n=>`<button data-place-count="${n}" class="${placementCount===n?'active':''}">${n===130?'Tutti':'+'+n}</button>`).join('')}</div>`:''}</div><div class="command-buttons">${humanTurn()&&s.phase==='REINFORCEMENT'?`<button class="secondary undo-placement" data-action="undo-place" ${!s.undoAvailable||pendingCommand?'disabled':''}>↶ Annulla ultimo piazzamento</button>`:''}<button class="primary" data-action="next" ${!humanTurn()||!['TRIS_EXCHANGE','REINFORCEMENT','ATTACK','FORTIFY'].includes(s.phase)||(s.phase==='REINFORCEMENT'&&s.reinforcements>0)||pendingCommand?'disabled':''}>${s.phase==='TRIS_EXCHANGE'?'Piazza rinforzi':s.phase==='REINFORCEMENT'?'Inizia attacco →':s.phase==='ATTACK'?'Spostamento →':'Fine turno →'}</button></div></section>
-      <div class="table-footer"><span>${s.endMode==='countdown'?'COUNTDOWN':'REGULAR'} · OFFLINE</span><div><span class="muted">RITMO</span>${[1,2,0].map(n=>`<button class="speed-button ${speed===n?'active':''}" data-speed="${n}">${n===1?'Normale':n===2?'Veloce':'Istantaneo'}</button>`).join('')}<button class="text-button" data-action="sound">${muted?'Audio off':'Audio on'}</button><button class="text-button" data-action="pause">Ⅱ Pausa</button></div></div>
-      ${showLog?`<aside class="game-log"><button data-action="log" class="close-button">×</button><h3>Cronologia / Log di Guerra</h3>${s.log.slice(-250).reverse().map(e=>`<p><i style="background:${s.players[e.player].color}"></i>${escape(e.message)}</p>`).join('')}</aside>`:''}
-    </main>`;
-  }
+  function table(){return boardView(state!,mapMarkup(),playerCards(),instructions(),phaseNames[state!.phase],placementCount,showNames,showLog,speed,animationFilter,pendingCommand,objectiveView)+(state!.tutorialStep!==undefined?`<aside class="tutorial-banner"><b>${tutorialSteps[state!.tutorialStep].title}</b><p>${tutorialSteps[state!.tutorialStep].text}</p><button class="primary" data-action="tutorial-next" ${tutorialDone?'':'disabled'}>Continua</button><button data-action="home">Esci dal tutorial</button></aside>`:'');}
   function miniObjective(id: number) { return objectiveMap(id,state?.antarctica===true); }
   function results() {
     const s = state!,
       ranking = [...s.players].sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.outside ?? 0) - (a.outside ?? 0) || s.order.indexOf(b.id) - s.order.indexOf(a.id));
-    return `<div class="classic-home portal-route">${header()}<main class="results-page portal-column"><span class="eyebrow">${s.reason === 'risiko' ? 'OBIETTIVO COMPLETATO' : s.reason==='countdown'?'COUNTDOWN TERMINATO':'LA SDADATA HA DECISO'}</span><h1>${s.winner === 0 ? 'La vittoria è tua.' : `${escape(s.players[s.winner!].name)} conquista la vittoria.`}</h1><p class="muted">${s.round} giri · ${duration(s.elapsedMs)} di gioco · Tutti gli obiettivi sono ora rivelati</p><div class="results-list">${ranking.map((p, i) => `<article class="result-row" style="--player:${p.color}"><strong class="rank">${String(i + 1).padStart(2, '0')}</strong><div class="result-player"><strong>${escape(p.name)} ${p.human ? '· TU' : ''}</strong><small>${p.human ? 'Comandante' : `Bot ${levelNames[p.difficulty]}${p.blind ? ' · livello svelato' : ''}`}</small></div><div class="result-objective">${miniObjective(p.objective!)}<span>${escape(objectives[p.objective! - 1].name)}</span></div><div><strong>${Math.min(86,p.points??0)}</strong><small>${p.points === 100 ? 'RISIKO! · 100 PT TAVOLO' : 'IN OBIETTIVO'}</small></div><div><strong>${p.outside}</strong><small>FUORI OBIETTIVO</small></div><div><strong>${p.territoryCount}</strong><small>TERRITORI</small></div><div><strong>${p.cardCount}</strong><small>CARTE</small></div></article>`).join('')}</div>${scoreChart(s.scoreHistory,s.players)}<div class="results-actions"><button class="primary" data-action="home">Un’altra strategia. Un nuovo tavolo. →</button><button class="secondary" data-action="profile">Le tue statistiche</button></div></main></div>`;
+    return `<div class="classic-home portal-route">${header()}<main class="results-page portal-column"><span class="eyebrow">${s.reason === 'risiko' ? 'OBIETTIVO COMPLETATO' : s.reason==='countdown'?'COUNTDOWN TERMINATO':'LA SDADATA HA DECISO'}</span><h1>${s.winner === s.viewer ? 'La vittoria è tua.' : `${escape(s.players[s.winner!].name)} conquista la vittoria.`}</h1><p class="muted">${s.round} giri · ${duration(s.elapsedMs)} di gioco · Tutti gli obiettivi sono ora rivelati</p><div class="results-list">${ranking.map((p, i) => `<article class="result-row" style="--player:${p.color}"><strong class="rank">${String(i + 1).padStart(2, '0')}</strong><div class="result-player"><strong>${escape(p.name)} ${p.id===s.viewer ? '· TU' : p.human?'· UMANO':''}</strong><small>${p.human ? 'Comandante' : `Bot ${levelNames[p.difficulty]}${p.blind ? ' · livello svelato' : ''}`}</small></div><div class="result-objective">${miniObjective(p.objective!)}<span>${escape(objectives[p.objective! - 1].name)}</span></div><div><strong>${Math.min(86,p.points??0)}</strong><small>${p.points === 100 ? 'RISIKO! · 100 PT TAVOLO' : 'IN OBIETTIVO'}</small></div><div><strong>${p.outside}</strong><small>FUORI OBIETTIVO</small></div><div><strong>${p.territoryCount}</strong><small>TERRITORI</small></div><div><strong>${p.cardCount}</strong><small>CARTE</small></div></article>`).join('')}</div>${scoreChart(s.scoreHistory,s.players)}${replayView(s,replayIndex)}<div class="results-actions"><button class="primary" data-action="home">Un’altra strategia. Un nuovo tavolo. →</button><button class="secondary" data-action="profile">Le tue statistiche</button></div></main></div>`;
   }
-  function profilePage() {
-    const rows = profile.results,
-      n = rows.length,
-      wins = rows.filter(r => r.rank === 1).length,
-      mean = n ? Math.round(rows.reduce((sum, r) => sum + r.points, 0) / n) : 0,
-      xp = rows.reduce((sum, r) => sum + ({
-        3: [50, 25, 10],
-        4: [70, 50, 25, 10],
-        5: [90, 70, 50, 25, 10]
-      } as Record<number, number[]>)[r.players][r.rank - 1], 0);
-    return `<div class="classic-home portal-route">${header()}<main class="profile-page portal-column"><button class="text-button" data-action="home">‹ Menu principale</button><span class="eyebrow">LE TUE STATISTICHE</span><h1>${escape(profile.name)}</h1><p class="muted">Livello locale ${1 + Math.floor(xp / 100)} · ${xp} XP · Statistiche conservate su questo dispositivo</p><div class="stat-grid">${[[n, 'Partite giocate'], [wins, 'Vittorie'], [mean, 'Media punti'], [n ? Math.round(100 * rows.filter(r => r.reason === 'risiko').length / n) + '%' : '—', 'Fine per RisiKo!'], [n ? Math.round(100 * rows.filter(r => r.reason === 'sdadata').length / n) + '%' : '—', 'Fine per sdadata'], [n ? duration(rows.reduce((sum, r) => sum + r.duration, 0) / n) : '—', 'Durata media']].map(([v, l]) => `<div><strong>${v}</strong><span>${l}</span></div>`).join('')}</div>${statsMarkup()}<h2>Le tue partite</h2>${!n ? '<div class="empty-state">La tua storia comincia dalla prossima mossa.<br>Completa una partita per registrare il primo risultato.</div>' : `<div class="match-history">${rows.map(r=>`<details class="portal-section"><summary><span>${new Date(r.date).toLocaleDateString('it-IT')} · ${r.rank}° posto</span><b>${r.points} pt</b></summary><dl><div><dt>Tavolo</dt><dd>${r.players} giocatori${r.antarctica?' · Antartide':''}</dd></div><div><dt>Conclusione</dt><dd>${r.reason==='risiko'?'RisiKo!':r.reason==='countdown'?'Countdown':'Sdadata'}</dd></div><div><dt>Durata</dt><dd>${duration(r.duration)}</dd></div></dl></details>`).join('')}</div>`}<h2>Classifica personale</h2><div class="local-ranking">${[...rows].sort((a, b) => b.points - a.points || a.rank - b.rank).slice(0, 10).map((r, i) => `<div><span>${i + 1}.</span><b>${escape(r.name)}</b><span>${new Date(r.date).toLocaleDateString('it-IT')}</span><strong>${r.points} pt</strong></div>`).join('') || '<p class="muted">Le dieci migliori prestazioni appariranno qui.</p>'}</div></main></div>`;
-  }
+  function profilePage(){return profileView(profile,profileCategory);}
   function modalMarkup() {
-    if (!modal || !state && !['rules','replace','strategy','audio','install','backup','import-confirm'].includes(modal)) return '';
+    if (!modal || !state && !['rules','replace','strategy','audio','install','backup','import-confirm','slots','profiles','scenarios','editor','seed-confirm'].includes(modal)) return '';
     let content = '',
       cls = '';
     const s = state;
+    if(modal==='player-info'&&s){const p=s.players[inspectedPlayer];content=`<h2>${escape(p.name)}</h2><p>${p.human?'Giocatore umano':`Bot ${levelNames[p.difficulty]}`}</p><dl><dt>Territori</dt><dd>${p.territoryCount}</dd><dt>Armate</dt><dd>${p.totalArmies}</dd><dt>Carte in mano</dt><dd>${p.cardCount}</dd><dt>Rinforzi previsti</dt><dd>+${p.nextReinforcements}</dd></dl>`;}
+    if(modal==='inspect'&&s&&inspected!==null){const t=mapFor(s).territories[inspected],cell=s.board[inspected];content=`<h2>${escape(t.name)}</h2><p>${escape(s.players[cell.owner].name)} · ${cell.armies} carri</p><p>${objectives[s.players[s.viewer].objective!-1]?.territories.includes(inspected)?t.points:0} punti obiettivo · ${t.points} fuori obiettivo</p><h3>Confini</h3><p>${t.neighbors.map(id=>escape(territories[id].name)).join(' · ')}</p>`;}
+    if(modal==='summary'&&turnSummary)content=`<div class="turn-summary"><h2>Riepilogo turno bot</h2>${turnSummary.map(line=>`<p>${escape(line)}</p>`).join('')}<button class="primary full" data-action="summary-continue">Inizia il mio turno</button></div>`;
+    if(modal==='slots')content=slotsView(slots);
+    if(modal==='profiles')content=profilesView(localProfiles);
+    if(modal==='scenarios')content=scenariosView([...curatedScenarios({...config,participants:participants(config)}),...scenarios]);
+    if(modal==='editor'&&editingScenario)content=editorView(editingScenario,editorTerritory);
+    if(modal==='seed-confirm')content=`<h2>Applica codice partita?</h2><p>Le impostazioni della preparazione saranno sostituite con quelle incluse nel codice.</p><button class="primary" data-action="seed-confirm">Applica impostazioni</button>`;
+    if(modal==='game-menu')content=`<h2>Menu partita</h2><button class="secondary full" data-action="pause">Pausa</button><button class="secondary full" data-action="home">Salva e torna alla Home</button><h3>Ritmo bot</h3><div class="button-row">${[1,2,0].map(n=>`<button data-speed="${n}" class="${speed===n?'active':''}">${n===1?'Normale':n===2?'Veloce':'Istantaneo'}</button>`).join('')}</div><label>Animazioni<select id="animation-filter">${[['all','Tutte'],['involved','Battaglie contro di me e conquiste'],['summary','Solo riepilogo']].map(([v,l])=>`<option value="${v}" ${animationFilter===v?'selected':''}>${l}</option>`).join('')}</select></label><button data-action="audio">Audio e vibrazione</button><button data-action="rules">Regole</button><button data-action="backup">Backup</button><p>Seed: ${escape(s?.seedLabel??s?.initialSeed??'non disponibile per questo salvataggio')}</p>`;
     if(modal==='install'){
       content=`<h2>Installa RisiKo</h2><p>${webStatus.ready?'✓ Gioco pronto offline. Puoi avviarlo senza connessione.':webStatus.error?escape(webStatus.error):'Preparazione offline in corso: tieni aperta questa pagina con Internet attivo.'}</p><p>${isAppleMobile()?'In Safari: Condividi → Aggiungi alla schermata Home. Se compare, lascia attivo «Apri come app web». Poi avvia RisiKo dalla nuova icona.':'Usa «Installa app» nel menu del browser, oppure il pulsante qui sotto se disponibile.'}</p><button class="primary" data-action="pwa-install">${isAppleMobile()?'Richiedi conservazione dati':'Installa app / conserva dati'}</button><p>Esporta periodicamente un backup: cancellare i dati del sito elimina partita e statistiche.</p>${isAppleMobile()?`<label class="audio-switch"><input id="web-rotation" type="checkbox" ${rotationAssistance()?'checked':''}/> Rotazione assistita della plancia su iPhone</label><p>La plancia si dispone in orizzontale anche se Safari non può ruotare lo schermo. I menu restano verticali. Se necessario, gira l’iPhone con il lato superiore verso sinistra.</p>`:''}<button class="secondary" data-action="pwa-update">${webStatus.update?'Aggiorna alla nuova versione':'Controlla aggiornamenti'}</button>`;
     }
@@ -260,11 +220,11 @@ export function mountGame(root: HTMLElement): () => void {
     }
     if(modal==='import-confirm'&&importPreview){
       const b=importPreview;
-      content=`<h2>Ripristinare questo backup?</h2><p>${escape(b.profile.name)} · ${escape(new Date(b.createdAt).toLocaleString('it-IT'))}<br>${b.profile.results.length} partite nelle statistiche<br>${b.game?`${b.game.players.length} giocatori · giro ${b.game.round}${b.game.antarctica?' · Antartide':''}`:'Nessuna partita salvata'}</p><p>La partita e le statistiche attuali saranno sostituite. Se vuoi conservarle, torna indietro ed esporta prima un backup.</p><button class="primary" data-action="confirm-import">Sostituisci e ripristina</button><button class="secondary" data-action="backup">Annulla</button>`;
+      content=`<h2>Ripristinare questo backup?</h2><p>${escape(b.profile.name)} · ${escape(new Date(b.createdAt).toLocaleString('it-IT'))}<br>${b.profile.results.length} partite nelle statistiche<br>${b.game?`${b.game.players.length} giocatori · giro ${b.game.round}${b.game.antarctica?' · Antartide':''}`:'Nessuna partita salvata'}</p><p>${b.slots?.length??(b.game?1:0)} slot · ${b.profiles?.length??1} profili · ${b.scenarios?.length??0} scenari. «Aggiungi come copie» conserva i dati attuali e importa nuovi slot e profili. «Sostituisci tutto» sostituisce l’intero archivio in una sola operazione.</p><button class="primary" data-action="merge-import">Aggiungi come copie</button><button class="secondary" data-action="confirm-import">Sostituisci tutto</button><button class="secondary" data-action="backup">Annulla</button>`;
     }
     if(modal==='strategy'){
       const policy=config.botPolicies![strategyBot];cls='strategy-window';
-      content=`<h2>Strategia · ${['Falco','Vega','Atlas','Ombra'][strategyBot]}</h2><p>Le caselle definiscono le priorità di questo bot per la prossima partita. La partita salvata mantiene le strategie scelte al suo avvio.</p><label class="grace-field">Personalità <select id="bot-personality">${['equilibrato','stratega','incursore','conquistatore'].map(personality=>`<option value="${personality}" ${policy.personality===personality?'selected':''}>${personality}</option>`).join('')}</select></label><div class="policy-list">${policyOptions.map(([key,label,hint])=>`<label><input type="checkbox" data-policy="${key}" ${policy[key]?'checked':''}/><span><strong>${label}</strong><small>${hint}</small></span></label>`).join('')}</div><label class="grace-field">Tregua iniziale <select id="grace-rounds">${[0,1,2,3].map(n=>`<option value="${n}" ${policy.graceRounds===n?'selected':''}>${n===0?'Nessuna':n+' giri'}</option>`).join('')}</select></label><p class="policy-note">Durante la tregua il bot difende e rinforza, ma non attacca.</p><div class="policy-actions"><button class="secondary" data-action="policy-all">Applica a tutti</button><button class="text-button" data-action="policy-reset">Ripristina consigliati</button></div>`;
+      content=`<h2>Strategia · ${escape(participants(config)[strategyBot===4?0:strategyBot+1]?.name??'Bot')}</h2><p>Le caselle definiscono le priorità di questo bot per la prossima partita. La partita salvata mantiene le strategie scelte al suo avvio.</p><label class="grace-field">Personalità <select id="bot-personality">${['equilibrato','stratega','incursore','conquistatore','equilibrato'].map(personality=>`<option value="${personality}" ${policy.personality===personality?'selected':''}>${personality}</option>`).join('')}</select></label><div class="policy-list">${policyOptions.map(([key,label,hint])=>`<label><input type="checkbox" data-policy="${key}" ${policy[key]?'checked':''}/><span><strong>${label}</strong><small>${hint}</small></span></label>`).join('')}</div><label class="grace-field">Tregua iniziale <select id="grace-rounds">${[0,1,2,3].map(n=>`<option value="${n}" ${policy.graceRounds===n?'selected':''}>${n===0?'Nessuna':n+' giri'}</option>`).join('')}</select></label><p class="policy-note">Durante la tregua il bot difende e rinforza, ma non attacca.</p><div class="policy-actions"><button class="secondary" data-action="policy-all">Applica a tutti</button><button class="text-button" data-action="policy-reset">Ripristina consigliati</button></div>`;
     }
     if(modal==='audio'){
       cls='audio-window';content=`<h2>Audio</h2><label class="audio-switch"><input type="checkbox" id="audio-enabled" ${muted?'':'checked'}/> Effetti sonori</label><label class="audio-switch"><input type="checkbox" id="haptics-enabled" ${sounds.haptics?'checked':''}/> Vibrazione Android</label><label for="audio-volume">Volume</label><input id="audio-volume" type="range" min="0" max="100" value="${Math.round(sounds.volume*100)}"/><button class="primary full" data-action="audio-test">Prova il clash</button><p>Il volume multimediale del telefono deve essere attivo.</p>`;
@@ -276,34 +236,15 @@ export function mountGame(root: HTMLElement): () => void {
       content = '<span class="eyebrow">COME SI GIOCA</span><h2>La strategia, in breve.</h2><div class="rules-copy"><p>Rinforza, attacca, effettua uno spostamento tra territori adiacenti e pesca una carta se hai conquistato almeno un territorio.</p><p>Si attacca e si difende con il massimo dei dadi, fino a tre. Non puoi attaccare con meno dadi del difensore. I pareggi favoriscono la difesa.</p><p>I tris valgono 8, 10 o 12 armate, più 2 per ogni carta territorio posseduta. Puoi conservare fino a 7 carte e schierare fino a 130 carri.</p><p>Conquista il tuo obiettivo per vincere subito. Dal termine del giro 20, la sdadata può chiudere la partita: soglia 4, poi 5, 6 e 7. Con tre conquiste o più non si lancia.</p><p>Gli avversari non possono essere eliminati nei primi quattro giri. Una guarnigione di almeno due carri deve rimanere sui confini nemici quando sposti volontariamente.</p><p>Alla scadenza del turno vengono completati i piazzamenti e i movimenti obbligatori; poi il turno termina. L’app in background mette in pausa la partita.</p><p><b>Modalità Antartide (facoltativa):</b> 44 territori e 46 carte. Antartide Occidentale confina con Argentina e Antartide Orientale; Antartide Orientale confina anche con Africa del Sud e Australia Orientale. Il controllo di entrambe dà +2 armate a turno. I due territori valgono 3 punti ciascuno fuori obiettivo; gli obiettivi Torneo restano da 86 punti. Dotazioni iniziali e mani da tre restano invariate.</p><p><b>Countdown:</b> scegli 30, 45 o 60 minuti (45 predefiniti). Il tempo inizia dopo il piazzamento iniziale; pausa e animazioni non consumano tempo. Alla scadenza vince la classifica a punti, senza Sdadata. RisiKo! resta una vittoria immediata.</p><p><b>Annulla piazzamento:</b> durante i rinforzi puoi annullare i tuoi ultimi piazzamenti fino a premere Inizia attacco. Le decorazioni dei badge a 5, 10 e 12 carri sono solo grafiche: resta il limite di 130 carri per giocatore.</p><p class="muted">Riferimento: il file “RisiKo! Online – Come si gioca” fornito dall’utente, integrato con le regole concordate. Ricostruzione indipendente offline, non affiliata a Spin Master.</p></div>';
     }
     if (modal === 'objective') {
-      const o = objectives[s!.players[0].objective! - 1];
-      content = `<span class="eyebrow">RISERVATO AL COMANDANTE</span><h2>IL TUO OBIETTIVO</h2>${miniObjective(o.id)}<div class="objective-score"><b>${points()}</b><span>/ 86 punti</span></div><p>Occupa tutti i territori evidenziati per fare RisiKo!</p>${s?.antarctica?'<p class="card-hint">Antartide: +2 rinforzi con entrambi i territori. Valgono 3 punti ciascuno fuori obiettivo; gli obiettivi restano da 86 punti.</p>':''}<button class="primary full" data-action="objective-map">Mostra Punti su Mappa ◎</button><details><summary>Territori dell’obiettivo</summary><p>${o.territories.map(t => `${escape(territories[t].name)} (${territories[t].points})`).join(' · ')}</p></details>`;
+      const o = objectives[s!.players[s!.viewer].objective! - 1];
+      content = `<span class="eyebrow">RISERVATO AL COMANDANTE</span><h2>IL TUO OBIETTIVO</h2>${miniObjective(o.id)}<p>Punti attuali: ${points()} / 86</p><div class="continent-bonuses">${mapFor(s!).continents.map(c=>`<span>${c.name} +${c.bonus}</span>`).join('')}</div><div class="objective-score"><b>${points()}</b><span>/ 86 punti</span></div><p>Occupa tutti i territori evidenziati per fare RisiKo!</p>${s?.antarctica?'<p class="card-hint">Antartide: +2 rinforzi con entrambi i territori. Valgono 3 punti ciascuno fuori obiettivo; gli obiettivi restano da 86 punti.</p>':''}<button class="primary full" data-action="objective-map">Mostra Punti su Mappa ◎</button><details><summary>Territori dell’obiettivo</summary><p>${o.territories.map(t => `${escape(territories[t].name)} (${territories[t].points})`).join(' · ')}</p></details>`;
     }
-    if (modal === 'cards') {
-      const hand=s!.players[0].cards??[], allowed=humanTurn()&&s!.phase==='TRIS_EXCHANGE';
-      cardSelection=cardSelection.filter(id=>hand.includes(id));
-      const value=exchangeValue(s!,0,cardSelection);
-      content=`<h2>LE TUE CARTE</h2><p class="card-instructions">Seleziona 3 CARTE compatibili<br>per ottenere ARMATE BONUS</p><span class="sr-only">Carte territorio</span><div class="hand">${hand.map(id=>`<button class="territory-card ${cardSelection.includes(id)?'chosen':''}" data-card="${id}" aria-pressed="${cardSelection.includes(id)}" aria-label="${escape(cards[id].territory===null?'Jolly':territories[cards[id].territory!].name)} · ${cards[id].symbol}">${cardFace(id)}</button>`).join('')||'<div class="empty-state">NON HAI CARTE<br><small>Conquista un territorio per pescare a fine turno.</small></div>'}</div><div class="card-bonus"><small>DOTAZIONE AGGIUNTIVA:</small>${armyToken(value,s!.players[0].color)}<strong>${value?'+'+value:'—'}</strong></div><button class="primary full" data-action="exchange-selected" ${allowed&&value>0&&!pendingCommand?'':'disabled'}>USA LE CARTE SELEZIONATE</button><p class="card-hint">${allowed?(cardSelection.length===3&&!value?'Queste tre carte non formano un tris.':'3 uguali: 8 · 3 diversi: 10 · Jolly + 2 uguali: 12 · +2 per territorio posseduto'):'Puoi cambiare un tris soltanto all’inizio del tuo turno.'}</p>`;
-      cls='cards-window';
-    }
-    if (modal === 'combat' && selected !== null && target !== null) {
-      const a = territories[selected],
-        d = territories[target],
-        last = s!.lastBattle;
-      const matching=last?.from===a.id&&last?.to===d.id?last:null;
-      content = `<div class="combat-title"><div><small>ATTACCO</small><h2>${escape(a.name)}</h2><strong>${s!.board[a.id].armies} carri</strong></div><span>→</span><div><small>DIFESA</small><h2>${escape(d.name)}</h2><strong>${s!.board[d.id].armies} carri</strong></div></div><div class="combat-preview">${matching?`<div>${matching.attack!.map((n,i)=>dieMarkup(n,'#d93829',i)).join('')}</div><span>vs</span><div>${matching.defense!.map((n,i)=>dieMarkup(n,'#2784df',i)).join('')}</div>`:'Seleziona «Attacca 1 volta» per lanciare i dadi.'}</div><div class="conquest-odds">Probabilità di conquista: <b>${Math.round(conquestOdds(s!.board[a.id].armies,s!.board[d.id].armies)*100)}%</b></div><label class="blitz-stop" for="blitz-stop">Stop Blitz sotto <b id="blitz-limit">${blitzStop}</b> carri<input id="blitz-stop" type="range" min="2" max="${Math.max(2,s!.board[a.id].armies)}" value="${blitzStop}"/></label><div class="combat-actions"><button class="primary" data-action="roll" ${pendingCommand||!canAttack(s!,a.id,d.id)?'disabled':''}>Attacca 1 volta</button><button class="secondary ${blitz?'active':''}" data-action="blitz" ${!canAttack(s!,a.id,d.id)?'disabled':''}>${blitz?'Ferma blitz':'Blitz'}</button><button class="text-button" data-action="close">Ritirati</button></div>`;
-      cls = 'combat';
-    }
-    if (modal === 'move' && selected !== null && target !== null) {
-      const bounds = moveBounds(s!, selected, target);
-      moveCount = Math.max(bounds.min, Math.min(bounds.max, moveCount));
-      const conquest=s!.phase==='POST_CONQUEST_MOVE';
-      cls='move-panel';
-      content = `<div class="move-heading"><small>${conquest?'TERRITORIO CONQUISTATO':'SPOSTAMENTO STRATEGICO'}</small><h2>${escape(territories[target].name)}</h2><p>Da ${escape(territories[selected].name)}</p></div>${conquest?`<p class="transferred-note">${s!.pending!.transferred??0} carri già trasferiti</p>`:''}<label class="move-label" for="move-range">${conquest?'Carri aggiuntivi':'Carri da spostare'} <strong id="move-number">${moveCount}</strong></label><input type="range" id="move-range" min="${bounds.min}" max="${bounds.max}" value="${moveCount}" aria-label="${conquest?'Carri aggiuntivi':'Armate da spostare'}"/><div class="move-shortcuts">${['Min','−1','+1','+5','Max'].map(x=>`<button class="secondary" data-move="${x}" aria-label="${x==='Min'?'Minimo':x==='Max'?'Massimo':x}">${x}</button>`).join('')}</div><button class="primary full" data-action="confirm-move">Conferma spostamento</button>`;
-    }
+    if(modal==='cards'&&s){content=cardsView(s,humanTurn(),cardSelection,pendingCommand);cls='cards-window';}
+    if(modal==='combat'&&s&&selected!==null&&target!==null){content=combatDock(s,selected,target,pendingCommand,blitzStop,blitz);cls='combat';}
+    if(modal==='move'&&s&&selected!==null&&target!==null){const dock=moveDock(s,selected,target,moveCount);content=dock.content;moveCount=dock.count;cls='move-panel';}
     if(screen!=='table')return `<div class="modal-backdrop menu-sheet"><div class="classic-home portal-route">${header()}<section class="modal ${cls} portal-column" role="dialog" aria-modal="true"><button class="portal-back" data-action="close" aria-label="Chiudi">‹ Indietro</button>${content}</section></div></div>`;
     const floating=modal==='combat'||modal==='move';
-    return `<div class="${floating?'floating-wrap':consulting()?'modal-backdrop consultation':'modal-backdrop'}"><section class="modal ${cls} ${floating?'floating-panel':''}" ${floating?'data-floating':''} role="dialog" aria-modal="${!floating}">${floating?'<header data-drag-handle>Trascina per spostare la finestra</header>':''}${modal==='move'&&s?.phase === 'POST_CONQUEST_MOVE' ? '' : '<button class="close-button" data-action="close" aria-label="Chiudi">×</button>'}${content}</section></div>`;
+    return `<div class="${floating?'floating-wrap':consulting()?'modal-backdrop consultation':'modal-backdrop'}"><section class="modal ${cls} ${floating?'floating-panel':''}" ${floating?'data-floating':''} role="dialog" aria-modal="${!floating}">${floating?`<header data-drag-handle>${modal==='combat'?'Attacco':'Spostamento'} · trascina per spostare</header>`:''}${modal==='move'&&s?.phase === 'POST_CONQUEST_MOVE' ? '' : '<button class="close-button" data-action="close" aria-label="Chiudi">×</button>'}${content}</section></div>`;
   }
   function refreshDialogs() {
     const host=root.querySelector<HTMLElement>('#dialogs');
@@ -321,7 +262,7 @@ export function mountGame(root: HTMLElement): () => void {
     const active=document.activeElement as HTMLElement | null;
     const focus=active&&host.contains(active)?active:null;
     const card=focus?.dataset.card, action=focus?.dataset.action;
-    host.innerHTML=markup;dialogMarkup=markup;
+    host.innerHTML=markup;dialogMarkup=markup;decorateIcons(host);
     const newHand=host.querySelector<HTMLElement>('.hand');if(newHand)newHand.scrollTop=scroll;
     if(card!==undefined)host.querySelector<HTMLElement>(`[data-card="${card}"]`)?.focus({preventScroll:true});
     else if(action)host.querySelector<HTMLElement>(`[data-action="${action}"]`)?.focus({preventScroll:true});
@@ -336,8 +277,13 @@ export function mountGame(root: HTMLElement): () => void {
     }
   }
   function render(force=false) {
+    if(privacy&&screen==='table'){
+      root.innerHTML=`<main class="privacy-screen" role="dialog" aria-modal="true" aria-labelledby="privacy-title"><i class="privacy-color" style="background:${privacy.color}"></i><h1 id="privacy-title">Turno di ${escape(privacy.name)} — Passa il dispositivo</h1><button class="primary" data-action="reveal">Rivela il mio turno</button></main>`;
+      root.querySelector<HTMLButtonElement>('button')?.focus();return;
+    }
+
     const homeScroll=screen==='setup'?root.querySelector<HTMLElement>('.classic-settings')?.scrollTop??0:0;
-    if(presenting&&!force){refreshDialogs();const widget=root.querySelector(".objective-widget");if(widget)widget.outerHTML=objectiveWidget();return;}
+    if(presenting&&!force){refreshDialogs();return;}
     const key=`${modal}:${selected}:${target}`;
     const oldPanel=root.querySelector<HTMLElement>('.floating-panel');
     if(oldPanel&&panelKey===key){const r=oldPanel.getBoundingClientRect();panelPosition={x:r.left,y:r.top};}
@@ -354,7 +300,8 @@ export function mountGame(root: HTMLElement): () => void {
     setGameOrientation(screen==='table'?'landscape':'portrait');
     const sceneMarkup=screen === 'home' ? home() : screen === 'setup' ? setup() : screen === 'profile' ? profilePage() : screen === 'results' ? results() : state ? table() : home();
     const scene=root.querySelector<HTMLElement>('#scene');
-    if(scene){scene.innerHTML=sceneMarkup;refreshDialogs();}
+    const oldMap=screen==='table'?scene?.querySelector<SVGSVGElement>('#world-map'):null;
+    if(scene){scene.innerHTML=sceneMarkup;if(oldMap){const replacement=scene.querySelector<SVGSVGElement>('#world-map');if(replacement){patchElement(oldMap,replacement);oldMap.setAttribute('viewBox',`${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`);delete oldMap.dataset.hitScale;replacement.replaceWith(oldMap);}}refreshDialogs();}
     else {
       dialogMarkup=presenting&&!consulting()?'':modalMarkup();
       root.innerHTML = `<div class="app-shell"><div id="scene">${sceneMarkup}</div><div id="dialogs">${dialogMarkup}</div><div id="effects" class="effects-layer"></div><div id="toast" role="status" class="toast"></div><div class="portrait-notice"><span>↻</span><h2>Ruota il dispositivo</h2><p>La tua strategia merita tutta la plancia.<br>Gioca in orizzontale.</p></div></div>`;
@@ -363,6 +310,7 @@ export function mountGame(root: HTMLElement): () => void {
     root.querySelector<HTMLElement>('.app-shell')?.classList.toggle('menu-sheet-open',!!modal&&screen!=='table');
     const homePanel=screen==='setup'?root.querySelector<HTMLElement>('.classic-settings'):null;
     if(homePanel)homePanel.scrollTop=homeScroll;
+    decorateIcons(root);
     bindMap();
     fitMapTargets();
     previewMove();
@@ -374,6 +322,8 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function start() {
     cancelPresentation();
+    privacy=null;config.participants=participants(config);config.name=config.participants.find(p=>p.human)?.name??config.name;
+    if(config.seedLabel&&!config.seedLabel.startsWith('RKO2:'))config.seed=seedNumber(config.seedLabel);
     modal = null;
     selected = null;
     target = null;
@@ -391,11 +341,12 @@ export function mountGame(root: HTMLElement): () => void {
       config
     });
   }
+  function inspectTerritory(id:number){if(!state||privacy)return;inspected=id;modal='inspect';render();}
   function onTerritory(id: number) {
     if (!state || presenting || !humanTurn() || pendingCommand || modal) return;
     const cell = state.board[id];
     if (['SETUP_PLACEMENT', 'REINFORCEMENT'].includes(state.phase)) {
-      if (cell.owner === 0) command({
+      if (cell.owner === state.viewer) command({
         type: 'PLACE',
         territory: id,
         count: state.phase==='SETUP_PLACEMENT'?1:Math.min(placementCount,state.reinforcements)
@@ -407,7 +358,7 @@ export function mountGame(root: HTMLElement): () => void {
       return;
     }
     if (state.phase === 'ATTACK') {
-      if (cell.owner === 0) {
+      if (cell.owner === state.viewer) {
         selected = id;
         target = null;
         render();
@@ -418,7 +369,7 @@ export function mountGame(root: HTMLElement): () => void {
         render();
       } else toast('Attacco non consentito: scegli un’origine valida e confinante.');
     } else if (state.phase === 'FORTIFY') {
-      if (cell.owner !== 0) {
+      if (cell.owner !== state.viewer) {
         toast('Lo spostamento richiede due tuoi territori adiacenti.');
         return;
       }
@@ -458,7 +409,9 @@ export function mountGame(root: HTMLElement): () => void {
     if(!svg||!matrix)return;
     const scale=Math.max(.01,Math.hypot(matrix.a,matrix.b));
     const key=scale.toFixed(5);if(svg.dataset.hitScale===key)return;svg.dataset.hitScale=key;
-    svg.querySelectorAll<SVGCircleElement>('.territory-hit').forEach(el=>el.setAttribute('r',String(22/scale)));
+    svg.querySelectorAll<SVGCircleElement>('.territory-hit,.placement-plus-hit').forEach(el=>el.setAttribute('r',String(22/scale)));
+    const occupied=Array.from(svg.querySelectorAll<SVGGraphicsElement>('.army-map-icon')).map(el=>{const r=el.getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};});
+    svg.querySelectorAll<SVGTextElement>('.territory-name').forEach(el=>{const id=Number(el.closest('[data-token]')?.getAttribute('data-token'));el.textContent=viewport.w<750?territories[id].name:territories[id].short;el.style.fontSize=`${12/scale}px`;el.style.visibility='visible';const b=el.getBoundingClientRect();if(occupied.some(r=>b.left<r.x+r.w+4&&b.right>r.x-4&&b.top<r.y+r.h+2&&b.bottom>r.y-2))el.style.visibility='hidden';else occupied.push({x:b.left,y:b.top,w:b.width,h:b.height});});
     // Only invisible touch targets remain 44 CSS pixels. Artwork and names
     // stay in map coordinates, so zoom scales them with their territories.
   }
@@ -469,7 +422,7 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function bindMap() {
     const svg = root.querySelector<SVGSVGElement>('.game-table #world-map');
-    if (!svg) return;
+    if (!svg || svg.dataset.bound==='true') return;svg.dataset.bound='true';
     const pointers = new Map<number, {
       x: number;
       y: number;
@@ -478,6 +431,8 @@ export function mountGame(root: HTMLElement): () => void {
       startId: number | null = null,
       lastDistance = 0,
       travel = 0;
+    let press:ReturnType<typeof setTimeout>|null=null;
+    const clearPress=()=>{if(press)clearTimeout(press);press=null;};
     svg.addEventListener('pointerdown', e => {
       pointers.set(e.pointerId, {
         x: e.clientX,
@@ -485,9 +440,10 @@ export function mountGame(root: HTMLElement): () => void {
       });
       startId = Number((e.target as Element).closest('[data-territory]')?.getAttribute('data-territory'));
       if (!(e.target as Element).closest('[data-territory]')) startId = null;
-      startId=territoryAtPoint(svg,e.clientX,e.clientY,startId);
+      if(!(e.target as Element).closest('.placement-plus'))startId=territoryAtPoint(svg,e.clientX,e.clientY,startId);
       moved = false;
       travel = 0;
+      clearPress();if(startId!==null&&pointers.size===1){const id=startId;press=setTimeout(()=>{if(!svg.isConnected||pointers.size!==1||moved)return;moved=true;inspectTerritory(id);},450);}
       svg.setPointerCapture(e.pointerId);
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
@@ -504,7 +460,7 @@ export function mountGame(root: HTMLElement): () => void {
         y: e.clientY
       });
       travel += Math.abs(dx) + Math.abs(dy);
-      if (travel > 6) moved = true;
+      if (travel > 6){moved = true;clearPress();}
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()],
           dist = Math.hypot(a.x - b.x, a.y - b.y);
@@ -522,11 +478,11 @@ export function mountGame(root: HTMLElement): () => void {
       }
     });
     svg.addEventListener('pointerup', e => {
-      const clicked = !moved && pointers.size === 1;
+      clearPress();const clicked = !moved && pointers.size === 1;
       pointers.delete(e.pointerId);
       if (clicked && startId !== null) onTerritory(startId);
     });
-    svg.addEventListener('pointercancel', e => pointers.delete(e.pointerId));
+    svg.addEventListener('pointercancel', e => {clearPress();pointers.delete(e.pointerId);});
     svg.addEventListener('wheel', e => {
       e.preventDefault();
       setZoom(e.deltaY > 0 ? 1.12 : .88);
@@ -536,12 +492,15 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function click(e: MouseEvent) {
     const el = (e.target as Element).closest<HTMLElement>('button');
+    const editorTarget=(e.target as Element).closest('[data-editor-territory]');if(editingScenario&&editorTarget&&editorTarget.getAttribute?.('data-editor-territory')!=null){editorTerritory=Number(editorTarget.getAttribute('data-editor-territory'));render();return;}
     if (!el || el.hasAttribute('disabled')) return;
+    if(privacy&&screen==='table'){if(el.dataset.action==='reveal')send({type:'REVEAL',player:privacy.player,token:privacy.token});return;}
     void sounds.unlock();
-    if(presenting && el.dataset.card===undefined && !['cards','objective','objective-map','objective-view','objective-widget','log','sound','close','pause','home','blitz','zoom-in','zoom-out','reset-map'].includes(el.dataset.action??''))return;
+    if(presenting && el.dataset.card===undefined && el.dataset.speed===undefined && !['game-menu','cards','objective','objective-map','objective-view','objective-widget','log','sound','close','pause','home','blitz','zoom-in','zoom-out','reset-map'].includes(el.dataset.action??''))return;
+    if(el.dataset.blitzStep){blitzStop=Math.max(2,Math.min(130,blitzStop+Number(el.dataset.blitzStep)));render();return;}
     if(el.dataset.placeCount){placementCount=Number(el.dataset.placeCount);render();return;}
     if (el.dataset.count) {
-      config.players = Number(el.dataset.count);
+      config.participants=participants(config);config.players = Number(el.dataset.count);config.participants=participants(config);
       config.difficulties = Array.from({
         length: config.players - 1
       }, (_, i) => config.difficulties[i] ?? (config.difficulties.every(d=>d==='survival')?'survival':'medio'));
@@ -558,7 +517,7 @@ export function mountGame(root: HTMLElement): () => void {
       return;
     }
     if (el.dataset.tris !== undefined) {
-      const combo = validTris(state!, 0, state!.players[0].cards ?? [])[Number(el.dataset.tris)];
+      const combo = validTris(state!, state!.viewer, state!.players[state!.viewer].cards ?? [])[Number(el.dataset.tris)];
       command({
         type: 'EXCHANGE',
         cards: combo.cards
@@ -578,7 +537,30 @@ export function mountGame(root: HTMLElement): () => void {
       return;
     }
     if(el.dataset.strategy!==undefined){strategyBot=Number(el.dataset.strategy);modal='strategy';render();return;}
+    if(el.dataset.slot){screen='table';modal=null;send({type:'SLOT_SELECT',id:el.dataset.slot});return;}
+    if(el.dataset.slotEdit){const action=el.dataset.slotEdit;if(action==='delete'&&!confirm('Eliminare questa partita?'))return;const name=action==='rename'?prompt('Nome della partita'):'';if(action==='rename'&&name===null)return;send({type:'SLOT_EDIT',id:el.dataset.slotId,action,name});return;}
+    if(el.dataset.globalLevel){config.difficulties.fill(el.dataset.globalLevel as never);config.participants=participants(config).map(p=>p.human?p:{...p,difficulty:el.dataset.globalLevel as never});render();return;}
+    if(el.dataset.turnSeconds!==undefined){config.turnSeconds=Number(el.dataset.turnSeconds);config.custom=config.turnSeconds===0;render();return;}
+    if(el.dataset.endMode){config.endMode=el.dataset.endMode as 'regular'|'countdown';render();return;}
+    if(el.dataset.playerInfo!==undefined){inspectedPlayer=Number(el.dataset.playerInfo);modal='player-info';render();return;}
+    if(el.dataset.profile){selectedProfile=el.dataset.profile;send({type:'PROFILE',profileId:selectedProfile});screen='profile';modal=null;render();return;}
+    if(el.dataset.scenario||el.dataset.scenarioEdit){const found=[...curatedScenarios({...config,participants:participants(config)}),...scenarios].find(sc=>sc.id===(el.dataset.scenario??el.dataset.scenarioEdit));if(!found)return;editingScenario=structuredClone(found);if(el.dataset.scenarioEdit){editingScenario.id=crypto.randomUUID();editorTerritory=0;modal='editor';render();}else{screen='table';modal=null;send({type:'NEW',config:editingScenario.config,scenario:editingScenario});}return;}
     switch (el.dataset.action) {
+      case 'summary-continue':turnSummary=null;modal=null;send({type:'SUMMARY_ACK'});render();break;
+      case 'tutorial':tutorialDone=false;screen='table';modal=null;send({type:'TUTORIAL'});break;
+      case 'tutorial-next':tutorialDone=false;send({type:'TUTORIAL_NEXT'});break;
+      case 'slots':resumeRequested=true;send({type:'SLOTS'});modal='slots';render();break;
+      case 'profiles':send({type:'PROFILES'});modal='profiles';render();break;
+      case 'profile-add':{const name=root.querySelector<HTMLInputElement>('#new-profile')?.value;if(name?.trim())send({type:'PROFILE_ADD',name});break;}
+      case 'scenarios':send({type:'SCENARIOS'});modal='scenarios';render();break;
+      case 'editor-new':editingScenario=scenarioFrom({...config,participants:participants(config)});editorTerritory=0;modal='editor';render();break;
+      case 'editor-save':case 'editor-play':case 'editor-export':if(editingScenario){try{scenarioGame(editingScenario);if(el.dataset.action==='editor-save'){send({type:'SCENARIO_SAVE',scenario:editingScenario});toast('Scenario salvato');}else if(el.dataset.action==='editor-play'){modal=null;screen='table';send({type:'NEW',config:editingScenario.config,scenario:editingScenario});}else{const url=URL.createObjectURL(new Blob([JSON.stringify(editingScenario)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='risiko-scenario.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}catch(error){toast(String(error));}}break;
+      case 'game-menu':modal='game-menu';render();break;
+      case 'map-layer':mapLayer=mapLayer==='standard'?'control':mapLayer==='control'?'objective':'standard';objectiveView=mapLayer==='objective';render();toast(mapLayer==='standard'?'Vista cartografica':mapLayer==='control'?'Controllo giocatori':'Punti obiettivo');break;
+      case 'seed-apply':try{if(readMatchCode(config.seedLabel??'')){modal='seed-confirm';render();}else{config.seed=seedNumber(config.seedLabel??'');toast('Seed impostato');}}catch(error){toast(String(error));}break;
+      case 'seed-confirm':try{const parsed=readMatchCode(config.seedLabel??'');if(parsed){config={...parsed,seedLabel:String(parsed.seed)};modal=null;render();}}catch(error){toast(String(error));}break;
+      case 'seed-copy':case 'seed-share':{if(!config.seedLabel){config.seedLabel=String(crypto.getRandomValues(new Uint32Array(1))[0]);render();}if(!config.seedLabel.startsWith('RKO2:'))config.seed=seedNumber(config.seedLabel);const text=matchCode({...config,participants:participants(config)});if(el.dataset.action==='seed-share'&&navigator.share)void navigator.share({title:'Codice Partita RisiKo',text}).catch(()=>{});else void navigator.clipboard.writeText(text).then(()=>toast('Codice partita copiato')).catch(()=>toast('Copia il seed dal campo di testo'));break;}
+
       case 'install': modal='install';render();break;
       case 'pwa-install': void installWebApp().then(()=>toast('Su iPhone aggiungi l’app alla Home dal menu Condividi di Safari.')).catch(()=>toast('Usa il menu del browser per installare.'));break;
       case 'pwa-update': updateWebApp();toast('Controllo aggiornamenti: serve una connessione.');break;
@@ -589,27 +571,22 @@ export function mountGame(root: HTMLElement): () => void {
         if(navigator.canShare?.({files:[file]}))void navigator.share({files:[file],title:'Backup RisiKo'}).catch(()=>{});
         else toast('Usa «Scarica file JSON» e conserva il file scaricato.');break;
       }
-      case 'confirm-import': if(importPreview){send({type:'IMPORT_BACKUP',text:importText});importPreview=null;importText='';modal='backup';render();}break;
+      case 'merge-import':case 'confirm-import': if(importPreview){send({type:'IMPORT_BACKUP',text:importText,mode:el.dataset.action==='merge-import'?'merge':'replace'});importPreview=null;importText='';modal='backup';render();}break;
       case 'audio': modal='audio';render();break;
       case 'audio-test': void sounds.unlock().then(()=>{sounds.clash();if(!sounds.ready)toast('Tocca ancora Prova il clash per attivare l’audio.');});break;
-      case 'policy-all': config.botPolicies=Array.from({length:4},()=>({...config.botPolicies![strategyBot]}));toast('Strategia applicata a tutti i bot');break;
+      case 'policy-all': config.botPolicies=Array.from({length:5},()=>({...config.botPolicies![strategyBot]}));toast('Strategia applicata a tutti i bot');break;
       case 'policy-reset': config.botPolicies![strategyBot]=botPolicy();render();break;
       case 'exchange-selected':
-        if(state&&exchangeValue(state,0,cardSelection)>0)command({type:'EXCHANGE',cards:[...cardSelection]});
+        if(state&&exchangeValue(state,state.viewer,cardSelection)>0)command({type:'EXCHANGE',cards:[...cardSelection]});
         break;
       case 'undo-place':command({type:'UNDO_PLACE'});break;
-      case 'objective-widget':objectiveExpanded=!objectiveExpanded;render();break;
+      case 'objective-widget':modal='objective';render();break;
       case 'names': showNames=!showNames;render();break;
       case 'configure':
         screen='setup';modal=null;render();break;
       case 'survival':
-        config.difficulties.fill('survival');screen='setup';modal=null;render();break;
-      case 'new':
-        if (hasGame) {
-          modal = 'replace';
-          render();
-        } else start();
-        break;
+        config.difficulties.fill('survival');config.participants=participants(config).map(p=>p.human?p:{...p,difficulty:'survival'});screen='setup';modal=null;render();break;
+      case 'new':start();break;
       case 'confirm-new':
         start();
         break;
@@ -628,7 +605,7 @@ export function mountGame(root: HTMLElement): () => void {
         screen = 'home';
         modal = null;
         send({
-          type: 'PROFILE'
+          type: 'PROFILE',profileId:selectedProfile
         });
         render();
         break;
@@ -640,12 +617,12 @@ export function mountGame(root: HTMLElement): () => void {
         screen = 'profile';
         modal = null;
         send({
-          type: 'PROFILE'
+          type: 'PROFILE',profileId:selectedProfile
         });
         render();
         break;
       case 'blind-all':
-        config.difficulties.fill('casuale');
+        config.difficulties.fill('casuale');config.participants=participants(config).map(p=>p.human?p:{...p,difficulty:'casuale'});
         render();
         break;
       case 'rules':
@@ -664,6 +641,9 @@ export function mountGame(root: HTMLElement): () => void {
         render();
         break;
       case 'close':
+        if(modal==='summary'){turnSummary=null;send({type:'SUMMARY_ACK'});}
+        if(modal==='summary'){turnSummary=null;send({type:'SUMMARY_ACK'});}
+        else if(turnSummary){modal='summary';render();break;}
         if(consulting() && (state?.phase!=='POST_CONQUEST_MOVE'||!humanTurn())){
           modal=null;blitz=false;
           if(root.querySelector('#dialogs'))refreshDialogs();else render();
@@ -742,11 +722,22 @@ export function mountGame(root: HTMLElement): () => void {
     }
   }
   function change(e: Event) {
+    if(privacy&&screen==='table')return;
     const el = e.target as HTMLInputElement;
+    if(el.id==='profile-category'){profileCategory=el.value;render();return;}
+    if(el.id==='replay-turn'){replayIndex=Number(el.value);const panel=root.querySelector('.replay-panel');if(panel&&state)panel.outerHTML=replayView(state,replayIndex);return;}
+    if(el.id==='match-seed'){config.seedLabel=el.value;return;}
+    if(el.id==='animation-filter'){animationFilter=el.value;send({type:'ANIMATION_FILTER',filter:animationFilter});return;}
+    if(el.id==='global-difficulty'){if(el.value){config.difficulties.fill(el.value as never);config.participants=participants(config).map(p=>({...p,difficulty:el.value as never}));render();}return;}
+    if(el.dataset.seatName!==undefined){config.participants=participants(config);config.participants[Number(el.dataset.seatName)].name=el.value;return;}
+    if(el.dataset.seatKind!==undefined||el.dataset.seatProfile!==undefined||el.dataset.seatLevel!==undefined){config.participants=participants(config);const i=Number(el.dataset.seatKind??el.dataset.seatProfile??el.dataset.seatLevel),p=config.participants[i];if(el.dataset.seatKind!==undefined)p.human=el.value==='human';if(el.dataset.seatProfile!==undefined){p.profileId=el.value;const profile=localProfiles.find(p=>p.id===el.value);if(profile)p.name=profile.name;}if(el.dataset.seatLevel!==undefined){p.difficulty=el.value as never;if(i>0)config.difficulties[i-1]=el.value as never;}render();return;}
+    if(editingScenario){const sc=editingScenario;if(el.id==='scenario-name')sc.name=el.value;if(el.id==='scenario-description')sc.description=el.value;if(el.id==='editor-owner')sc.board[editorTerritory].owner=Number(el.value);if(el.id==='editor-armies')sc.board[editorTerritory].armies=Number(el.value);if(el.id==='editor-round')sc.round=Number(el.value);if(el.id==='editor-active')sc.active=Number(el.value);if(el.id==='editor-territory'){editorTerritory=Number(el.value);render();return;}}
+    if(el.id==='scenario-file'){const file=el.files?.[0];if(file&&file.size<1024*1024)void file.text().then(text=>{const sc=JSON.parse(text);scenarioGame(sc);sc.id=crypto.randomUUID();send({type:'SCENARIO_SAVE',scenario:sc});}).catch(error=>toast(String(error)));return;}
+
     if(el.id==='web-rotation'){try{localStorage.setItem('risiko-web-rotation',el.checked?'on':'off');}catch{}sendWebOrientation(screen==='table'?'landscape':'portrait');return;}
     if(el.id==='backup-file'){
       const file=el.files?.[0];if(!file)return;
-      if(file.size>MAX_BACKUP_BYTES){toast('File troppo grande: massimo 12 MB.');return;}
+      if(file.size>MAX_BACKUP_BYTES){toast('File troppo grande: massimo 64 MB.');return;}
       void file.text().then(raw=>{importPreview=parseBackup(raw);importText=raw;modal='import-confirm';render();}).catch(error=>toast(error instanceof Error?error.message:'File non leggibile.'));
       return;
     }
@@ -762,7 +753,7 @@ export function mountGame(root: HTMLElement): () => void {
     if(el.id==='audio-enabled'){muted=!el.checked;sounds.muted=muted;sounds.save();}
     if(el.id==='audio-volume'){sounds.volume=Number(el.value)/100;sounds.save();}
     if (el.id === 'player-name') config.name = el.value;
-    if (el.id === 'turn-time') config.turnSeconds = Number(el.value);
+    if (el.id === 'turn-time'){config.turnSeconds = Number(el.value);config.custom=config.turnSeconds===0;}
     if (el.dataset.bot !== undefined) {
       config.difficulties[Number(el.dataset.bot)] = el.value as never;
       render();
@@ -785,6 +776,7 @@ export function mountGame(root: HTMLElement): () => void {
   root.addEventListener('click', click);
   root.addEventListener('input', change);
   root.addEventListener('keydown', e => {
+    if(privacy&&screen==='table'){if(e.key==='Tab'){e.preventDefault();root.querySelector<HTMLButtonElement>('[data-action="reveal"]')?.focus();}return;}
     if(presenting&&!consulting())return;
     if (e.key === 'Escape' && (state?.phase !== 'POST_CONQUEST_MOVE' || !humanTurn())) {
       modal = null;
@@ -812,11 +804,19 @@ export function mountGame(root: HTMLElement): () => void {
   worker.onmessage = ({
     data
   }) => {
+    if(data.type==='TURN_SUMMARY'){turnSummary=data.lines;if(screen==='table'&&!consulting()&&!state?.paused){modal='summary';render();}return;}
+    if(data.type==='TUTORIAL_DONE'){tutorialDone=true;return;}
+    if(data.type==='TUTORIAL_FINISHED'){screen='home';state=null;modal=null;send({type:'SLOTS'});render();toast('Tutorial completato');return;}
+    if(data.type==='PRIVACY'){cancelPresentation();privacy={player:data.player,name:data.name,color:data.color,token:data.token};state=null;modal=null;selected=null;target=null;cardSelection=[];dialogMarkup='';pendingCommand=false;render();return;}
+    if(data.type==='SLOTS'){slots=data.slots;if(resumeRequested&&slots.length===1){resumeRequested=false;screen='table';modal=null;send({type:'SLOT_SELECT',id:slots[0].id});return;}resumeRequested=false;hasGame=slots.some(s=>s.phase!=='GAME_OVER');render();return;}
+    if(data.type==='SLOTS_CHANGED'){send({type:'SLOTS'});return;}
+    if(data.type==='PROFILES'){localProfiles=data.profiles;render();return;}
+    if(data.type==='SCENARIOS'){scenarios=data.scenarios;render();return;}
     if(data.type==='CLOCK'){
       if(state&&state.id===data.id&&state.revision===data.revision&&!presenting){
         state={...state,remainingMs:data.remainingMs,matchRemainingMs:data.matchRemainingMs,elapsedMs:data.elapsedMs};
         const timer=root.querySelector('#timer'),match=root.querySelector('#match-timer');
-        if(timer)timer.textContent=state.phase==='SETUP_PLACEMENT'?'—':duration(state.remainingMs);
+        if(timer)timer.textContent=state.phase==='SETUP_PLACEMENT'||!state.turnSeconds?'—':duration(state.remainingMs);
         if(match)match.textContent=duration(state.matchRemainingMs??0);
       }
       return;
@@ -868,6 +868,7 @@ export function mountGame(root: HTMLElement): () => void {
       return;
     }
     if (data.type === 'STATE') {
+      privacy=null;
       if(presenting)cancelPresentation();
       receiveState(data.state);
     }
@@ -875,9 +876,10 @@ export function mountGame(root: HTMLElement): () => void {
   function receiveState(nextState: GameView) {
       const previous = state;
       state = nextState;
-      if(previous?.id===state.id && previous.active!==0 && state.active===0 && !state.paused)sounds.playTurnStart();
+      cardSelection=cardSelection.filter(id=>state!.players[state!.viewer].cards?.includes(id));
+      if(previous?.id===state.id && previous.active!==previous.viewer && state.active===state.viewer && !state.paused)sounds.playTurnStart();
       if(!previous||previous.id!==state.id)viewport={x:0,y:0,w:1240,h:mapFor(state).height};
-      if (state && state.id !== previous?.id) profile.name = state.players[0].name;
+
       hasGame = state!.phase !== 'GAME_OVER';
       const changed = !previous || previous.revision !== state!.revision || previous.paused !== state!.paused || previous.id !== state!.id;
       if (changed) {
@@ -888,18 +890,18 @@ export function mountGame(root: HTMLElement): () => void {
           if(!consulting())modal = null;
           blitz = false;
         }
-        if(modal==='combat' && target!==null && state!.phase==='ATTACK' && state!.board[target].owner===0){
+        if(modal==='combat' && target!==null && state!.phase==='ATTACK' && state!.board[target].owner===state!.viewer){
           selected=target;target=null;modal=null;blitz=false;
         }
         if (state!.phase === 'GAME_OVER' && screen === 'table') {
           screen = 'results';
           modal = null;
           send({
-            type: 'PROFILE'
+            type: 'PROFILE',profileId:selectedProfile
           });
         }
         if (state!.paused) { if(screen==='table')modal=null; blitz=false; }
-        if (screen==='table' && !state!.paused && state!.phase === 'POST_CONQUEST_MOVE' && state!.active === 0) {
+        if (screen==='table' && !state!.paused && state!.phase === 'POST_CONQUEST_MOVE' && state!.active === state!.viewer) {
           selected = state!.pending!.from;
           target = state!.pending!.to;
           if(previous?.pending?.from!==state!.pending!.from || previous?.pending?.to!==state!.pending!.to || previous?.phase!=='POST_CONQUEST_MOVE' || previous?.paused)moveCount = moveBounds(state!,selected,target).min;
@@ -937,6 +939,8 @@ export function mountGame(root: HTMLElement): () => void {
   send({
     type: 'INIT', presentation: true, snapshot:readLocalSnapshot()
   });
+  send({type:'PROFILES'});send({type:'SLOTS'});
+  root.addEventListener('toggle',e=>{if((e.target as HTMLElement).id==='seed-details')seedOpen=(e.target as HTMLDetailsElement).open;},true);
   return () => {
     disposeWebApp();if(backupURL)URL.revokeObjectURL(backupURL);
     globalThis.removeEventListener?.('resize',onViewportResize);
