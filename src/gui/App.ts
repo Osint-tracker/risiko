@@ -267,10 +267,10 @@ export function mountGame(root: HTMLElement): () => void {
     const scroll=hand?.scrollTop??0;
     const active=document.activeElement as HTMLElement | null;
     const focus=active&&host.contains(active)?active:null;
-    const card=focus?.dataset.card, action=focus?.dataset.action;
+    const card=focus?.dataset.card??focus?.dataset.removeCard, action=focus?.dataset.action;
     host.innerHTML=markup;dialogMarkup=markup;decorateIcons(host);
     const newHand=host.querySelector<HTMLElement>('.hand');if(newHand)newHand.scrollTop=scroll;
-    if(card!==undefined)host.querySelector<HTMLElement>(`[data-card="${card}"]`)?.focus({preventScroll:true});
+    if(card!==undefined)host.querySelector<HTMLElement>(`.hand .territory-card[data-card="${card}"]`)?.focus({preventScroll:true});
     else if(action)host.querySelector<HTMLElement>(`[data-action="${action}"]`)?.focus({preventScroll:true});
   }
   function previewMove() {
@@ -506,7 +506,7 @@ export function mountGame(root: HTMLElement): () => void {
     if (!el || el.hasAttribute('disabled')) return;
     if(privacy&&screen==='table'){if(el.dataset.action==='reveal')send({type:'REVEAL',player:privacy.player,token:privacy.token});return;}
     void sounds.unlock();
-    if(presenting && el.dataset.card===undefined && el.dataset.speed===undefined && !['game-menu','cards','objective','objective-map','objective-view','objective-widget','log','sound','close','pause','home','blitz','zoom-in','zoom-out','reset-map'].includes(el.dataset.action??''))return;
+    if(presenting && el.dataset.card===undefined && el.dataset.removeCard===undefined && el.dataset.speed===undefined && !['game-menu','cards','objective','objective-map','objective-view','objective-widget','log','sound','close','pause','home','blitz','zoom-in','zoom-out','reset-map'].includes(el.dataset.action??''))return;
     if(el.dataset.blitzStep){blitzStop=Math.max(2,Math.min(130,blitzStop+Number(el.dataset.blitzStep)));render();return;}
     if(el.dataset.placeCount){placementCount=Number(el.dataset.placeCount);render();return;}
     if (el.dataset.count) {
@@ -533,6 +533,10 @@ export function mountGame(root: HTMLElement): () => void {
         cards: combo.cards
       });
       return;
+    }
+    if (el.dataset.removeCard !== undefined) {
+      cardSelection=cardSelection.filter(id=>id!==Number(el.dataset.removeCard));
+      render();return;
     }
     if (el.dataset.card !== undefined) {
       const id = Number(el.dataset.card);
