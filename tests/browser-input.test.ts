@@ -15,6 +15,7 @@ async function fixture(hit:(x:number,y:number)=>boolean,check:(page:any,clicks:a
  const svg={getClientRects:()=>[rect],getBoundingClientRect:()=>rect,querySelectorAll:()=>[target],contains:(el:any)=>el===element,ownerDocument:{elementFromPoint:(x:number,y:number)=>hit(x,y)?element:overlay}};
  Object.assign(globalThis,{innerWidth:844,innerHeight:390});
  const page={locator:(selector:string)=>{
+  if(selector==='#dialogs .dialog-leaving')return {waitFor:async(options:any)=>assert.deepEqual(options,{state:'detached',timeout:5000})};
   assert.ok(['[data-territory="1"]','#world-map'].includes(selector));
   return {evaluate:async(fn:any,arg:any)=>fn(selector==='#world-map'?svg:element,arg),click:async(options:any)=>{assert.equal(selector,'#world-map');clicks.push(options);}};
  }};
@@ -97,7 +98,7 @@ async function browserFixture(covered=false,performClick?:Function){
  const evaluated:Function[]=[];f.svg.getBoundingClientRect=()=>rect;f.svg.getClientRects=()=>[rect];
  const svgLocator={evaluate:async(fn:Function,arg:any)=>{evaluated.push(fn);return fn(f.svg,arg);},boundingBox:async()=>{throw Error('Le coordinate della pagina esterna non valgono nel frame iPhone');},click:async(args:any)=>{clicks.push(args);}};
  const territoryLocator={evaluate:async(fn:Function)=>fn(f.territories.get(2)),click:()=>{throw Error('Non cliccare il gruppo SVG oscurato');}};
- const page={locator:(selector:string)=>selector==='#world-map'?svgLocator:territoryLocator};
+ const page={locator:(selector:string)=>selector==='#dialogs .dialog-leaving'?{waitFor:async()=>{}}:selector==='#world-map'?svgLocator:territoryLocator};
  const previous={innerWidth:globalThis.innerWidth,innerHeight:globalThis.innerHeight};Object.assign(globalThis,{innerWidth:800,innerHeight:600});
  try{await clickTerritory(page,2,performClick?async(locator:any,point:any)=>{assert.equal(locator,svgLocator);performClick(point);}:undefined);}finally{Object.assign(globalThis,previous);}
  assert.ok(evaluated.includes(resolveMapPointers),'Il test deve usare la funzione di produzione');
@@ -117,4 +118,19 @@ test('browser helper: mantiene coordinate relative per il tap della PWA ruotata'
 
 test('browser helper: un pannello che copre la mappa continua a far fallire il test',async()=>{
  await assert.rejects(browserFixture(true),/Territorio 2: nessun punto raggiungibile/);
+});
+
+
+test('browser helper: attende la rimozione del dialogo prima di misurare la mappa',async()=>{
+ let finish!:()=>void;let measured=false;
+ const page={locator:(selector:string)=>selector==='#dialogs .dialog-leaving'?{
+  waitFor:async(options:any)=>{assert.deepEqual(options,{state:'detached',timeout:5000});await new Promise<void>(resolve=>finish=resolve);}
+ }:{evaluate:async()=>{measured=true;throw new Error('geometry reached');}}};
+ const run=clickTerritory(page,1);await Promise.resolve();assert.equal(measured,false);
+ finish();await assert.rejects(run,/geometry reached/);assert.equal(measured,true);
+});
+test('browser helper: un dialogo bloccato in chiusura fallisce senza sondare né forzare click',async()=>{
+ const error=Object.assign(new Error('Dialog exit did not detach'),{name:'TimeoutError'});
+ const page={locator:(selector:string)=>{assert.equal(selector,'#dialogs .dialog-leaving');return {waitFor:async()=>{throw error;}};}};
+ await assert.rejects(clickTerritory(page,1),e=>e===error);
 });

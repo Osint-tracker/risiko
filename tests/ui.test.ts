@@ -416,3 +416,28 @@ test('PWA e backup: menu web, stato offline esplicito e conferma separata dal ri
  assert.ok(!f.worker.messages.some(m=>m.type==='IMPORT_BACKUP'));
  f.cleanup();
 });
+
+test('chiusura dialoghi: backdrop subito inerte; un nuovo dialogo non viene rimosso dal timer precedente',async()=>{
+ const callbacks:Record<string,Function>={};let mounted=false;
+ const scene={innerHTML:'',querySelector(){return null;}};
+ let markup='';
+ const host:any={firstElementChild:null,querySelector(){return null;},querySelectorAll(){return [];},contains(){return false;},
+  get innerHTML(){return markup;},set innerHTML(value:string){markup=value;const classes=new Set(['consultation']);this.firstElementChild=value?{inert:false,attributes:{} as Record<string,string>,setAttribute(k:string,v:string){this.attributes[k]=v;},classList:{contains:(s:string)=>classes.has(s),add:(s:string)=>classes.add(s)}}:null;}};
+ const root:any={set innerHTML(_v:string){mounted=true;},querySelector:(selector:string)=>mounted&&selector==='#scene'?scene:mounted&&selector==='#dialogs'?host:null,querySelectorAll:()=>[],addEventListener:(type:string,f:Function)=>callbacks[type]=f,removeEventListener(){}};
+ const previous={Worker:globalThis.Worker,document:globalThis.document,history:globalThis.history};
+ Object.assign(globalThis,{Worker:MockWorker,document:{hidden:false,addEventListener(){},removeEventListener(){}},history:{replaceState(){}}});
+ const cleanup=mountGame(root),worker=MockWorker.instance;
+ const click=(action:string)=>callbacks.click({target:{closest:()=>({dataset:{action},hasAttribute:()=>false})}});
+ try{
+  worker.emit({type:'READY',hasGame:false});click('new');
+  const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:17});s.active=0;
+  worker.emit({type:'STATE',state:project(s)});
+  click('cards');const first=host.firstElementChild;assert.ok(first);assert.equal(first.inert,false);
+  click('close');assert.equal(first.inert,true);assert.equal(first.attributes['aria-hidden'],'true');assert.ok(first.classList.contains('dialog-leaving'));
+  click('objective');const second=host.firstElementChild;assert.notEqual(second,first);assert.equal(second.inert,false);
+  await new Promise(r=>setTimeout(r,200));assert.equal(host.firstElementChild,second,'Il vecchio timer non deve rimuovere il nuovo obiettivo');
+  click('close');assert.equal(second.inert,true);
+  await new Promise(r=>setTimeout(r,200));assert.equal(host.innerHTML,'');
+  assert.match(readFileSync('src/gui/effects.css','utf8'),/\.dialog-leaving,\.dialog-leaving\s*\*\s*\{pointer-events:none!important\}/,'Anche il backdrop e i figli con pointer-events espliciti devono lasciare passare i tocchi');
+ }finally{cleanup();Object.assign(globalThis,previous);}
+});
