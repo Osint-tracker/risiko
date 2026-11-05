@@ -326,6 +326,17 @@ export function mountGame(root: HTMLElement): () => void {
       bindPanelDrag(panel);
     }
   }
+  function openSavedSlot(id:string) {
+    cancelPresentation();
+    // INIT may already have projected this exact paused revision on the Home.
+    // Selecting a slot is navigation, not a clock update. Discard that cached
+    // projection so the next authorized STATE always builds the board, even
+    // when ID, revision and paused are identical. Never render another slot's
+    // cached private information while waiting for STATE or PRIVACY.
+    state=null;privacy=null;selected=null;target=null;cardSelection=[];
+    turnSummary=null;pendingCommand=false;screen='table';modal=null;
+    send({type:'SLOT_SELECT',id});
+  }
   function start() {
     cancelPresentation();
     privacy=null;config.participants=participants(config);config.name=config.participants.find(p=>p.human)?.name??config.name;
@@ -536,7 +547,7 @@ export function mountGame(root: HTMLElement): () => void {
       return;
     }
     if(el.dataset.strategy!==undefined){strategyBot=Number(el.dataset.strategy);modal='strategy';render();return;}
-    if(el.dataset.slot){screen='table';modal=null;send({type:'SLOT_SELECT',id:el.dataset.slot});return;}
+    if(el.dataset.slot){openSavedSlot(el.dataset.slot);return;}
     if(el.dataset.slotEdit){const action=el.dataset.slotEdit;if(action==='delete'&&!confirm('Eliminare questa partita?'))return;const name=action==='rename'?prompt('Nome della partita'):'';if(action==='rename'&&name===null)return;send({type:'SLOT_EDIT',id:el.dataset.slotId,action,name});return;}
     if(el.dataset.globalLevel){config.difficulties.fill(el.dataset.globalLevel as never);config.participants=participants(config).map(p=>p.human?p:{...p,difficulty:el.dataset.globalLevel as never});render();return;}
     if(el.dataset.turnSeconds!==undefined){config.turnSeconds=Number(el.dataset.turnSeconds);config.custom=config.turnSeconds===0;render();return;}
@@ -807,7 +818,7 @@ export function mountGame(root: HTMLElement): () => void {
     if(data.type==='TUTORIAL_DONE'){tutorialDone=true;return;}
     if(data.type==='TUTORIAL_FINISHED'){screen='home';state=null;modal=null;send({type:'SLOTS'});render();toast('Tutorial completato');return;}
     if(data.type==='PRIVACY'){cancelPresentation();privacy={player:data.player,name:data.name,color:data.color,token:data.token};state=null;modal=null;selected=null;target=null;cardSelection=[];dialogMarkup='';pendingCommand=false;render();return;}
-    if(data.type==='SLOTS'){slots=data.slots;if(resumeRequested&&slots.length===1){resumeRequested=false;screen='table';modal=null;send({type:'SLOT_SELECT',id:slots[0].id});return;}resumeRequested=false;hasGame=slots.some(s=>s.phase!=='GAME_OVER');render();return;}
+    if(data.type==='SLOTS'){slots=data.slots;if(resumeRequested&&slots.length===1){resumeRequested=false;openSavedSlot(slots[0].id);return;}resumeRequested=false;hasGame=slots.some(s=>s.phase!=='GAME_OVER');render();return;}
     if(data.type==='SLOTS_CHANGED'){send({type:'SLOTS'});return;}
     if(data.type==='PROFILES'){localProfiles=data.profiles;render();return;}
     if(data.type==='SCENARIOS'){scenarios=data.scenarios;render();return;}
