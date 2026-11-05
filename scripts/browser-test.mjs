@@ -1,6 +1,7 @@
 import {spawn} from 'node:child_process';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {clickTerritory,browserDiagnostics} from './browser-input.mjs';
+import {pauseBrowserGame,leaveGameForFixture} from './browser-session.mjs';
 import {readBoardLayout,assertBoardLayout,readMapScale} from './browser-layout.mjs';
 import {setTimeout as wait} from 'node:timers/promises';
 import assert from 'node:assert/strict';
@@ -78,13 +79,7 @@ try{
   await page.locator('#animation-filter').selectOption(filter);
   await page.locator('[data-action="close"]').click();
  }
- async function pauseGame(){
-  if(await page.locator('.pause-card').isVisible())return;
-  if(await page.locator('#dialogs [data-action="close"]').isVisible())await page.locator('#dialogs [data-action="close"]').click();
-  await page.locator('[data-action="game-menu"]').click();
-  await page.locator('[data-action="pause"]').click();
-  await page.locator('.pause-card').waitFor();
- }
+ async function pauseGame(){await pauseBrowserGame(page);}
  async function resumeHome(){
   await page.locator('[data-action="slots"]:not([disabled])').waitFor();
   await page.locator('[data-action="slots"]').click();
@@ -149,12 +144,10 @@ try{
  // PAUSE and overwrite the fixture with the old game's in-memory state.
  async function loadFixture(state){
   assertState(state);
-  // Callers may already have paused the game (for example the turn-boundary
-  // scenario). Its overlay covers Pausa: do not click through that overlay.
-  const pauseCard=page.locator('.pause-card');
-  if(!await pauseCard.isVisible())await pauseGame();
-  await pauseCard.waitFor();
-  await page.goto('http://127.0.0.1:4173/icon.svg');
+  // Do not interact with the live game's menu: instant bots can open a
+  // summary between checking dialogs and clicking it. Terminate that document
+  // before writing the fixture; Pause itself is tested separately below.
+  await leaveGameForFixture(page,'http://127.0.0.1:4173/icon.svg');
   const fixture=structuredClone(state);fixture.paused=true;
   const stored=await page.evaluate(state=>new Promise((resolve,reject)=>{
    const req=indexedDB.open('risiko-offline',2);req.onerror=()=>reject(req.error);
