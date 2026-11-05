@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "android:sync": "npm run build && cap sync android",
     "apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
-    "test:ui": "node scripts/browser-test.mjs",
+    "test:ui": "node scripts/browser-suite.mjs",
     "benchmark:ai": "node scripts/benchmark-ai.mjs",
     "benchmark:planner": "node scripts/benchmark-planner.mjs",
     "benchmark:arena": "node scripts/benchmark-arena.mjs",
