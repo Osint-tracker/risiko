@@ -441,3 +441,31 @@ test('chiusura dialoghi: backdrop subito inerte; un nuovo dialogo non viene rimo
   assert.match(readFileSync('src/gui/effects.css','utf8'),/\.dialog-leaving,\.dialog-leaving\s*\*\s*\{pointer-events:none!important\}/,'Anche il backdrop e i figli con pointer-events espliciti devono lasciare passare i tocchi');
  }finally{cleanup();Object.assign(globalThis,previous);}
 });
+
+for(const automatic of [true,false])test(`ripresa dalla Home: stesso stato già caricato deve disegnare la plancia (${automatic?'slot unico':'scelta manuale'})`,()=>{
+ const f=fixture(false,false);
+ const s=createGame({players:3,name:'Comandante',difficulties:['medio','medio'],turnSeconds:600,seed:17});
+ s.active=0;s.round=5;s.phase='ATTACK';s.paused=true;s.players.forEach(p=>p.setupRemaining=0);
+ const view=project(s),slot={id:s.id,name:'Partita salvata',players:3,round:5,phase:s.phase,updatedAt:Date.now(),board:s.board};
+ try{
+  // INIT publishes STATE while the user is still on the Home screen.
+  f.worker.emit({type:'STATE',state:structuredClone(view)});f.worker.emit({type:'READY',hasGame:true});
+  assert.doesNotMatch(f.root.innerHTML,/class="game-table/);
+  f.click({action:'slots'});
+  f.worker.emit({type:'SLOTS',slots:automatic?[slot]:[slot,{...slot,id:'another'}]});
+  if(!automatic)f.click({slot:s.id});
+  assert.deepEqual(f.worker.messages.at(-1),{type:'SLOT_SELECT',id:s.id});
+  // Same ID, revision, active player and paused value: this must NOT be treated
+  // as just a clock update when the route changed from Home to the board.
+  f.worker.emit({type:'STATE',state:structuredClone(view)});
+  assert.match(f.root.innerHTML,/class="game-table/);
+  assert.match(f.root.innerHTML,/class="pause-card"/);
+  f.click({action:'resume'});assert.equal(f.worker.messages.at(-1).type,'RESUME');
+  f.worker.emit({type:'STATE',state:{...structuredClone(view),paused:false}});
+  assert.match(f.root.innerHTML,/class="game-table/);assert.doesNotMatch(f.root.innerHTML,/class="pause-card"/);
+  // Leaving and selecting the same slot again must also work.
+  f.click({action:'home'});f.worker.emit({type:'STATE',state:structuredClone(view)});
+  f.click({slot:s.id});f.worker.emit({type:'STATE',state:structuredClone(view)});
+  assert.match(f.root.innerHTML,/class="pause-card"/);
+ }finally{f.cleanup();}
+});
