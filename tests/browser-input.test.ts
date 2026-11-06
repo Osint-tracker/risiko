@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {clickTerritory} from '../scripts/browser-input.mjs';
+import {clickTerritory,mapPlacementCommitted,placeTerritoryAndWait} from '../scripts/browser-input.mjs';
 import {resolveMapPointers} from '../src/gui/mapPointer.ts';
 
 async function fixture(hit:(x:number,y:number)=>boolean,check:(page:any,clicks:any[])=>Promise<void>){
@@ -133,4 +133,52 @@ test('browser helper: un dialogo bloccato in chiusura fallisce senza sondare né
  const error=Object.assign(new Error('Dialog exit did not detach'),{name:'TimeoutError'});
  const page={locator:(selector:string)=>{assert.equal(selector,'#dialogs .dialog-leaving');return {waitFor:async()=>{throw error;}};}};
  await assert.rejects(clickTerritory(page,1),e=>e===error);
+});
+
+function placementDOM(revision:number,armies:number,effects:number){
+ const table={getAttribute:(name:string)=>name==='data-revision'?String(revision):null,querySelector:(selector:string)=>selector==='[data-token="3"] .tank-number'?{textContent:String(armies)}:null};
+ return {querySelector:(selector:string)=>selector==='.game-table'?table:selector==='#effects'?{childElementCount:effects}:null};
+}
+
+test('rinforzi browser: il contatore animato e Undo abilitato non provano la conclusione del comando',()=>{
+ const original=globalThis.document;
+ try{
+  const args={revision:1,id:3,armies:3};
+  for(const [revision,armies,effects,committed] of [
+   [1,2,0,false], // Stato iniziale: Undo del primo piazzamento è già disponibile.
+   [1,3,1,false], // Il secondo rinforzo appare nel contatore al 15% dell'animazione.
+   [1,3,0,false], // Anche gli effetti vuoti da soli non confermano la revisione.
+   [2,3,1,false], // Stato pubblicato, ma il gesto successivo deve attendere gli effetti.
+   [2,2,0,false], // È cambiato un altro territorio: non accettare il comando sbagliato.
+   [3,3,0,false], // Due comandi: non nascondere un piazzamento duplicato.
+   [2,3,0,true]
+  ] as const){
+   Object.assign(globalThis,{document:placementDOM(revision,armies,effects)});
+   assert.equal(mapPlacementCommitted(args),committed,JSON.stringify({revision,armies,effects}));
+  }
+  Object.assign(globalThis,{document:{querySelector:()=>null}});assert.equal(mapPlacementCommitted(args),false);
+ }finally{Object.assign(globalThis,{document:original});}
+});
+
+test('rinforzi browser: tre click, tre revisioni concluse; nessun terzo click durante il secondo effetto',async()=>{
+ const original=globalThis.document;let revision=0,armies=1,busy=false,clicks=0,checks=0;
+ const page={locator:(selector:string)=>{
+  assert.equal(selector,'.game-table');
+  return {getAttribute:async(name:string)=>{assert.equal(name,'data-revision');return String(revision);}};
+ },waitForFunction:async(fn:Function,args:any,options:any)=>{
+  assert.equal(options.timeout,5000);assert.equal(args.revision,revision);assert.equal(args.armies,armies+1);
+  for(const effects of [1,0]){
+   Object.assign(globalThis,{document:placementDOM(revision,armies+1,effects)});
+   assert.equal(fn(args),false,'Il risultato visivo non deve far proseguire il test');checks++;
+  }
+  revision++;armies++;busy=false;
+  Object.assign(globalThis,{document:placementDOM(revision,armies,0)});
+  assert.equal(fn(args),true);checks++;
+ }};
+ try{
+  for(let n=2;n<=4;n++)await placeTerritoryAndWait(page,3,n,async(_page:any,id:number)=>{
+   assert.equal(id,3);assert.equal(busy,false,'Click perso perché il comando precedente non era terminato');busy=true;clicks++;
+  });
+  assert.equal(clicks,3);assert.equal(revision,3);assert.equal(armies,4);assert.equal(checks,9);
+ }finally{Object.assign(globalThis,{document:original});}
 });
