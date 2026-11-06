@@ -1,5 +1,7 @@
 /** Preserve DOM identity and active gesture listeners while applying view changes. */
 export function patchElement(current:Element,next:Element){
+ // Static SVG geometry/defs and unchanged HUD subtrees need no JS traversal.
+ if(current.isEqualNode(next))return;
  for(const attribute of Array.from(current.attributes))if(!next.hasAttribute(attribute.name)&&!['data-bound','data-hit-scale'].includes(attribute.name))current.removeAttribute(attribute.name);
  for(const attribute of Array.from(next.attributes))if(current.getAttribute(attribute.name)!==attribute.value)current.setAttribute(attribute.name,attribute.value);
  const old=Array.from(current.childNodes),incoming=Array.from(next.childNodes);

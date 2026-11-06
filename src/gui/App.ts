@@ -3,6 +3,7 @@ import {cardsView} from './views/CardsView.ts';
 import {boardMap} from './views/BoardMap.ts';
 import {patchElement} from './patchElement.ts';
 import {resolveMapPointers} from './mapPointer.ts';
+import {bindMapGestures} from './mapGestures.ts';
 import {tutorialSteps} from '../engine/Tutorial.ts';
 import {profileView} from './views/ProfileView.ts';
 import {replayView} from './views/ReplayView.ts';
@@ -284,6 +285,7 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function render(force=false) {
     if(privacy&&screen==='table'){
+      gestures?.dispose();gestures=null;gestureMap=null;
       root.innerHTML=`<main class="privacy-screen" role="dialog" aria-modal="true" aria-labelledby="privacy-title"><i class="privacy-color" style="background:${privacy.color}"></i><h1 id="privacy-title">Turno di ${escape(privacy.name)} — Passa il dispositivo</h1><button class="primary" data-action="reveal">Rivela il mio turno</button></main>`;
       root.querySelector<HTMLButtonElement>('button')?.focus();return;
     }
@@ -307,7 +309,15 @@ export function mountGame(root: HTMLElement): () => void {
     const sceneMarkup=screen === 'home' ? home() : screen === 'setup' ? setup() : screen === 'profile' ? profilePage() : screen === 'results' ? results() : state ? table() : home();
     const scene=root.querySelector<HTMLElement>('#scene');
     const oldMap=screen==='table'?scene?.querySelector<SVGSVGElement>('#world-map'):null;
-    if(scene){scene.innerHTML=sceneMarkup;if(oldMap){const replacement=scene.querySelector<SVGSVGElement>('#world-map');if(replacement){patchElement(oldMap,replacement);oldMap.setAttribute('viewBox',`${viewport.x} ${viewport.y} ${viewport.w} ${viewport.h}`);delete oldMap.dataset.hitScale;replacement.replaceWith(oldMap);}}refreshDialogs();}
+    if(scene){
+      if(oldMap&&document.createElement){
+        // Morph the mounted scene in place. Detaching the SVG loses pointer
+        // capture on Android and can strand the active gesture between frames.
+        const next=document.createElement('div');next.id='scene';next.innerHTML=sceneMarkup;
+        patchElement(scene,next);delete oldMap.dataset.hitScale;
+      }else scene.innerHTML=sceneMarkup;
+      refreshDialogs();
+    }
     else {
       dialogMarkup=presenting&&!consulting()?'':modalMarkup();
       root.innerHTML = `<div class="app-shell"><div id="scene">${sceneMarkup}</div><div id="dialogs">${dialogMarkup}</div><div id="effects" class="effects-layer"></div><div id="toast" role="status" class="toast"></div><div class="portrait-notice"><span>↻</span><h2>Ruota il dispositivo</h2><p>La tua strategia merita tutta la plancia.<br>Gioca in orizzontale.</p></div></div>`;
@@ -422,82 +432,46 @@ export function mountGame(root: HTMLElement): () => void {
     fitMapTargets();
   }
   function fitMapTargets(){
-    const svg=root.querySelector<SVGSVGElement>('.game-table #world-map'),matrix=svg?.getScreenCTM?.();
-    if(!svg||!matrix)return;
+    const svg=root.querySelector<SVGSVGElement>('.game-table #world-map');
+    if(!svg)return;
+    if(gestures?.active){delete svg.dataset.hitScale;return;}
+    const matrix=svg.getScreenCTM?.();if(!matrix)return;
     const scale=Math.max(.01,Math.hypot(matrix.a,matrix.b));
     const key=scale.toFixed(5);if(svg.dataset.hitScale===key)return;svg.dataset.hitScale=key;
     svg.querySelectorAll<SVGCircleElement>('.territory-hit,.placement-plus-hit').forEach(el=>el.setAttribute('r',String(22/scale)));
-    const occupied=Array.from(svg.querySelectorAll<SVGGraphicsElement>('.army-map-icon')).map(el=>{const r=el.getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height};});
-    svg.querySelectorAll<SVGTextElement>('.territory-name').forEach(el=>{const id=Number(el.closest('[data-token]')?.getAttribute('data-token'));el.textContent=viewport.w<750?territories[id].name:territories[id].short;el.style.fontSize=`${12/scale}px`;el.style.visibility='visible';const b=el.getBoundingClientRect();if(occupied.some(r=>b.left<r.x+r.w+4&&b.right>r.x-4&&b.top<r.y+r.h+2&&b.bottom>r.y-2))el.style.visibility='hidden';else occupied.push({x:b.left,y:b.top,w:b.width,h:b.height});});
+    const labels=Array.from(svg.querySelectorAll<SVGTextElement>('.territory-name'));
+    // Batch writes, then reads, then visibility writes: no per-label reflow.
+    for(const el of labels){
+      const id=Number(el.closest('[data-token]')?.getAttribute('data-token'));
+      const name=viewport.w<750?territories[id].name:territories[id].short;
+      if(el.textContent!==name)el.textContent=name;
+      el.style.fontSize=`${12/scale}px`;el.style.visibility='visible';
+    }
+    const occupied=Array.from(svg.querySelectorAll<SVGGraphicsElement>('.army-map-icon')).map(el=>el.getBoundingClientRect());
+    const bounds=labels.map(el=>el.getBoundingClientRect());
+    const hidden=bounds.map(b=>{
+      if(occupied.some(r=>b.left<r.right+4&&b.right>r.left-4&&b.top<r.bottom+2&&b.bottom>r.top-2))return true;
+      occupied.push(b);return false;
+    });
+    labels.forEach((el,i)=>{if(hidden[i])el.style.visibility='hidden';});
     // Only invisible touch targets remain 44 CSS pixels. Artwork and names
     // stay in map coordinates, so zoom scales them with their territories.
   }
+  let gestureMap:SVGSVGElement|null=null;
+  let gestures:ReturnType<typeof bindMapGestures>|null=null;
   function bindMap() {
-    const svg = root.querySelector<SVGSVGElement>('.game-table #world-map');
-    if (!svg || svg.dataset.bound==='true') return;svg.dataset.bound='true';
-    const pointers = new Map<number, {
-      x: number;
-      y: number;
-    }>();
-    let moved = false,
-      startId: number | null = null,
-      lastDistance = 0,
-      travel = 0;
-    let press:ReturnType<typeof setTimeout>|null=null;
-    const clearPress=()=>{if(press)clearTimeout(press);press=null;};
-    svg.addEventListener('pointerdown', e => {
-      pointers.set(e.pointerId, {
-        x: e.clientX,
-        y: e.clientY
-      });
-      startId = resolveMapPointers(svg,[{x:e.clientX,y:e.clientY}])[0];
-      moved = false;
-      travel = 0;
-      clearPress();if(startId!==null&&pointers.size===1){const id=startId;press=setTimeout(()=>{if(!svg.isConnected||pointers.size!==1||moved)return;moved=true;inspectTerritory(id);},450);}
-      svg.setPointerCapture(e.pointerId);
-      if (pointers.size === 2) {
-        const [a, b] = [...pointers.values()];
-        lastDistance = Math.hypot(a.x - b.x, a.y - b.y);
-      }
-    });
-    svg.addEventListener('pointermove', e => {
-      const old = pointers.get(e.pointerId);
-      if (!old) return;
-      const dx = e.clientX - old.x,
-        dy = e.clientY - old.y;
-      pointers.set(e.pointerId, {
-        x: e.clientX,
-        y: e.clientY
-      });
-      travel += Math.abs(dx) + Math.abs(dy);
-      if (travel > 6){moved = true;clearPress();}
-      if (pointers.size === 2) {
-        const [a, b] = [...pointers.values()],
-          dist = Math.hypot(a.x - b.x, a.y - b.y);
-        if (lastDistance) setZoom(lastDistance / dist,true);
-        lastDistance = dist;
-        moved = true;
-      } else if (moved) {
-        // SVG preserveAspectRatio can add wide letterboxes; element width is
-        // not the drawing scale. Convert the actual screen transform instead.
-        const matrix=svg.getScreenCTM();
-        if(matrix){const determinant=matrix.a*matrix.d-matrix.b*matrix.c;
-          if(Math.abs(determinant)>1e-8){viewport.x-=(matrix.d*dx-matrix.c*dy)/determinant;viewport.y-=(-matrix.b*dx+matrix.a*dy)/determinant;}
-        }
+    const svg=root.querySelector<SVGSVGElement>('.game-table #world-map');
+    if(svg===gestureMap)return;
+    gestures?.dispose();gestures=null;gestureMap=svg;
+    if(!svg)return;
+    gestures=bindMapGestures(svg,{
+      pick:(x,y)=>resolveMapPointers(svg,[{x,y}])[0],tap:onTerritory,inspect:inspectTerritory,
+      pan:(dx,dy)=>{
+        const matrix=svg.getScreenCTM();if(!matrix)return;
+        const d=matrix.a*matrix.d-matrix.b*matrix.c;if(Math.abs(d)<1e-8)return;
+        viewport.x-=(matrix.d*dx-matrix.c*dy)/d;viewport.y-=(-matrix.b*dx+matrix.a*dy)/d;
         scheduleMapUpdate();
-      }
-    });
-    svg.addEventListener('pointerup', e => {
-      clearPress();const clicked = !moved && pointers.size === 1;
-      pointers.delete(e.pointerId);
-      if (clicked && startId !== null) onTerritory(startId);
-    });
-    svg.addEventListener('pointercancel', e => {clearPress();pointers.delete(e.pointerId);});
-    svg.addEventListener('wheel', e => {
-      e.preventDefault();
-      setZoom(e.deltaY > 0 ? 1.12 : .88);
-    }, {
-      passive: false
+      },zoom:factor=>setZoom(factor,true),end:()=>scheduleMapUpdate()
     });
   }
   function click(e: MouseEvent) {
@@ -656,7 +630,6 @@ export function mountGame(root: HTMLElement): () => void {
         break;
       case 'close':
         if(modal==='summary'){turnSummary=null;send({type:'SUMMARY_ACK'});}
-        if(modal==='summary'){turnSummary=null;send({type:'SUMMARY_ACK'});}
         else if(turnSummary){modal='summary';render();break;}
         if(consulting() && (state?.phase!=='POST_CONQUEST_MOVE'||!humanTurn())){
           modal=null;blitz=false;
@@ -781,6 +754,7 @@ export function mountGame(root: HTMLElement): () => void {
   }
   function visibility() {
     if (document.hidden) {
+      gestures?.reset();
       blitz = false;
       send({
         type: 'PAUSE'
@@ -793,7 +767,8 @@ export function mountGame(root: HTMLElement): () => void {
     if(privacy&&screen==='table'){if(e.key==='Tab'){e.preventDefault();root.querySelector<HTMLButtonElement>('[data-action="reveal"]')?.focus();}return;}
     if(presenting&&!consulting())return;
     if (e.key === 'Escape' && (state?.phase !== 'POST_CONQUEST_MOVE' || !humanTurn())) {
-      modal = null;
+      if(modal==='summary'){turnSummary=null;send({type:'SUMMARY_ACK'});}
+      modal = turnSummary?'summary':null;
       blitz = false;
       render();
     }
@@ -804,11 +779,15 @@ export function mountGame(root: HTMLElement): () => void {
   });
   document.addEventListener('visibilitychange', visibility);
   const onViewportResize=()=>{
+    gestures?.reset();
     fitMapTargets();
     root.querySelectorAll<HTMLElement>('[data-floating]').forEach(panel=>positionPanel(root,panel,[selected,target].filter((n):n is number=>n!==null)));
   };
   globalThis.addEventListener?.('resize',onViewportResize);
+  const resetGestures=()=>gestures?.reset();
+  globalThis.addEventListener?.('blur',resetGestures);
   const nativePause = () => {
+    gestures?.reset();
     blitz = false;
     send({
       type: 'PAUSE'
@@ -958,6 +937,8 @@ export function mountGame(root: HTMLElement): () => void {
   return () => {
     disposeWebApp();if(backupURL)URL.revokeObjectURL(backupURL);
     globalThis.removeEventListener?.('resize',onViewportResize);
+    globalThis.removeEventListener?.('blur',resetGestures);
+    gestures?.dispose();gestures=null;gestureMap=null;
     if(mapFrame!==null)cancelAnimationFrame(mapFrame);
     if(dialogExit)clearTimeout(dialogExit);
     cancelPresentation();
