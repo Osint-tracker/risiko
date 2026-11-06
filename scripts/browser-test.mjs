@@ -198,6 +198,54 @@ try{
  const hit=await page.locator('.territory-hit').first().boundingBox();assert.ok(hit.width>=43.9&&hit.height>=43.9);
  await page.screenshot({path:`${artifactDir}/countdown-objective-points.png`});
  }
+ if(runCase('map-gestures')){
+ const s=createGame({players:3,name:'Comandante',difficulties:['medio','medio'],turnSeconds:600,seed:17,manualReinforcement:true});
+ s.active=0;s.phase='REINFORCEMENT';s.round=5;s.reinforcements=3;s.players.forEach(p=>p.setupRemaining=0);
+ await loadFixture(s);
+ await page.evaluate(()=>{
+  const map=document.querySelector('#world-map');window.gestureMap=map;window.mapDetachments=0;
+  new MutationObserver(records=>{
+   for(const record of records)for(const node of record.removedNodes)if(node===map||node.contains(map))window.mapDetachments++;
+  }).observe(document.querySelector('#scene'),{childList:true,subtree:true});
+ });
+ const cdp=await page.context().newCDPSession(page);
+ const touch=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([id,x,y])=>({id,x,y,radiusX:2,radiusY:2,force:1}))});
+ const view=()=>page.locator('#world-map').getAttribute('viewBox').then(s=>s.split(/\s+/).map(Number));
+ await page.locator('[data-action="zoom-in"]').click();
+ const rect=await page.locator('#world-map').boundingBox(),x=rect.x+rect.width*.5,y=rect.y+rect.height*.5;
+ assert.ok(await page.evaluate(({x,y})=>document.querySelector('#world-map').contains(document.elementFromPoint(x,y)),{x,y}),'Il gesto deve partire sulla mappa visibile');
+ let before=await view();
+ await touch('touchStart',[[1,x,y]]);await touch('touchMove',[[1,x+25,y+10]]);await touch('touchEnd',[]);
+ await page.waitForFunction(x=>Number(document.querySelector('#world-map').getAttribute('viewBox').split(' ')[0])!==x,before[0]);
+ let after=await view();assert.equal(after[2],before[2],'Un dito deve spostare, senza ingrandire');
+ // Two contacts zoom; removing the first leaves an ordinary one-finger pan.
+ before=after;
+ await touch('touchStart',[[1,x-35,y],[2,x+35,y]]);
+ await touch('touchMove',[[1,x-50,y],[2,x+50,y]]);
+ await page.waitForFunction(w=>Number(document.querySelector('#world-map').getAttribute('viewBox').split(' ')[2])<w,before[2]);
+ await touch('touchMove',[[2,x+50,y]]);before=await view();
+ await touch('touchMove',[[2,x+70,y+10]]);await touch('touchEnd',[]);
+ await page.waitForFunction(x=>Number(document.querySelector('#world-map').getAttribute('viewBox').split(' ')[0])!==x,before[0]);
+ after=await view();assert.equal(after[2],before[2],'Dopo il pinch, il dito rimasto non deve continuare a zoomare');
+ // A real captured pointer is explicitly interrupted, as on Android blur or
+ // capture loss. The next reinforcement must work in the same mounted game.
+ await page.evaluate(()=>document.querySelector('#world-map').addEventListener('pointerdown',e=>{window.mapPointerId=e.pointerId;},{once:true}));
+ await touch('touchStart',[[1,x,y]]);
+ await page.evaluate(()=>document.querySelector('#world-map').releasePointerCapture(window.mapPointerId));
+ await touch('touchMove',[[1,x+10,y]]);await touch('touchEnd',[]);
+ await page.locator('[data-action="reset-map"]').click();
+ const id=s.board.findIndex(c=>c.owner===0),armies=s.board[id].armies;
+ for(let count=1;count<=3;count++){
+  await clickTerritory(page,id);
+  await page.waitForFunction(({id,n})=>document.querySelector(`[data-token="${id}"] .tank-number`)?.textContent===String(n),{id,n:armies+count});
+  await page.locator('[data-action="undo-place"]:not([disabled])').waitFor();
+  assert.deepEqual(await page.evaluate(()=>({same:window.gestureMap===document.querySelector('#world-map'),connected:window.gestureMap.isConnected,detached:window.mapDetachments})),{same:true,connected:true,detached:0},'Aggiornare le armate non deve staccare e reinserire la mappa');
+ }
+ await page.locator('[data-action="next"]:not([disabled])').click();
+ await page.locator('.game-table[data-phase="ATTACK"]').waitFor();
+ assert.equal(await page.evaluate(()=>window.mapDetachments),0);
+ await cdp.detach();
+ }
  for(const n of [4,5]){
   if(!runCase('setup-'+n))continue;
   const setup=createGame({players:n,name:'Comandante',difficulties:Array(n-1).fill('medio'),turnSeconds:180,seed:41});
