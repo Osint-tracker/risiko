@@ -12,9 +12,9 @@ test('suite browser: esegue tutti gli scenari anche dopo un exit 1 o un errore d
 test('suite browser: codice mancante non diventa un falso successo',async()=>{
  const results=await runBrowserCases(async()=>null,['interrupted']);assert.equal(results[0].passed,false);assert.equal(results[0].code,1);
 });
-test('suite browser: 11 casi distinti coprono classico, Antartide, carte, ripresa e combattimento',()=>{
- assert.equal(new Set(browserCases).size,11);
- for(const name of ['home-setup-3','setup-4','setup-5','antarctica-3','antarctica-4','antarctica-5','human-combat','antarctica-combat','bot-cards','board-resume','reinforcement-undo'])assert.ok(browserCases.includes(name));
+test('suite browser: 12 casi distinti coprono classico, Antartide, carte, ripresa, gesti e combattimento',()=>{
+ assert.equal(new Set(browserCases).size,12);
+ for(const name of ['home-setup-3','setup-4','setup-5','antarctica-3','antarctica-4','antarctica-5','human-combat','antarctica-combat','bot-cards','board-resume','reinforcement-undo','map-gestures'])assert.ok(browserCases.includes(name));
 });
 test('contratto selettori: carte della mano distinte dal vassoio in ogni accesso browser',()=>{
  const script=readFileSync('scripts/browser-test.mjs','utf8');

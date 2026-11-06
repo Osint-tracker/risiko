@@ -496,3 +496,18 @@ test('carte: selezione e rimozione dal tris hanno identità distinte anche duran
   assert.equal((f.root.innerHTML.match(/data-remove-card="3"/g)??[]).length,1);
  }finally{f.cleanup();}
 });
+
+test('riepilogo turno: Escape e Chiudi inviano un solo ACK e sbloccano i rinforzi',()=>{
+ for(const exit of ['escape','close','summary-continue']){
+  const f=fixture();f.click({action:'new'});
+  const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:17,manualReinforcement:true});
+  s.active=0;s.phase='REINFORCEMENT';s.round=5;s.reinforcements=3;s.players.forEach(p=>p.setupRemaining=0);
+  f.worker.emit({type:'STATE',state:project(s)});f.worker.emit({type:'TURN_SUMMARY',lines:['Turno bot concluso']});
+  if(exit==='escape')f.callbacks.keydown({key:'Escape'});else f.click({action:exit});
+  assert.equal(f.worker.messages.filter(m=>m.type==='SUMMARY_ACK').length,1,exit);
+  const id=owned(s,0)[0];
+  f.callbacks.keydown({key:'Enter',target:{closest:()=>({getAttribute:()=>String(id)})}});
+  assert.ok(f.worker.messages.some(m=>m.type==='COMMAND'&&m.command.type==='PLACE'&&m.command.territory===id),exit);
+  f.cleanup();
+ }
+});
