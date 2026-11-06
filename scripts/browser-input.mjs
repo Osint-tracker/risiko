@@ -2,6 +2,26 @@ import assert from 'node:assert/strict';
 
 import {resolveMapPointers} from '../src/gui/mapPointer.ts';
 
+// The animated counter changes before the Worker transition is acknowledged.
+// A button left enabled by the previous render is not a command-completion signal.
+// Keep this self-contained: Playwright evaluates it atomically in the page.
+export function mapPlacementCommitted({revision,id,armies}) {
+ const table=document.querySelector('.game-table');
+ const number=table?.querySelector(`[data-token="${id}"] .tank-number`);
+ const effects=document.querySelector('#effects');
+ return !!table&&!!number&&!!effects
+  &&Number(table.getAttribute('data-revision'))===revision+1
+  &&number.textContent===String(armies)
+  &&effects.childElementCount===0;
+}
+
+export async function placeTerritoryAndWait(page,id,armies,click=clickTerritory) {
+ const revision=Number(await page.locator('.game-table').getAttribute('data-revision'));
+ assert.ok(Number.isInteger(revision),'Revisione della plancia non valida');
+ await click(page,id);
+ await page.waitForFunction(mapPlacementCommitted,{revision,id,armies},{timeout:5000});
+}
+
 // Click the map through a real pointer, using the same resolution as gameplay.
 // A transparent neighbour may be the DOM hit without being the intended target.
 // Clicking the SVG (not an obscured territory group) respects that distinction.

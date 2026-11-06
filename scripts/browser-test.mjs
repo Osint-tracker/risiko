@@ -1,7 +1,7 @@
 import {spawn} from 'node:child_process';
 import {browserCases} from './browser-cases.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
-import {clickTerritory,browserDiagnostics} from './browser-input.mjs';
+import {clickTerritory,placeTerritoryAndWait,browserDiagnostics} from './browser-input.mjs';
 import {pauseBrowserGame,leaveGameForFixture} from './browser-session.mjs';
 import {completeBrowserSetup} from './browser-setup.mjs';
 import {readBoardLayout,assertBoardLayout,readMapScale} from './browser-layout.mjs';
@@ -262,9 +262,8 @@ try{
  await page.locator('[data-action="reset-map"]').click();
  const id=s.board.findIndex(c=>c.owner===0),armies=s.board[id].armies;
  for(let count=1;count<=3;count++){
-  await clickTerritory(page,id);
-  await page.waitForFunction(({id,n})=>document.querySelector(`[data-token="${id}"] .tank-number`)?.textContent===String(n),{id,n:armies+count});
-  await page.locator('[data-action="undo-place"]:not([disabled])').waitFor();
+  await placeTerritoryAndWait(page,id,armies+count);
+  assert.equal(await page.locator('[data-action="undo-place"]').isEnabled(),true);
   assert.deepEqual(await page.evaluate(()=>({same:window.gestureMap===document.querySelector('#world-map'),connected:window.gestureMap.isConnected,detached:window.mapDetachments})),{same:true,connected:true,detached:0},'Aggiornare le armate non deve staccare e reinserire la mappa');
  }
  await page.locator('[data-action="next"]:not([disabled])').click();
