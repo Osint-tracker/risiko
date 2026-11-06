@@ -19,7 +19,7 @@ La rimozione dal tris è idempotente, rimane disponibile durante gli effetti e r
 
 ## Suite attuale
 
-`npm run test:ui` avvia `scripts/browser-suite.mjs`. Esegue in sequenza 11 processi browser indipendenti: Home/setup a 3, plancia/ripresa, rinforzi/Undo, setup a 4, setup a 5, combattimento umano, carte durante turno bot, Antartide a 3/4/5, combattimento polare.
+`npm run test:ui` avvia `scripts/browser-suite.mjs`. Esegue in sequenza 12 processi browser indipendenti: Home/setup a 3, plancia/ripresa, rinforzi/Undo, setup a 4, setup a 5, combattimento umano, carte durante turno bot, Antartide a 3/4/5, combattimento polare, gesti della mappa.
 
 Ogni processo crea un browser e un contesto nuovi: nessun salvataggio, velocità bot o pannello lasciato aperto dal caso precedente. All'interno dei casi che verificano persistenza, reload e ripresa la sessione viene conservata intenzionalmente. I controlli di animazione restano nel caso che esegue l'attacco.
 
@@ -37,4 +37,10 @@ Il workflow esistente continua a usare `npm run test:ui`, quindi non richiede mo
 
 ## Limite della verifica locale
 
-Questa consegna verifica localmente TypeScript, build, PWA e test Node, inclusi contratti delle carte e comportamento del runner dopo errori. L'esecuzione browser completa non è certificata in questo ambiente: il server locale/Chromium sono bloccati dalle restrizioni di esecuzione. Il riepilogo GitHub degli 11 casi è la verifica end-to-end necessaria; i controlli Node non la sostituiscono.
+Questa consegna verifica localmente TypeScript, build, PWA e test Node, inclusi contratti delle carte e comportamento del runner dopo errori. L'esecuzione browser completa non è certificata in questo ambiente: il server locale/Chromium sono bloccati dalle restrizioni di esecuzione. Il riepilogo GitHub dei 12 casi è la verifica end-to-end necessaria; i controlli Node non la sostituiscono.
+
+## Regressione gesti e rinforzi
+
+Il caso `map-gestures` usa gli eventi touch di Chromium tramite CDP: trascinamento con un dito, pinch, passaggio a un solo dito, perdita della cattura e tre piazzamenti consecutivi nella stessa partita. Controlla che lo zoom non cambi durante il trascinamento, che il piazzamento riparta senza passare dalla Home e che l’SVG non venga mai staccato dal DOM durante gli aggiornamenti (MutationObserver). Il cambio alla fase Attacco deve conservare la stessa mappa.
+
+I test Node `map-gestures.test.ts` coprono inoltre cancellazione, contatto primario dopo un pointerup mancante, reset su pausa/rotazione, pressione lunga, mouse e rimozione dei listener. `ui.test.ts` controlla che Escape, Chiudi e Continua sul riepilogo inviino esattamente un SUMMARY_ACK e consentano il comando PLACE successivo.
