@@ -21,7 +21,10 @@ try{
  let connected=false;
  for(let i=0;i<100;i++){if(server.exitCode!==null)throw new Error('Server non disponibile: '+logs);try{if((await fetch('http://127.0.0.1:4173')).ok){connected=true;break;}}catch{}await wait(200);}
  assert.ok(connected,'Server non avviato');
- browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
+ // Chromium's legacy CDP touch backend leaves omitted contacts pressed on
+ // touchMove. SyntheticPointerActions implements partial finger release.
+ // Use it only for the touch scenario (or the legacy all-in-one invocation).
+ browser=await chromium.launch({headless:true,...(runCase('map-gestures')?{args:['--enable-features=SyntheticPointerActions']}:{}),...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{})});
  page=await browser.newPage({viewport:{width:844,height:390},...(process.env.RECORD_UI?{recordVideo:{dir:`${artifactDir}/video`,size:{width:844,height:390}}}:{})});
  const errors=[],external=[];
  await page.context().tracing.start({screenshots:true,snapshots:true});
@@ -204,12 +207,27 @@ try{
  await loadFixture(s);
  await page.evaluate(()=>{
   const map=document.querySelector('#world-map');window.gestureMap=map;window.mapDetachments=0;
+  window.mapTouchEvents=[];window.activeMapTouches=new Set();
+  for(const type of ['pointerdown','pointermove','pointerup','pointercancel'])map.addEventListener(type,e=>{
+   if(e.pointerType!=='touch')return;
+   if(type==='pointerdown')window.activeMapTouches.add(e.pointerId);
+   if(type==='pointerup'||type==='pointercancel')window.activeMapTouches.delete(e.pointerId);
+   window.mapTouchEvents.push({type,id:e.pointerId,primary:e.isPrimary,trusted:e.isTrusted,x:e.clientX,y:e.clientY});
+  });
   new MutationObserver(records=>{
    for(const record of records)for(const node of record.removedNodes)if(node===map||node.contains(map))window.mapDetachments++;
   }).observe(document.querySelector('#scene'),{childList:true,subtree:true});
  });
  const cdp=await page.context().newCDPSession(page);
  const touch=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points.map(([id,x,y])=>({id,x,y,radiusX:2,radiusY:2,force:1}))});
+ // Read camera values after the app's queued requestAnimationFrame update.
+ const paint=()=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ const contacts=async(count)=>{
+  await page.waitForFunction(n=>window.activeMapTouches.size===n,count,{timeout:5000});
+  const observed=await page.evaluate(()=>({active:window.activeMapTouches.size,events:window.mapTouchEvents}));
+  assert.equal(observed.active,count,`Sequenza touch Chromium non valida: attesi ${count} contatti; ${JSON.stringify(observed.events)}`);
+  assert.ok(observed.events.every(e=>e.trusted),'Usare eventi browser autentici, non dispatchEvent');
+ };
  const view=()=>page.locator('#world-map').getAttribute('viewBox').then(s=>s.split(/\s+/).map(Number));
  await page.locator('[data-action="zoom-in"]').click();
  const rect=await page.locator('#world-map').boundingBox(),x=rect.x+rect.width*.5,y=rect.y+rect.height*.5;
@@ -221,16 +239,24 @@ try{
  // Two contacts zoom; removing the first leaves an ordinary one-finger pan.
  before=after;
  await touch('touchStart',[[1,x-35,y],[2,x+35,y]]);
+ await contacts(2);
+ const firstFinger=await page.evaluate(()=>window.mapTouchEvents.filter(e=>e.type==='pointerdown').slice(-2).find(e=>e.primary)?.id);
+ assert.notEqual(firstFinger,undefined,'Il pinch deve avere un contatto primario');
  await touch('touchMove',[[1,x-50,y],[2,x+50,y]]);
  await page.waitForFunction(w=>Number(document.querySelector('#world-map').getAttribute('viewBox').split(' ')[2])<w,before[2]);
- await touch('touchMove',[[2,x+50,y]]);before=await view();
+ await touch('touchMove',[[2,x+50,y]]);
+ await contacts(1);
+ assert.ok(await page.evaluate(id=>window.mapTouchEvents.some(e=>e.type==='pointerup'&&e.id===id),firstFinger),'Il primo dito deve essere davvero sollevato prima del trascinamento');
+ await paint();before=await view();
  await touch('touchMove',[[2,x+70,y+10]]);await touch('touchEnd',[]);
+ await contacts(0);await paint();
  await page.waitForFunction(x=>Number(document.querySelector('#world-map').getAttribute('viewBox').split(' ')[0])!==x,before[0]);
  after=await view();assert.equal(after[2],before[2],'Dopo il pinch, il dito rimasto non deve continuare a zoomare');
  // A real captured pointer is explicitly interrupted, as on Android blur or
  // capture loss. The next reinforcement must work in the same mounted game.
  await page.evaluate(()=>document.querySelector('#world-map').addEventListener('pointerdown',e=>{window.mapPointerId=e.pointerId;},{once:true}));
  await touch('touchStart',[[1,x,y]]);
+ await contacts(1);
  await page.evaluate(()=>document.querySelector('#world-map').releasePointerCapture(window.mapPointerId));
  await touch('touchMove',[[1,x+10,y]]);await touch('touchEnd',[]);
  await page.locator('[data-action="reset-map"]').click();
