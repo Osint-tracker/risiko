@@ -1,10 +1,11 @@
+import {objectivePoints} from '../data/mapGraph.ts';
 import {summarizeBots} from './TurnSummary.ts';
 import {withDecisionBudget} from '../ai/Budget.ts';
 import {tutorialGame,tutorialComplete,tutorialSteps} from './Tutorial.ts';
 import {PrivacyGate} from './Privacy.ts';
 import {scenarioGame} from '../services/Scenarios.ts';
 import {makeBackup,parseBackup} from '../services/Backup.ts';
-import {createGame, applyCommand, advanceClock, project, random, assertState} from './RisikoRulesEngine.ts';
+import {createGame, applyCommand, advanceClock, owned, project, random, assertState} from './RisikoRulesEngine.ts';
 import {humanDecision, decisionDelay} from '../ai/HumanBot.ts';
 import {makeTransition, PresentationGate} from './presentation.ts';
 import {StorageService} from '../services/StorageService.ts';
@@ -93,7 +94,14 @@ ctx.onmessage = ({data}) => enqueue(async () => {
     case 'REVEAL':
       if(!state)break;privacy.reveal(data.player,data.token);lastTick=performance.now();await commit({...state,paused:false});break;
     case 'ANIMATION_FILTER':animationFilter=['all','involved','summary'].includes(data.filter)?data.filter:'all';break;
-    case 'SLOTS':post({type:'SLOTS',slots:(await storage.slots()).map(({state:s,...slot})=>({...slot,round:s.round,players:s.players.length,phase:s.phase,board:s.board,antarctica:s.antarctica,endMode:s.endMode}))});break;
+    case 'SLOTS': {
+      const slots=(await storage.slots()).map(({state:s,...slot})=>{
+        const humans=s.players.filter(player=>player.human);
+        const score=humans.length===1?objectivePoints(humans[0].objective,owned(s,humans[0].id)):undefined;
+        return {...slot,round:s.round,score,players:s.players.length,phase:s.phase,board:s.board,antarctica:s.antarctica,endMode:s.endMode};
+      });
+      post({type:'SLOTS',slots});break;
+    }
     case 'SLOT_SELECT':clearPresentation();turnSummary=null;botBoundary=null;state=await storage.selectSlot(data.id);if(state){privacy.reset(state);await commit(state);}break;
     case 'SLOT_EDIT':await storage.editSlot(data.id,data.action,data.name);if(data.action==='delete'&&state?.id===data.id)state=null;post({type:'SLOTS_CHANGED'});break;
     case 'PROFILES':post({type:'PROFILES',profiles:await storage.localProfiles()});break;

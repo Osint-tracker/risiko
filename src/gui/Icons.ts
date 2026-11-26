@@ -1,4 +1,5 @@
 const paths:Record<string,string>={
+ user:'M12 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8M3 21q2-7 9-7t9 7',
  home:'M3 11L12 3L21 11M5 10V21H10V15H14V21H19V10',
  play:'M7 4L21 12L7 20Z',chevron:'M9 5L16 12L9 19',back:'M15 5L8 12L15 19',
  shield:'M12 3L21 6V12Q20 19 12 22Q4 19 3 12V6Z',

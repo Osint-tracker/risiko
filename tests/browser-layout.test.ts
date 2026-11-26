@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {readBoardLayout,assertBoardLayout,readMapScale} from '../scripts/browser-layout.mjs';
 
 function layout(){return {phase:'ATTACK',active:'0',revision:'70',scrollWidth:844,viewportWidth:844,boxes:{
- '.board-top':{x:3,y:3,width:838,height:46},'.map-stage':{x:3,y:52,width:838,height:250},
- '.board-bottom':{x:3,y:305,width:838,height:72},'.players-row':{x:3,y:305,width:410,height:72},
- '.command-deck':{x:417,y:305,width:424,height:72},'.reference-zoom':{x:8,y:250,width:230,height:44},
- '.reference-sidebar':{x:770,y:56,width:62,height:240}
+ '.board-top':{x:707,y:8,width:129,height:58},'.map-stage':{x:0,y:0,width:844,height:390},
+ '.board-bottom':{x:143,y:305,width:558,height:72},'.players-row':{x:8,y:8,width:128,height:191},
+ '.command-deck':{x:143,y:305,width:558,height:72},'.reference-zoom':{x:8,y:288,width:128,height:92},
+ '.reference-sidebar':{x:707,y:8,width:129,height:240}
 }};}
 
 test('HUD: snapshot coerente supera tutti i controlli geometrici',()=>{
@@ -19,7 +19,7 @@ test('HUD: un elemento mancante produce un errore identificabile, non null.y né
  }
 });
 test('HUD: restano rilevate sovrapposizioni, elementi nascosti e overflow',()=>{
- const overlap=layout();overlap.boxes['.board-bottom'].y=290;assert.throws(()=>assertBoardLayout(overlap),/HUD sovrapposto/);
+ const overlap=layout();overlap.boxes['.players-row'].height=300;assert.throws(()=>assertBoardLayout(overlap),/HUD sovrapposto/);
  const rail=layout();rail.boxes['.reference-zoom'].width=800;assert.throws(()=>assertBoardLayout(rail),/Zoom e Cronologia/);
  const hidden=layout();hidden.boxes['.map-stage'].height=0;assert.throws(()=>assertBoardLayout(hidden),/non visibile/);
  const overflow=layout();overflow.scrollWidth=900;assert.throws(()=>assertBoardLayout(overflow),/orizzontalmente/);

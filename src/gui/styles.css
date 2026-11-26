@@ -32,3 +32,48 @@
 .atlas-crest{width:170px;height:64px;color:var(--metal-brass)}.card-owned-bonus{font-size:12px;color:var(--metal-light);text-align:center}.slot-map{display:block;width:100%;height:100px;background:#0b1f2e;border-radius:6px;margin:8px 0}.setup-quick{margin:8px 0}.setup-quick button{font-size:12px;padding:8px 5px}.setup-quick-label{font-size:12px}
 
 .combat-actions{position:sticky;bottom:0;background:var(--surface-slate);padding-top:3px}.move-panel .move-heading h2.sr-only,.combat-header.sr-only{margin:0;padding:0}.move-panel input[type=range]{min-height:24px}.move-panel .move-heading p{font-size:14px}.combat-metrics{margin-top:4px}.dice-bowl{background:radial-gradient(ellipse,#38545c,#16313e 75%);border-color:var(--metal-brass)}.battle-side{background:linear-gradient(#163340,#244651);border-color:var(--line)}.battle-side.side-1>small{color:var(--text-ivory)}
+
+/* Atlante 2.1 — shell and panels. Map tokens retain their original typography. */
+@font-face{font-family:Cinzel;src:url('/fonts/cinzel-Cinzel.ttf') format('truetype');font-weight:400 900;font-display:swap}
+@font-face{font-family:SourceSans;src:url('/fonts/sourcesans3-SourceSans3.ttf') format('truetype');font-weight:200 900;font-display:swap}
+:root{font-family:SourceSans,Arial,sans-serif;--surface-slate:#13293a;--surface-raised:#13293a;--text-muted:#9fb0b8;--line:#c8a45a59}
+button,.secondary,.player-card,.portal-menu button{background:#13293a;box-shadow:none;border-color:var(--line)}
+.primary,.portal-play,button.active,.segmented .active{background:#c8a45a;color:#14202a;box-shadow:none}
+h1,h2,h3,.section-heading h1,.objective-score,.portal-brand{font-family:Cinzel,Georgia,serif}
+.classic-home,.atlas-home,.modal-backdrop.menu-sheet{background:#0b1f2e}
+.portal-column,.modal,.pause-card,.fx-window{background:#0b1f2e;border:1px solid var(--line);border-radius:14px;box-shadow:none}
+.atlas-home{background:#081722;display:grid;place-items:start center;padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+.atlas-home .portal-column{width:min(380px,100%);min-height:min(820px,calc(100dvh - 16px));margin:0;padding:26px 22px;display:flex;flex-direction:column;gap:14px;border-radius:36px}
+.atlas-account,.atlas-profile,.atlas-profile>span,.portal-resume span{display:flex;align-items:center;gap:10px}
+.atlas-account{justify-content:space-between}.atlas-profile{padding:4px 14px 4px 4px;border-radius:24px}.atlas-profile>span:last-child{display:grid;text-align:left;gap:0;font-size:14px;line-height:1.1}
+.atlas-profile small{font-weight:400;color:#9fb0b8}.avatar-icon,.atlas-settings{border-radius:50%;color:#c8a45a}.avatar-icon{border:1px solid;width:32px;height:32px;justify-content:center}.atlas-settings{width:44px;padding:0}
+.atlas-brand h1{font:700 50px/1 Cinzel,Georgia,serif;color:#c8a45a;letter-spacing:.14em;text-indent:.14em;text-shadow:none;margin:4px 0 6px}
+.atlas-brand p{border:0;padding:0;margin:0;font:600 11px SourceSans,sans-serif;letter-spacing:.34em;color:#bec6c7}
+.atlas-home .atlas-hero{flex:none;width:206px;height:236px;margin:2px auto 4px;border-radius:50%;border:3px solid #c8a45a;background:#13293a;box-shadow:0 0 0 6px #0b1f2e,0 0 0 7px #c8a45a66}
+.atlas-hero .atlas-watermark{width:330px;height:232px;left:-65px;top:34px;opacity:.16}.atlas-home .atlas-hero img{width:196px;height:auto;max-width:none;left:8px;right:auto;bottom:-14px;filter:none}
+.atlas-home .portal-play,.atlas-home .portal-resume{margin:0;border-radius:12px}.portal-play{min-height:56px;font:700 19px Cinzel,Georgia,serif}.portal-resume{min-height:52px;justify-content:space-between;background:transparent;border-color:#c8a45a;font:600 16px SourceSans,sans-serif}
+.atlas-home .portal-menu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0}.atlas-home .portal-menu button{min-height:62px;border-radius:12px;justify-content:center;font-size:15px}.atlas-more{margin-top:auto;text-align:center}.atlas-more details{margin:0;border:0}.atlas-more summary{font-size:13px;color:#c8a45a}.atlas-more details div{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}.atlas-more small{width:100%}
+.reference-table{--rail:clamp(116px,16vw,158px);--gap:8px;display:block;position:relative;height:100%;padding:0;background:#0c2232}
+.reference-table .map-stage{height:100%;border:0;background:#0c2232;border-radius:0}
+.reference-table .map-container{inset:0 calc(var(--rail) - 28px);background:#0c2232}
+.reference-table .players-row,.reference-table .reference-sidebar,.reference-table .board-bottom,.reference-table .reference-zoom{position:absolute;z-index:3}
+.reference-table .players-row{inset:var(--gap) auto auto var(--gap);display:flex;flex-direction:column;width:var(--rail);max-height:calc(100% - 112px);overflow:auto;border:1px solid var(--line);background:#0b1f2ee8;border-radius:12px;padding:5px;gap:2px}
+.reference-table .player-card{display:block;min-width:0;min-height:44px;flex:none;width:100%;text-align:left;padding:4px 7px;border:1px solid transparent;background:transparent}
+.reference-table .player-card.turn-active{background:#c8a45a1f;border-color:#c8a45a;box-shadow:none}.player-heading{display:flex;gap:8px}.player-orb{border-radius:50%}.reference-table .player-numbers{display:block;padding-left:22px;font-size:11px;color:#9fb0b8}
+.reference-table .reference-sidebar{inset:var(--gap) var(--gap) auto auto;width:var(--rail);max-height:calc(100% - 16px);display:flex;gap:6px;border:0;background:transparent;padding:0}
+.reference-sidebar .board-top,.reference-table .reference-sidebar>button{position:relative;flex:none;display:flex;background:#0b1f2ee8;border:1px solid var(--line);border-radius:12px;box-shadow:none}
+.reference-sidebar .board-top{flex-direction:column;align-items:start;gap:1px;padding:8px 28px 8px 9px}.board-top [data-action="game-menu"]{position:absolute;right:1px;top:1px;padding:0;min-width:36px;min-height:36px;border:0;background:none}
+.reference-sidebar .turn-pill,.reference-sidebar .round-pill{display:flex;gap:3px;flex-wrap:wrap;font-size:11px}.reference-sidebar .phase-banner{margin:0;padding:0;border:0;font:700 17px Cinzel,serif;text-align:left}.round-pill>.ui-icon{display:none}
+.reference-table .reference-sidebar>button{display:flex;flex-direction:row;flex-wrap:wrap;min-height:44px;padding:6px;gap:4px}.reference-table .reference-sidebar>button span{display:inline;font-size:13px}.reference-table .reference-sidebar .primary{background:#0f6863;color:#f2e7d3}.reference-sidebar progress,.reference-sidebar .sidebar-register{display:none}
+.reference-table .reference-zoom{bottom:var(--gap);left:var(--gap);top:auto;display:grid;grid-template-columns:repeat(3,1fr);width:var(--rail);gap:3px}.reference-table .reference-zoom button{width:100%;min-width:0;height:44px;padding:4px;border-radius:8px}
+.reference-table .board-bottom{inset:auto calc(var(--rail) + 12px) var(--gap);display:block}.reference-table .command-deck{display:block;background:#0b1f2ee8;text-align:center;padding:5px;border-radius:10px}.reference-table .phase-steps{display:none}.reference-table .command-deck #instruction{max-height:none}.reference-table .placement-amounts{display:flex;flex-wrap:wrap}.reference-table .setup-status{bottom:62px;left:50%;transform:translateX(-50%);max-width:calc(100% - 2 * var(--rail));width:max-content}
+.modal.combat.floating-panel{inset:auto auto max(8px,env(safe-area-inset-bottom)) 50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 2 * clamp(116px,16vw,158px) - 24px);max-height:85dvh;padding:5px 35px 4px 8px;border-radius:12px;background:#0b1f2ef5;overflow:auto}
+.atlas-attack-strip{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;font-size:14px}.atlas-attack-strip .ui-icon{width:16px}.atlas-attack-strip .odds{color:#c8a45a}.atlas-attack-strip button{min-height:44px;padding:4px 10px}.attack-options{margin:0;border:0}.attack-options summary{padding:3px;min-height:24px;font-size:12px;color:#9fb0b8}.modal.combat .close-button{width:32px;min-height:36px;right:1px;top:1px}
+.card-face:not(.card-back):not(.card-jolly){background:#f2e7d3;border:1.5px solid #c8a45a;box-shadow:none;border-radius:8px;color:#2a2418}
+.card-face .card-symbol{order:0;align-self:flex-start;color:#655434}.card-face .card-country{order:1}.card-face .card-country path{fill:#c8a45a;stroke:none}.card-face>strong{order:2;font:600 13px SourceSans,sans-serif;letter-spacing:.06em;text-transform:uppercase}
+@media(max-width:600px) and (orientation:portrait){.atlas-home{background:#0b1f2e;padding-inline:0}.atlas-home .portal-column{border:none;border-radius:0}}
+.atlas-home .portal-menu button .ui-icon{margin:0}
+.atlas-more summary{min-height:44px}
+.reference-table .reference-zoom button{display:inline-flex}
+.app-shell:has(.modal.combat) .board-bottom{visibility:hidden}
+.modal.combat.floating-panel{border-color:#c8a45a59;box-shadow:none}

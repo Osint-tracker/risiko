@@ -5,7 +5,7 @@ import {patchElement} from './patchElement.ts';
 import {resolveMapPointers} from './mapPointer.ts';
 import {bindMapGestures} from './mapGestures.ts';
 import {tutorialSteps} from '../engine/Tutorial.ts';
-import {profileView} from './views/ProfileView.ts';
+import {profileView,profileExperience} from './views/ProfileView.ts';
 import {replayView} from './views/ReplayView.ts';
 import {icon,decorateIcons} from './Icons.ts';
 import {homeView} from './views/HomeView.ts';
@@ -165,12 +165,17 @@ export function mountGame(root: HTMLElement): () => void {
   function mapMarkup(preview=false){return boardMap({state,config,viewport,selected,target,modal,inspected,mapLayer,objectiveView,presenting:!!presenting,human:humanTurn(),cardSelection},preview);}
   const header = () => `<header class="portal-header"><button class="portal-brand" data-action="home" aria-label="Menu principale">RisiKo<span>!</span></button><span>TORNEO · OFFLINE</span><button data-action="audio" aria-label="Impostazioni audio">♫</button></header>`;
 
-  function home(){return homeView(profile.name,ready,hasGame||slots.length>0,isNativeApp(),webStatus.ready);}
+  function home(){
+    const current=state&&state.phase!=='GAME_OVER'?state:null;
+    const slot=slots.find(s=>s.phase!=='GAME_OVER');
+    const score=current?(current.players.filter(p=>p.human).length===1?points():undefined):slot?.score;
+    return homeView(profile.name,ready,hasGame||slots.length>0,isNativeApp(),webStatus.ready,profileExperience(profile),current?.round??slot?.round,score);
+  }
   function setup(){return setupView(config,ready,localProfiles,seedOpen);}
   function playerCards() {
     return `<aside class="players-row" aria-label="Giocatori">${state!.order.map(id => {
       const p=state!.players[id];
-      return `<button data-player-info="${id}" class="player-card ${id===state!.active?'turn-active':''} ${p.eliminated?'eliminated':''}" style="--player:${p.color}"><div class="player-heading"><span class="player-orb"><span></span></span><div class="player-identity"><strong>${escape(p.name)}</strong><small>${p.eliminated?'ELIMINATO':p.id===state!.viewer?'TU':p.human?'UMANO':`Bot ${levelNames[p.difficulty]} · ${p.botPolicy?.personality??'equilibrato'}`}</small></div>${id===state!.active?'<span class="turn-arrow">▶</span>':''}</div><div class="player-numbers"><span title="Carri">${tankIcon}<b>${p.totalArmies}</b></span><span title="Territori">◇ ${p.territoryCount}</span><span title="Carte">▣ ${p.cardCount}</span><span title="Rinforzi">↑${p.nextReinforcements}</span></div></button>`;
+      return `<button data-player-info="${id}" class="player-card ${id===state!.active?'turn-active':''} ${p.eliminated?'eliminated':''}" style="--player:${p.color}"><div class="player-heading"><span class="player-orb"><span></span></span><div class="player-identity"><strong>${escape(p.name)}</strong><small>${p.eliminated?'ELIMINATO':p.id===state!.viewer?'TU':p.human?'UMANO':`Bot ${levelNames[p.difficulty]} · ${p.botPolicy?.personality??'equilibrato'}`}</small></div>${id===state!.active?'<span class="turn-arrow">▶</span>':''}</div><div class="player-numbers">${p.territoryCount} terr · ${p.totalArmies} carri</div></button>`;
     }).join('')}</aside>`;
   }
   function instructions() {
@@ -246,7 +251,7 @@ export function mountGame(root: HTMLElement): () => void {
     if(modal==='move'&&s&&selected!==null&&target!==null){const dock=moveDock(s,selected,target,moveCount);content=dock.content;moveCount=dock.count;cls='move-panel';}
     if(screen!=='table')return `<div class="modal-backdrop menu-sheet"><div class="classic-home portal-route">${header()}<section class="modal ${cls} portal-column" role="dialog" aria-modal="true"><button class="portal-back" data-action="close" aria-label="Chiudi">‹ Indietro</button>${content}</section></div></div>`;
     const floating=modal==='combat'||modal==='move';
-    return `<div class="${floating?'floating-wrap':consulting()?'modal-backdrop consultation':'modal-backdrop'}"><section class="modal ${cls} ${floating?'floating-panel':''}" ${floating?'data-floating':''} role="dialog" aria-modal="${!floating}">${floating?`<header data-drag-handle>${modal==='combat'?'Attacco':'Spostamento'} · trascina per spostare</header>`:''}${modal==='move'&&s?.phase === 'POST_CONQUEST_MOVE' ? '' : '<button class="close-button" data-action="close" aria-label="Chiudi">×</button>'}${content}</section></div>`;
+    return `<div class="${floating?'floating-wrap':consulting()?'modal-backdrop consultation':'modal-backdrop'}"><section class="modal ${cls} ${floating?'floating-panel':''}" ${modal==='move'?'data-floating':''} role="dialog" aria-modal="${!floating}">${modal==='move'?`<header data-drag-handle>Spostamento · trascina per spostare</header>`:''}${modal==='move'&&s?.phase === 'POST_CONQUEST_MOVE' ? '' : '<button class="close-button" data-action="close" aria-label="Chiudi">×</button>'}${content}</section></div>`;
   }
   function refreshDialogs() {
     const host=root.querySelector<HTMLElement>('#dialogs');

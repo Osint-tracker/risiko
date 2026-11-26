@@ -285,7 +285,8 @@ try{
  await loadFixture(s);await setPacing(1,'all');
  await clickTerritory(page,0);await clickTerritory(page,1);
  await page.locator('.floating-panel').waitFor();assert.equal(await page.locator('.modal-backdrop').count(),0);
- const panel=await page.locator('.floating-panel').boundingBox();assert.ok(panel.height<=290&&panel.width<=360);
+ const panel=await page.locator('.floating-panel').boundingBox();const rails=await readBoardLayout(page);
+ assert.ok(panel.height<=290&&panel.x>=rails.boxes['.players-row'].x+rails.boxes['.players-row'].width&&panel.x+panel.width<=rails.boxes['.reference-sidebar'].x,'Il dock deve rimanere fra i due pannelli laterali');
  const zoomReachable=await page.locator('[data-action="zoom-in"]').evaluate(button=>{
   const r=button.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===button;
  });
@@ -302,13 +303,18 @@ try{
   });
   window.__cameraObserver.observe(document.querySelector('#scene'),{subtree:true,childList:true,attributes:true,attributeFilter:['viewBox'],attributeOldValue:true});
  });
- await page.locator('[data-action="roll"]').click();await page.locator('.effects-layer.rolling').waitFor();
- assert.equal(await page.locator('.clash-origin').count(),1);assert.equal(await page.locator('.clash-impact').count(),1);
+ // Read every transient indicator in one browser frame. Separate CDP
+ // calls can straddle the transition into the occupation animation.
+ const rolling=page.waitForFunction(()=>{
+  if(!document.querySelector('.effect-battle.rolling'))return false;
+  return ['.clash-origin','.clash-impact','.attack-vector','.fx-source','.fx-target'].map(selector=>document.querySelectorAll(selector).length);
+ });
+ const impact=page.locator('#map-fx.impact-now').waitFor({state:'attached'});
+ await page.locator('[data-action="roll"]').click();
+ assert.deepEqual(await (await rolling).jsonValue(),[1,1,1,1,1]);
  const timer=await page.locator('#timer').innerText();await wait(100);assert.equal(await page.locator('#timer').innerText(),timer);
- assert.equal(await page.locator('.attack-vector').count(),1);
- assert.equal(await page.locator('.fx-source').count(),1);assert.equal(await page.locator('.fx-target').count(),1);
  await page.screenshot({path:`${artifactDir}/dice-rolling.png`});
- await page.locator('#map-fx.impact-now').waitFor();await page.screenshot({path:`${artifactDir}/clash.png`});
+ await impact;await page.screenshot({path:`${artifactDir}/clash.png`});
  await page.locator('[data-action="confirm-move"]').waitFor();
  const attackFrames=await page.evaluate(()=>{window.__cameraObserver.disconnect();return [...window.__cameraFrames,document.querySelector('#world-map').getAttribute('viewBox')];});
  assert.ok(attackFrames.length>1);assert.ok(attackFrames.every(frame=>frame===attackCamera),'Nessun rimbalzo della camera durante attacco/conquista');
