@@ -6,6 +6,7 @@ import {conquestOdds,diceDistribution,inferObjectiveWeights} from './BotAI.ts';
 import type {BotMood} from './BotAI.ts';
 import {strategicCommand as legacyCommand,conquestEstimate} from './LegacyStrategy.ts';
 import {botPolicy} from './policy.ts';
+import {profileOf,setProfileLevel} from './Profile.ts';
 import type {GameView,Command,Difficulty,BotPolicy,BotContext} from '../engine/types.ts';
 export {conquestEstimate};
 type Attack={from:number;to:number;score:number;win:number};
@@ -41,21 +42,24 @@ function refresh(v:GameView){
 function holding(v:GameView,id:number,p:BotPolicy):number{
  const {territories,continents}=mapFor(v),s=summary(v),ci=s.continentOf[id],c=continents[ci];
  const count=s.continentCounts[ci][v.active],length=s.members[ci].length;
- return 1+(goal(v).includes(id)?territories[id].points*(p.personality==='stratega'?.95:.65):0)+(p.continents?c.bonus*(count===length?4:count/length):0);
+ const f=profileOf(p);return 1+(goal(v).includes(id)?territories[id].points*.65*f.objective:0)+(p.continents?f.continent*c.bonus*(count===length?4:count/length):0);
 }
 function gain(v:GameView,to:number,p:BotPolicy,mood?:BotMood):number{
  const {territories,continents}=mapFor(v),g=goal(v),enemy=v.board[to].owner;
  if(g.length&&g.every(id=>id===to||v.board[id].owner===v.active))return 10000;
  const s=summary(v),ci=s.continentOf[to],c=continents[ci],length=s.members[ci].length;
  const missing=length-s.continentCounts[ci][v.active],enemyCount=s.continentCounts[ci][enemy];
- let n=2+(g.includes(to)?territories[to].points*(p.personality==='stratega'?1.7:1.15):0);
- if(v.conquests===0&&v.players[v.active].cardCount<7)n+=p.personality==='incursore'?9:5;
- if(p.weakBorders)n+=Math.max(0,4-v.board[to].armies)*1.3;
- if(p.continents)n+=(p.personality==='conquistatore'?1.45:1)*c.bonus*(missing===1?9:missing<=3?3/missing:0)+(s.campaign===ci?c.bonus*2.5:0);
- if(p.breakBonus&&enemyCount===length)n+=c.bonus*(p.personality==='incursore'?10:7);
- if(p.disruptGrowth&&enemyCount<length&&enemyCount>=length-2)n+=c.bonus*2;
- if(p.eliminate&&s.counts[enemy]===1)n+=10+Math.min(7-v.players[v.active].cardCount,v.players[enemy].cardCount)*4;
- if(p.containLeader){const power=(id:number)=>s.armies[id]+s.income[id]*5;const max=Math.max(...v.players.filter(x=>x.id!==v.active).map(x=>power(x.id)));if(power(enemy)===max&&max>power(v.active)*1.15)n+=4;}
+ const f=profileOf(p),inGoal=g.includes(to);
+ let n=2+(inGoal?territories[to].points*1.15*f.objective:0),relevant=inGoal;
+ if(v.conquests===0&&v.players[v.active].cardCount<7)n+=5;
+ if(p.weakBorders)n+=Math.max(0,4-v.board[to].armies)*1.3*f.picker;
+ if(p.continents){const add=f.continent*(c.bonus*(missing===1?9:missing<=3?3/missing:0)+(s.campaign===ci?c.bonus*2.5:0));n+=add;if(add>0&&s.campaign===ci)relevant=true;}
+ if(p.breakBonus&&enemyCount===length){n+=c.bonus*7*f.breaker;relevant=true;}
+ if(p.disruptGrowth&&enemyCount<length&&enemyCount>=length-2){n+=c.bonus*2*f.breaker;relevant=true;}
+ if(p.eliminate&&s.counts[enemy]===1){n+=(10+Math.min(7-v.players[v.active].cardCount,v.players[enemy].cardCount)*4)*f.hunter;relevant=true;}
+ if(p.containLeader){const power=(id:number)=>s.armies[id]+s.income[id]*5;const max=Math.max(...v.players.filter(x=>x.id!==v.active).map(x=>power(x.id)));if(power(enemy)===max&&max>power(v.active)*1.15)n+=4*f.leader;}
+ if(!relevant)n*=f.offTarget;
+ if(f.cardOnly&&v.conquests>0&&!relevant)n*=.2;
  if(mood?.reclaim===to)n+=4;
  return n;
 }
@@ -67,12 +71,12 @@ export function rankAttacks(v:GameView,p=botPolicy(v.players[v.active].botPolicy
   const a=v.board[from].armies,d=v.board[to].armies,e=conquestEstimate(a,d);
   const value=gain(v,to,p,mood);
   // Normal campaigns must preserve force. Rare desperate sorties are handled separately.
-  const risk={equilibrato:.65,stratega:.72,incursore:.59,conquistatore:.63}[p.personality??'equilibrato'];
+  const risk=profileOf(p).gate+(mood?.riskBias??0);
   if(e.win<(value>=50?.48:risk))continue;
   const remaining=Math.max(1,Math.floor(e.survivors)-1);
-  let score=e.win*value-(1-e.win)*(a-1)*1.2-(a-e.survivors)*1.1;
+  const la=profileOf(p).lossAversion;let score=e.win*value-((1-e.win)*(a-1)*1.2+(a-e.survivors)*1.1)*la;
   if(p.reserve){
-   const reserveFactor=p.personality==='stratega'?1.35:p.personality==='incursore'?.8:1;
+   const reserveFactor=profileOf(p).garrison;
    const other=enemies(v,from).filter(id=>id!==to);
    const risk=Math.max(0,...other.map(id=>conquestOdds(v.board[id].armies,2)));
    score-=risk*holding(v,from,p)*.35*reserveFactor;
@@ -94,9 +98,9 @@ function greedyReinforcementPlan(v:GameView):number[]{
    const army=w.board[id].armies,threat=pressure(w,id);
    // Bundle defence as well: crossing from one die to three is valuable.
    if(p.defend&&threat>0){
-    const need=Math.min(left,Math.max(1,Math.ceil(threat*.65)+1-army));
+    const need=Math.min(left,Math.max(1,Math.ceil(threat*.65*profileOf(p).garrison)+1-army));
     const before=conquestOdds(threat+1,army),after=conquestOdds(threat+1,army+need);
-    const score=(before-after)*holding(w,id,p)*5/Math.pow(need,.6);
+    const score=(before-after)*holding(w,id,p)*5*profileOf(p).garrison/Math.pow(need,.6);
     if(score>best.score)best={id,count:need,score};
    }
    if(w.round>p.graceRounds||w.phase==='SETUP_PLACEMENT')for(const to of enemies(w,id)){
@@ -105,8 +109,8 @@ function greedyReinforcementPlan(v:GameView):number[]{
     // Evaluate all affordable bundles, including a currently illegal attack.
     for(let n=1;n<=left;n++){
      const e=conquestEstimate(army+n,w.board[to].armies);
-     if(e.win<.6)continue;
-     const score=((e.win-before)*gain(w,to,p)*2+e.win*2)/Math.pow(n,.6);
+     if(e.win<Math.min(.6,profileOf(p).gate+.05))continue;
+     const score=((e.win-before)*gain(w,to,p)*2+e.win*2)/Math.pow(n,1-profileOf(p).concentrate);
      if(score>best.score)best={id,count:n,score};
     }
    }
@@ -119,6 +123,7 @@ function greedyReinforcementPlan(v:GameView):number[]{
 }
 /** Compare complete deployment plans with actual stochastic campaigns. */
 export function reinforcementPlan(v:GameView,level:Difficulty):number[]{
+ setProfileLevel(level);
  const base=greedyReinforcementPlan(v);
  if(level==='medio'||v.phase==='SETUP_PLACEMENT'||base.length<3||v.round<=botPolicy(v.players[v.active].botPolicy).graceRounds)return base;
  const p=botPolicy(v.players[v.active].botPolicy),front=owned(v,v.active).filter(id=>border(v,id));
@@ -166,7 +171,7 @@ function occupation(v:GameView,from:number,to:number,min:number,max:number,p:Bot
   const armies=[v.board[from].armies-n,v.board[to].armies+n];
   const risk=fronts.map((list,i)=>Math.max(0,...list.map(e=>conquestOdds(v.board[e].armies,armies[i])))*importance[i]);
   const offense=fronts.map((list,i)=>Math.max(0,...list.map((e,j)=>conquestOdds(armies[i],v.board[e].armies)*values[i][j])));
-  const value=Math.max(...offense)+Math.min(...offense)*.25-(p.reserve||p.defend?(risk[0]+risk[1])*1.8:0)+(fronts[1].length?n*.015:0);
+  const value=Math.max(...offense)+Math.min(...offense)*.25-(p.reserve||p.defend?(risk[0]+risk[1])*1.8*profileOf(p).garrison:0)+(fronts[1].length?n*.015:0);
   if(value>score){score=value;best=n;}
  }
  return best;
@@ -191,14 +196,14 @@ function fight(v:GameView,a:Attack,rng:()=>number):boolean{
   }
   // The live planner reassesses after every roll: a simulation must not force a doomed blitz.
   const value=gain(v,a.to,botPolicy(v.players[v.active].botPolicy));
-  if(conquestOdds(source.armies,target.armies)<(value>=50?.48:.65))break;
+  if(conquestOdds(source.armies,target.armies)<(value>=50?.48:profileOf(botPolicy(v.players[v.active].botPolicy)).gate))break;
  }
  refresh(v);return false;
 }
 function position(v:GameView,actor:number,p:BotPolicy):number{
  const g=goal(v,actor),own=owned(v,actor),points=own.reduce((n,id)=>n+(g.includes(id)?mapFor(v).territories[id].points:0),0);
  if(g.length&&g.every(id=>v.board[id].owner===actor))return 10000;
- let value=points*(p.personality==='stratega'?1.7:1.35)+own.length*1.7+total(v,actor)*.8;
+ const f=profileOf(p);let value=points*1.35*f.objective+own.length*1.7+total(v,actor)*f.armies;
  if(p.continents){
   value+=Math.floor(own.length/3)*6;
   const map=mapFor(v);
@@ -206,12 +211,12 @@ function position(v:GameView,actor:number,p:BotPolicy):number{
    const members=map.territories.filter(t=>t.continent===c.id).map(t=>t.id);
    if(members.every(id=>v.board[id].owner===actor)){
     const retention=Math.min(1,...members.map(id=>1-Math.max(0,...enemies(v,id).map(n=>conquestOdds(v.board[n].armies,v.board[id].armies)))));
-    value+=c.bonus*(5+retention*10);
+    value+=c.bonus*(5+retention*10)*f.continent;
    }
   }
  }
- if(p.breakBonus)value-=v.players.filter(x=>x.id!==actor).reduce((n,x)=>n+Math.max(0,reinforcement(v,x.id)-Math.floor(owned(v,x.id).length/3))*2,0);
- if(p.reserve||p.defend)for(const id of own){const risk=Math.max(0,...enemies(v,id).map(n=>conquestOdds(v.board[n].armies,v.board[id].armies)));value-=risk*(g.includes(id)?2:1);}
+ if(p.breakBonus)value-=v.players.filter(x=>x.id!==actor).reduce((n,x)=>n+Math.max(0,reinforcement(v,x.id)-Math.floor(owned(v,x.id).length/3))*2,0)*f.breaker;
+ if(p.reserve||p.defend)for(const id of own){const risk=Math.max(0,...enemies(v,id).map(n=>conquestOdds(v.board[n].armies,v.board[id].armies)));value-=risk*(g.includes(id)?2:1)*f.garrison;}
  return value;
 }
 /** Public-information reply model: independent opponents, sampled goals from visible moves. */
@@ -244,7 +249,7 @@ function replies(v:GameView,actor:number,rng:()=>number,weights:number[][],depth
 export type DecisionTrace={command:Command;alternatives:{from:number;to:number;score:number;win:number;simulation?:number}[];samples:number};
 /** Bounded stochastic lookahead, same random streams for attack and holding comparisons. */
 export function attackDecision(v:GameView,level:Difficulty,rng:()=>number,mood?:BotMood):DecisionTrace{
- summaries.delete(v);
+ summaries.delete(v);setProfileLevel(level);
  const p=botPolicy(v.players[v.active].botPolicy);
  if(v.round<=p.graceRounds)return {command:{type:'NEXT'},alternatives:[],samples:0};
  const forcing=forcingAttacks(v);
@@ -299,7 +304,7 @@ function frontDistances(v:GameView){
  return distances;
 }
 export function strategicCommand(v:GameView,level:Difficulty,rng:()=>number,mood?:BotMood,context?:BotContext):Command{
- summaries.delete(v);
+ summaries.delete(v);setProfileLevel(level);
  if(level==='facile')return legacyCommand(v,level,rng,mood);
  const p=botPolicy(v.players[v.active].botPolicy);
  if(v.phase==='TRIS_EXCHANGE'){
@@ -323,7 +328,7 @@ export function strategicCommand(v:GameView,level:Difficulty,rng:()=>number,mood
   const distances=frontDistances(v);let best:{from:number;to:number;count:number;score:number}|undefined;
   for(const from of owned(v,v.active))for(const to of mapFor(v).territories[from].neighbors){
    const bounds=moveBounds(v,from,to);if(bounds.max<bounds.min)continue;
-   const safe=p.reserve&&border(v,from)?Math.min(bounds.max,Math.max(0,v.board[from].armies-Math.max(2,Math.ceil(pressure(v,from)*.65)+1))):bounds.max;
+   const safe=p.reserve&&border(v,from)?Math.min(bounds.max,Math.max(0,v.board[from].armies-Math.max(2,Math.ceil(pressure(v,from)*.65*profileOf(p).garrison)+1))):bounds.max;
    if(safe<1)continue;
    const toward=distances[from]>distances[to];
    const attackValue=(army:number)=>Math.max(0,...enemies(v,to).map(e=>conquestOdds(army,v.board[e].armies)*gain(v,e,p)));

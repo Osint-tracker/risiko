@@ -1,4 +1,5 @@
 import type {BotPolicy} from '../engine/types.ts';
+import {defaultToggles} from './Profile.ts';
 export const policyOptions = [
  ['weakBorders','Sfrutta i confini deboli','Cogli le conquiste convenienti.'],
  ['continents','Completa continenti','Cerca bonus anche fuori dall’obiettivo.'],
@@ -10,5 +11,7 @@ export const policyOptions = [
  ['reserve','Conserva una riserva','Evita di lasciare scoperti i confini.']
 ] as const;
 export function botPolicy(value?: Partial<BotPolicy>): BotPolicy {
- return {personality:['equilibrato','stratega','incursore','conquistatore'].includes(value?.personality??'')?value!.personality:'equilibrato',...Object.fromEntries(policyOptions.map(([key])=>[key,typeof value?.[key]==='boolean'?value[key]:true])),graceRounds:Number.isInteger(value?.graceRounds)?Math.max(0,Math.min(3,value!.graceRounds!)):0} as BotPolicy;
+ const personality=['equilibrato','stratega','incursore','conquistatore'].includes(value?.personality??'')?value!.personality!:'equilibrato';
+ const preset=defaultToggles[personality] as Record<string,boolean|undefined>;
+ return {personality,...Object.fromEntries(policyOptions.map(([key])=>[key,typeof value?.[key]==='boolean'?value[key]:(preset[key]??true)])),graceRounds:Number.isInteger(value?.graceRounds)?Math.max(0,Math.min(3,value!.graceRounds!)):0} as BotPolicy;
 }

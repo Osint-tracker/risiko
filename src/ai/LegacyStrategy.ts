@@ -3,6 +3,7 @@ import {owned,border,canAttack,moveBounds,validTris} from '../engine/RisikoRules
 import {conquestOdds,diceDistribution} from './BotAI.ts';
 import type {BotMood} from './BotAI.ts';
 import {botPolicy} from './policy.ts';
+import {profileOf,setProfileLevel} from './Profile.ts';
 import type {GameView,Command,Difficulty,BotPolicy} from '../engine/types.ts';
 type Estimate={win:number;survivors:number};
 const estimates=new Map<string,Estimate>();
@@ -27,7 +28,7 @@ function importance(v:GameView,id:number){
  const control=members.filter(t=>v.board[t].owner===v.active).length/members.length;
  return 1+continents[ci].bonus*control+(objectives[v.players[v.active].objective!-1].territories.includes(id)?1:0);
 }
-function reserveTarget(v:GameView,id:number){return border(v,id)?Math.max(2,Math.min(14,Math.ceil(pressure(v,id)*.65)+1)):1;}
+function reserveTarget(v:GameView,id:number){const g=profileOf(botPolicy(v.players[v.active].botPolicy)).garrison;return border(v,id)?Math.max(2,Math.min(14,Math.ceil(pressure(v,id)*.65*g)+1)):1;}
 function gain(v:GameView,from:number,to:number,p:BotPolicy):number {
  const {territories,continents}=mapFor(v);
  const ownGoal=objectives[v.players[v.active].objective!-1].territories;
@@ -35,37 +36,37 @@ function gain(v:GameView,from:number,to:number,p:BotPolicy):number {
  const ci=continents.findIndex(c=>c.id===territories[to].continent),members=territories.filter(t=>t.continent===continents[ci].id).map(t=>t.id),bonus=continents[ci].bonus;
  const missing=members.filter(id=>v.board[id].owner!==v.active);
  const enemy=v.board[to].owner,enemyMembers=members.filter(id=>v.board[id].owner===enemy).length;
- let value=(ownGoal.includes(to)?territories[to].points*1.4:0)+(v.conquests===0?5:1);
- if(p.personality==='stratega'&&ownGoal.includes(to))value+=territories[to].points*.15;
- if(p.personality==='conquistatore'&&v.conquests===0)value+=1;
- if(p.personality==='incursore'&&enemyMembers===members.length)value+=bonus*.5;
- if(p.weakBorders)value+=Math.max(0,4-v.board[to].armies)*1.1;
+ const f=profileOf(p),inGoal=ownGoal.includes(to);let relevant=inGoal;
+ let value=(inGoal?territories[to].points*1.4*f.objective:0)+(v.conquests===0?5:1);
+ if(p.weakBorders)value+=Math.max(0,4-v.board[to].armies)*1.1*f.picker;
  if(p.continents){
-  if(missing.length===1)value+=bonus*9;
-  else if(missing.length<=3)value+=bonus*4/missing.length;
+  if(missing.length===1){value+=bonus*9*f.continent;relevant=true;}
+  else if(missing.length<=3){value+=bonus*4/missing.length*f.continent;relevant=true;}
  }
- if(p.breakBonus&&enemyMembers===members.length)value+=bonus*7;
- if(p.disruptGrowth&&enemyMembers<members.length&&enemyMembers>=members.length-2)value+=bonus*3.5;
+ if(p.breakBonus&&enemyMembers===members.length){value+=bonus*7*f.breaker;relevant=true;}
+ if(p.disruptGrowth&&enemyMembers<members.length&&enemyMembers>=members.length-2){value+=bonus*3.5*f.breaker;relevant=true;}
  const enemyOwn=owned(v,enemy);
- if(p.eliminate&&enemyOwn.length<=3)value+=(enemyOwn.length===1?12+Math.min(7-v.players[v.active].cardCount,v.players[enemy].cardCount)*3:4/enemyOwn.length);
+ if(p.eliminate&&enemyOwn.length<=3){value+=(enemyOwn.length===1?12+Math.min(7-v.players[v.active].cardCount,v.players[enemy].cardCount)*3:4/enemyOwn.length)*f.hunter;relevant=true;}
  if(p.containLeader){
   const power=(id:number)=>v.players[id].totalArmies+v.players[id].nextReinforcements*4+v.players[id].territoryCount;
   const alive=v.players.filter(x=>!x.eliminated),mean=alive.reduce((n,x)=>n+power(x.id),0)/alive.length;
-  if(power(enemy)>mean*1.2&&alive.every(x=>power(enemy)>=power(x.id)))value+=5;
+  if(power(enemy)>mean*1.2&&alive.every(x=>power(enemy)>=power(x.id)))value+=5*f.leader;
  }
+ if(!relevant)value*=f.offTarget;
+ if(f.cardOnly&&v.conquests>0&&!relevant)value*=.2;
  return value;
 }
 function candidates(v:GameView,p:BotPolicy,level:Difficulty,mood?:BotMood){
  const {territories}=mapFor(v);
  const results:{from:number;to:number;score:number;survivors:number}[]=[];
- const threshold=Math.max(.48,Math.min(.9,(level==='facile'?.7:level==='medio'?.62:.58)+(mood?.riskBias??0)));
+ const threshold=Math.max(.48,Math.min(.9,(level==='facile'?.7:level==='medio'?.62:.58)+(profileOf(p).gate-.65)*.5+(mood?.riskBias??0)));
  for(const from of owned(v,v.active))for(const to of territories[from].neighbors){
   if(!canAttack(v,from,to))continue;
   const e=conquestEstimate(v.board[from].armies,v.board[to].armies);
   if(e.win<threshold)continue;
   const value=gain(v,from,to,p),loss=v.board[from].armies-e.survivors;
   const remaining=Math.max(1,Math.floor(e.survivors)-(border(v,from)?2:1));
-  let score=e.win*value-(1-e.win)*v.board[from].armies*.8-loss*.65;
+  const la=profileOf(p).lossAversion;let score=e.win*value-((1-e.win)*v.board[from].armies*.8+loss*.65)*la;
   if(p.reserve){
    const otherPressure=Math.max(0,...territories[from].neighbors.filter(id=>id!==to&&v.board[id].owner!==v.active).map(id=>v.board[id].armies-1));
    score-=Math.min(5,otherPressure*.3);
@@ -81,6 +82,7 @@ function candidates(v:GameView,p:BotPolicy,level:Difficulty,mood?:BotMood){
  return results.sort((a,b)=>b.score-a.score||a.from-b.from||a.to-b.to);
 }
 export function strategicCommand(v:GameView,level:Difficulty,rng:()=>number,mood?:BotMood):Command {
+ setProfileLevel(level);
  const {territories}=mapFor(v);
  const p=botPolicy(v.players[v.active].botPolicy),own=owned(v,v.active);
  if(v.phase==='TRIS_EXCHANGE'){

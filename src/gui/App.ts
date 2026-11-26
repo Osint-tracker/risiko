@@ -231,7 +231,7 @@ export function mountGame(root: HTMLElement): () => void {
     }
     if(modal==='strategy'){
       const policy=config.botPolicies![strategyBot];cls='strategy-window';
-      content=`<h2>Strategia · ${escape(participants(config)[strategyBot===4?0:strategyBot+1]?.name??'Bot')}</h2><p>Le caselle definiscono le priorità di questo bot per la prossima partita. La partita salvata mantiene le strategie scelte al suo avvio.</p><label class="grace-field">Personalità <select id="bot-personality">${['equilibrato','stratega','incursore','conquistatore','equilibrato'].map(personality=>`<option value="${personality}" ${policy.personality===personality?'selected':''}>${personality}</option>`).join('')}</select></label><div class="policy-list">${policyOptions.map(([key,label,hint])=>`<label><input type="checkbox" data-policy="${key}" ${policy[key]?'checked':''}/><span><strong>${label}</strong><small>${hint}</small></span></label>`).join('')}</div><label class="grace-field">Tregua iniziale <select id="grace-rounds">${[0,1,2,3].map(n=>`<option value="${n}" ${policy.graceRounds===n?'selected':''}>${n===0?'Nessuna':n+' giri'}</option>`).join('')}</select></label><p class="policy-note">Durante la tregua il bot difende e rinforza, ma non attacca.</p><div class="policy-actions"><button class="secondary" data-action="policy-all">Applica a tutti</button><button class="text-button" data-action="policy-reset">Ripristina consigliati</button></div>`;
+      content=`<h2>Strategia · ${escape(participants(config)[strategyBot===4?0:strategyBot+1]?.name??'Bot')}</h2><p>Le caselle definiscono le priorità di questo bot per la prossima partita. La partita salvata mantiene le strategie scelte al suo avvio.</p><label class="grace-field">Personalità <select id="bot-personality">${['equilibrato','stratega','incursore','conquistatore'].map(personality=>`<option value="${personality}" ${policy.personality===personality?'selected':''}>${personality}</option>`).join('')}</select></label><div class="policy-list">${policyOptions.map(([key,label,hint])=>`<label><input type="checkbox" data-policy="${key}" ${policy[key]?'checked':''}/><span><strong>${label}</strong><small>${hint}</small></span></label>`).join('')}</div><label class="grace-field">Tregua iniziale <select id="grace-rounds">${[0,1,2,3].map(n=>`<option value="${n}" ${policy.graceRounds===n?'selected':''}>${n===0?'Nessuna':n+' giri'}</option>`).join('')}</select></label><p class="policy-note">Durante la tregua il bot difende e rinforza, ma non attacca.</p><div class="policy-actions"><button class="secondary" data-action="policy-all">Applica a tutti</button><button class="text-button" data-action="policy-reset">Ripristina consigliati</button></div>`;
     }
     if(modal==='audio'){
       cls='audio-window';content=`<h2>Audio</h2><label class="audio-switch"><input type="checkbox" id="audio-enabled" ${muted?'':'checked'}/> Effetti sonori</label><label class="audio-switch"><input type="checkbox" id="haptics-enabled" ${sounds.haptics?'checked':''}/> Vibrazione Android</label><label for="audio-volume">Volume</label><input id="audio-volume" type="range" min="0" max="100" value="${Math.round(sounds.volume*100)}"/><button class="primary full" data-action="audio-test">Prova il clash</button><p>Il volume multimediale del telefono deve essere attivo.</p>`;
@@ -568,7 +568,7 @@ export function mountGame(root: HTMLElement): () => void {
       case 'audio': modal='audio';render();break;
       case 'audio-test': void sounds.unlock().then(()=>{sounds.clash();if(!sounds.ready)toast('Tocca ancora Prova il clash per attivare l’audio.');});break;
       case 'policy-all': config.botPolicies=Array.from({length:5},()=>({...config.botPolicies![strategyBot]}));toast('Strategia applicata a tutti i bot');break;
-      case 'policy-reset': config.botPolicies![strategyBot]=botPolicy();render();break;
+      case 'policy-reset': config.botPolicies![strategyBot]=botPolicy({personality:config.botPolicies![strategyBot].personality});render();break;
       case 'exchange-selected':
         if(state&&exchangeValue(state,state.viewer,cardSelection)>0)command({type:'EXCHANGE',cards:[...cardSelection]});
         break;
@@ -736,7 +736,7 @@ export function mountGame(root: HTMLElement): () => void {
     if(el.id==='end-mode'){config.endMode=el.value as 'regular'|'countdown';render();return;}
     if(el.id==='countdown-minutes')config.countdownMinutes=Number(el.value);
     if(el.id==='bot-speed')config.botSpeed=Number(el.value);
-    if(el.id==='bot-personality')config.botPolicies![strategyBot].personality=el.value as never;
+    if(el.id==='bot-personality'){const old=config.botPolicies![strategyBot];config.botPolicies![strategyBot]=botPolicy({personality:el.value as never,graceRounds:old.graceRounds});render();return;}
     if(el.id==='haptics-enabled'){sounds.haptics=el.checked;sounds.save();}
     if(el.id==='blitz-stop'){blitzStop=Number(el.value);const label=root.querySelector('#blitz-limit');if(label)label.textContent=el.value;}
     if(el.id==='antarctica-mode'){config.antarctica=el.checked;render();return;}

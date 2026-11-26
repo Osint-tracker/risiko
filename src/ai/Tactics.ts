@@ -2,6 +2,7 @@ import {mapFor,objectives} from '../data/mapGraph.ts';
 import {owned,canAttack} from '../engine/RisikoRulesEngine.ts';
 import {conquestOdds} from './BotAI.ts';
 import {botPolicy} from './policy.ts';
+import {profileOf} from './Profile.ts';
 import type {GameView,BotPolicy} from '../engine/types.ts';
 export function hostileNeighbors(v:GameView,id:number,actor=v.active){return mapFor(v).territories[id].neighbors.filter(n=>v.board[n].owner!==actor);}
 export function controlledBonus(v:GameView,id:number,owner:number){
@@ -46,13 +47,15 @@ export function forcingAttacks(v:GameView):TacticalAttack[]{
   const breaks=p.breakBonus&&controlledBonus(v,to,v.board[to].owner)>0;
   const eliminates=p.eliminate&&owned(v,v.board[to].owner).length===1;
   if(!immediate&&!completes&&!breaks&&!eliminates)continue;
-  // Only an explicit objective win permits the riskier threshold here.
-  if(win<(immediate?.55:.9)||(!immediate&&d>3))continue;
+  // Raiders and builders accept riskier forcing attacks for THEIR reason.
+  const f=profileOf(p),bold=(breaks&&f.breaker>=2)||(completes&&f.continent>=2)||(eliminates&&f.hunter>=2);
+  const raid=breaks&&f.breaker>=3;
+  if(win<(immediate?.55:raid?.5:bold?.6:.9)||(!immediate&&d>(raid?8:bold?6:3)))continue;
   const sourceAfter=Math.max(1,a-Math.min(3,a-1)-Math.ceil(d*.8));
   const beforeRisk=Math.max(0,...hostileNeighbors(v,from).filter(n=>n!==to).map(n=>conquestOdds(v.board[n].armies,a)));
   const afterRisk=Math.max(0,...hostileNeighbors(v,from).filter(n=>n!==to).map(n=>conquestOdds(v.board[n].armies,sourceAfter)));
   const sourceCost=(afterRisk-beforeRisk)*(controlledBonus(v,from,v.active)*9+3);
-  const value=immediate?10000:(completes?c.bonus*9:0)+(breaks?c.bonus*7:0)+(eliminates?12+v.players[v.board[to].owner].cardCount*3:0);
+  const value=immediate?10000:(completes?c.bonus*9*f.continent:0)+(breaks?c.bonus*7*f.breaker:0)+(eliminates?(12+v.players[v.board[to].owner].cardCount*3)*f.hunter:0);
   if(!immediate&&value*win<=sourceCost+2)continue;
   attacks.push({from,to,win,score:value*win-sourceCost,reason:immediate?'risiko':completes?'complete-continent':breaks?'break-continent':'eliminate'});
  }
