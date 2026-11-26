@@ -29,14 +29,20 @@ function chart(s: GameView) {
   const rounds = history.map(r => r.round), last = history.length - 1;
   const ticks = [0, Math.round(last / 2), last].filter((v, i, a) => a.indexOf(v) === i)
     .map(j => `<text class="res-axis" x="${x(j).toFixed(1)}" y="${H - 4}" text-anchor="middle">G${rounds[j]}</text>`).join('');
+  const ends: {x: number; y: number; value: number; color: string}[] = [];
   const lines = s.players.map((p, i) => {
     const pts = history.flatMap((row, j) => row.points[i] === null ? [] : [[x(j), y(row.points[i]!)]]);
     if (!pts.length) return '';
     const end = pts[pts.length - 1], value = Math.min(86, [...history].reverse().find(r => r.points[i] !== null)?.points[i] ?? 0), c = displayColor(p.color);
-    return `<polyline points="${pts.map(([a, b]) => `${a.toFixed(1)},${b.toFixed(1)}`).join(' ')}" stroke="${c}" stroke-width="${p.id === s.viewer ? 3 : 2}"/><circle cx="${end[0].toFixed(1)}" cy="${end[1].toFixed(1)}" r="3.5" fill="${c}"/><text class="res-end" x="${(end[0] + 6).toFixed(1)}" y="${(end[1] + 4).toFixed(1)}" fill="${c}">${value}</text>`;
+    ends.push({x: end[0], y: end[1], value, color: c});
+    return `<polyline points="${pts.map(([a, b]) => `${a.toFixed(1)},${b.toFixed(1)}`).join(' ')}" stroke="${c}" stroke-width="${p.id === s.viewer ? 3 : 2}"/><circle cx="${end[0].toFixed(1)}" cy="${end[1].toFixed(1)}" r="3.5" fill="${c}"/>`;
   }).join('');
+  // Final values never overlap: close labels are pushed apart vertically.
+  ends.sort((a, b) => a.y - b.y);
+  ends.forEach((e, k) => { e.y = Math.max(e.y + 4, k ? ends[k - 1].y + 12 : -Infinity); });
+  const labels = ends.map(e => `<text class="res-end" x="${(e.x + 7).toFixed(1)}" y="${e.y.toFixed(1)}" fill="${e.color}">${e.value}</text>`).join('');
   const legend = s.players.map(p => `<span class="res-chip-player" style="--player:${displayColor(p.color)}"><i></i>${e(p.id === s.viewer ? 'Tu' : p.name)}</span>`).join('');
-  return `<figure class="res-chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Andamento punti obiettivo da 0 a 86"><line class="res-grid" x1="${L}" x2="${W - R}" y1="${y(86)}" y2="${y(86)}"/><line class="res-base" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/><text class="res-axis" x="${L - 5}" y="${y(86) + 4}" text-anchor="end">86</text><text class="res-axis" x="${L - 5}" y="${y(0) + 4}" text-anchor="end">0</text>${ticks}<g fill="none" stroke-linejoin="round" stroke-linecap="round">${lines}</g></svg><figcaption class="res-chips">${legend}</figcaption></figure>`;
+  return `<figure class="res-chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Andamento punti obiettivo da 0 a 86"><line class="res-grid" x1="${L}" x2="${W - R}" y1="${y(86)}" y2="${y(86)}"/><line class="res-base" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/><text class="res-axis" x="${L - 5}" y="${y(86) + 4}" text-anchor="end">86</text><text class="res-axis" x="${L - 5}" y="${y(0) + 4}" text-anchor="end">0</text>${ticks}<g fill="none" stroke-linejoin="round" stroke-linecap="round">${lines}</g>${labels}</svg><figcaption class="res-chips">${legend}</figcaption></figure>`;
 }
 
 function role(p: PublicPlayer, levelNames: Record<string, string>) {
