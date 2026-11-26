@@ -37,6 +37,8 @@ export const defaultToggles: Record<BotPersonality, Partial<BotPolicy>> = {
 const intensity: Record<Difficulty, number> = {facile: .55, medio: 1, difficile: 1, survival: 1};
 let level: Difficulty = 'medio';
 export const setProfileLevel = (value: Difficulty) => { level = value; };
+/** Easy players notice a runaway leader late and only half-heartedly. */
+export const truceScale = () => level === 'facile' ? .5 : 1;
 const cache = new Map<string, Profile>();
 const toward = (value: number, base: number, k: number) => base + (value - base) * k;
 
@@ -53,4 +55,9 @@ export function profileOf(p: BotPolicy): Profile {
     armies: toward(b.armies, e.armies, k), lossAversion: toward(b.lossAversion, 1, k),
   };
   cache.set(key, out); return out;
+}
+
+/** How hard this bot turns on a runaway leader: personality, the "Contieni il leader" box and level. */
+export function leaderFocus(p: BotPolicy): number {
+  return profileOf(p).leader * (p.containLeader ? 1 : .7) * truceScale();
 }

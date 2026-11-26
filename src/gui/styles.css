@@ -77,3 +77,84 @@ h1,h2,h3,.section-heading h1,.objective-score,.portal-brand{font-family:Cinzel,G
 .reference-table .reference-zoom button{display:inline-flex}
 .app-shell:has(.modal.combat) .board-bottom{visibility:hidden}
 .modal.combat.floating-panel{border-color:#c8a45a59;box-shadow:none}
+
+/* Risultati «Atlante»: stessa colonna, colori, caratteri e riquadri della home. */
+.results-atlas .res-column{gap:14px;min-height:0}
+.res-top{display:flex;align-items:center;gap:10px}
+.res-brand{background:none;border:0;padding:0;min-height:44px;font:700 22px/1 Cinzel,Georgia,serif;letter-spacing:.14em;color:#c8a45a;box-shadow:none}
+.res-tag{font:600 10px SourceSans,sans-serif;letter-spacing:.3em;color:#9fb0b8;text-transform:uppercase}
+.res-top .atlas-settings{margin-left:auto;height:44px;display:inline-flex;align-items:center;justify-content:center}
+.res-verdict{display:flex;flex-direction:column;gap:6px}
+.res-eyebrow{align-self:flex-start;font:700 11px SourceSans,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#c8a45a;border:1px solid #c8a45a;border-radius:20px;padding:4px 10px}
+.res-verdict h1{margin:0;font:700 30px/1.1 Cinzel,Georgia,serif;color:#f2e7d3}
+.res-verdict p{margin:0;font-size:13px;color:#9fb0b8}
+.res-card{background:#13293a;border:1px solid #c8a45a44;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.res-card-head{display:flex;justify-content:space-between;align-items:baseline;gap:4px 8px;flex-wrap:wrap}
+.res-card h2{margin:0;font:700 17px Cinzel,Georgia,serif;color:#f2e7d3}
+.res-card h2.res-goal{font-size:26px;line-height:1}
+.res-label{font:600 10px SourceSans,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9fb0b8}
+.res-status{font:700 12px SourceSans,sans-serif;color:#c8a45a;letter-spacing:.06em;text-transform:uppercase}
+.res-objective-map{width:100%;height:auto;display:block;background:#0c2232;border-radius:10px}
+.res-thumb{width:78px;height:54px;background:#0c2232;border-radius:6px;flex:none}
+.res-objective-map path,.res-thumb path{stroke:#0c2232;stroke-width:1.2;stroke-linejoin:round}
+.obj-none{fill:#1d3546}
+.obj-out{fill:var(--player);fill-opacity:.35}
+.obj-in{fill:var(--player)}
+.res-objective-map .obj-missing{fill:#36515f;stroke:#c8a45a;stroke-dasharray:3 3;stroke-width:1.4}
+.res-thumb .obj-missing{fill:#5d7484}
+.res-thumb path{stroke-width:.8}
+.res-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#9fb0b8}
+.res-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.res-legend .in{background:var(--player)}
+.res-legend .out{background:var(--player);opacity:.35}
+.res-legend .missing{background:#36515f;border:1.4px dashed #c8a45a}
+.res-bar{height:8px;border-radius:4px;background:#ffffff1a;overflow:hidden}
+.res-bar span{display:block;height:100%;background:#c8a45a;border-radius:4px}
+.res-bar.thin{height:5px}
+.res-bar.thin span{background:var(--player)}
+.res-stats,.res-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.res-stats>div,.res-tiles>div{background:#0b1f2e;border:1px solid #c8a45a33;border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.res-stats strong,.res-tiles strong{font:700 20px/1 Cinzel,Georgia,serif;color:#f2e7d3;overflow-wrap:anywhere}
+.res-tiles strong.accent{color:#c8a45a}
+.res-stats small,.res-tiles small{font-size:10.5px;line-height:1.2;color:#9fb0b8}
+.res-ranking ol{list-style:none;margin:0;padding:0}
+.res-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #c8a45a2e}
+.res-row:first-child{border-top:0;padding-top:2px}
+.res-row.is-you .res-who strong{color:#c8a45a}
+.res-row.is-out{opacity:.6}
+.res-rank{font:700 18px Cinzel,Georgia,serif;color:#9fb0b8;width:26px;flex:none}
+.res-who{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.res-who strong{font:700 15px SourceSans,sans-serif;color:#f2e7d3;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.res-who strong i,.res-chip-player i{width:9px;height:9px;border-radius:50%;background:var(--player);flex:none;display:inline-block}
+.res-who small{font-size:12px;color:#9fb0b8;line-height:1.25}
+.res-badge{font:700 9.5px SourceSans,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#9fb0b8;border:1px solid #9fb0b8;border-radius:4px;padding:1px 5px}
+.res-badge.gold{color:#14202a;background:#c8a45a;border-color:#c8a45a}
+.res-pts{text-align:right;width:40px;flex:none}
+.res-pts strong{display:block;font:700 21px/1 Cinzel,Georgia,serif;color:#f2e7d3}
+.res-pts small{font-size:10px;color:#9fb0b8}
+.res-chart{margin:0;display:flex;flex-direction:column;gap:6px}
+.res-chart svg{width:100%;height:auto;display:block}
+.res-grid{stroke:#c8a45a;stroke-opacity:.5;stroke-dasharray:3 4}
+.res-base{stroke:#9fb0b8;stroke-opacity:.4}
+.res-axis{fill:#9fb0b8;font:11px SourceSans,sans-serif}
+.res-end{font:700 11px SourceSans,sans-serif}
+.res-chips{display:flex;gap:6px 12px;flex-wrap:wrap;font-size:12px;color:#f2e7d3;margin:0}
+.res-chip-player{display:inline-flex;align-items:center;gap:5px}
+.res-chip-player b{font-weight:700}
+.replay-panel .replay-map{width:100%;height:auto;max-height:none;display:block;background:#0c2232;border-radius:10px}
+.replay-body{display:flex;flex-direction:column;gap:10px}
+.replay-land path{stroke:#0c2232;stroke-width:1.1;stroke-linejoin:round}
+.replay-armies text{font:700 25px SourceSans,sans-serif;text-anchor:middle;paint-order:stroke;stroke:#00000040;stroke-width:2}
+.res-card-head label{font-size:12px;color:#9fb0b8}
+.res-replay-controls{display:flex;align-items:center;gap:8px}
+.res-replay-controls input{flex:1;min-width:0;accent-color:#c8a45a;min-height:44px}
+.res-step{width:44px;min-height:44px;padding:0;border-radius:10px;font:700 22px/1 SourceSans,sans-serif;color:#c8a45a}
+.res-report details{border-top:1px solid #c8a45a2e;padding-top:4px;margin:0}
+.res-report summary{min-height:44px;display:flex;align-items:center;color:#c8a45a;font-size:14px;cursor:pointer}
+.res-report details p{font-size:13px;color:#c9d3d8;margin:4px 0}
+.res-note{margin:0;font-size:13px;color:#c9d3d8;line-height:1.4}
+.res-actions{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.res-actions .primary{min-height:56px;border-radius:12px;font:700 19px Cinzel,Georgia,serif;display:flex;align-items:center;justify-content:center;gap:10px}
+.res-actions>div{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.res-actions>div button{min-height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;font:600 15px SourceSans,sans-serif}
+.res-actions .ui-icon{width:20px;height:20px}

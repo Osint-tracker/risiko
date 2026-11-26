@@ -4,7 +4,7 @@ import {createGame,project,applyCommand,assertState} from '../src/engine/RisikoR
 import {strategicCommand,reinforcementPlan,attackDecision} from '../src/ai/Strategy.ts';
 import {strategicCommand as oldCommand} from '../src/ai/LegacyStrategy.ts';
 import {humanDecision} from '../src/ai/HumanBot.ts';
-import {objectives} from '../src/data/mapGraph.ts';
+import {objectives,mapFor} from '../src/data/mapGraph.ts';
 import {botPolicy} from '../src/ai/policy.ts';
 function fixture(){
  const s=createGame({players:3,name:'Test',difficulties:['medio','survival'],turnSeconds:180,seed:17});
@@ -37,11 +37,25 @@ test('spostamento: le armate interne avanzano di un collegamento verso il fronte
  assert.deepEqual(strategicCommand(project(s),'difficile',()=>.5),{type:'MOVE',from:12,to:11,count:7});
 });
 test('preferenza interrompi bonus cambia davvero il bersaglio, non solo la legalità del comando',()=>{
+ // Balanced table (15/12/15): nobody is running away, so the box alone decides the target.
  const s=fixture();s.board.forEach((c,i)=>{c.owner=i>=26&&i<=37?1:2;c.armies=1;});
- for(const id of [0,1,3,6,7,8])s.board[id]={owner:0,armies:1};s.board[0].armies=10;s.board[8].armies=10;
+ for(const id of [0,1,3,6,7,8,13,14,15,16,17,18,19,20,21])s.board[id]={owner:0,armies:1};s.board[0].armies=10;s.board[8].armies=10;
  s.players[0].objective=objectives.find(o=>o.territories.includes(9)&&!o.territories.includes(29))!.id;
  s.players[0].botPolicy=botPolicy({breakBonus:true});assert.deepEqual(strategicCommand(project(s),'medio',()=>.5),{type:'ATTACK',from:0,to:29});
  s.players[0].botPolicy=botPolicy({breakBonus:false});assert.deepEqual(strategicCommand(project(s),'medio',()=>.5),{type:'ATTACK',from:8,to:9});
+});
+test('con un leader in fuga non si rompe il bonus di chi insegue: si colpisce il leader',()=>{
+ // Player 2 holds 24 of 42 territories and four continents; player 1 only Asia.
+ const s=fixture();s.board.forEach((c,i)=>{c.owner=i>=26&&i<=37?1:2;c.armies=1;});
+ for(const id of [0,1,3,6,7,8])s.board[id]={owner:0,armies:1};s.board[0].armies=10;s.board[8].armies=10;
+ s.players[0].objective=objectives.find(o=>o.territories.includes(9)&&!o.territories.includes(29))!.id;
+ for(const level of ['facile','medio','difficile','survival'] as const){
+  for(const breakBonus of [true,false]){
+   s.players[0].botPolicy=botPolicy({breakBonus,personality:'incursore'});
+   const cmd=strategicCommand(project(s),level,()=>.5);
+   if(level!=='facile')assert.deepEqual(cmd,{type:'ATTACK',from:8,to:9},`${level}: rompere il Sud America del leader, non l’Asia di chi insegue`);
+  }
+ }
 });
 test('simulazioni limitate, riproducibili, senza mutare la vista né leggere obiettivi avversari',()=>{
  const s=fixture();s.board[0]={owner:0,armies:8};s.board[29].armies=1;
@@ -82,4 +96,20 @@ test('occupazione: conserva la difesa del continente conquistato invece di svuot
  s.board[20].armies=10;s.board[11]={owner:0,armies:3};s.board[16].armies=12;s.board[18].armies=12;
  const cmd=strategicCommand(project(s),'survival',()=>.5);assert.equal(cmd.type,'MOVE');
  if(cmd.type==='MOVE'){assert.ok(cmd.count<=3,'Africa del Nord deve mantenere almeno sette armate davanti agli stack europei');assertState(applyCommand(s,0,cmd));}
+});
+test('assedio: per chiudere un continente oltre la portata del turno accumula la riserva su un solo fronte',()=>{
+ // Europe is complete except Ucraina (19), held by the leader with 8 armies: unreachable this turn.
+ for(const personality of ['equilibrato','incursore','conquistatore'] as const){
+  const s=createGame({players:3,name:'Test',difficulties:['medio','medio'],turnSeconds:180,seed:4242,botPolicies:[botPolicy({personality:'incursore'}),botPolicy({personality}),botPolicy(),botPolicy(),botPolicy()]});
+  s.players.forEach(p=>{p.setupRemaining=0;p.cards=[];});
+  s.board.forEach((c,i)=>{c.owner=i>=20&&i<=25?1:i>=13&&i<=18?2:0;c.armies=i>=13&&i<=18?3:4;});
+  s.board[15].armies=7;s.board[19]={owner:0,armies:8};
+  s.players[0].objective=objectives.find(o=>o.name==='Eurasia')!.id;s.players[1].objective=objectives.find(o=>o.name==='Tre A')!.id;s.players[2].objective=objectives.find(o=>o.name==='Siberiana')!.id;
+  s.active=2;s.round=8;s.phase='REINFORCEMENT';s.reinforcements=4;
+  for(const level of ['medio','difficile'] as const){
+   const plan=reinforcementPlan(project(s),level);
+   assert.equal(new Set(plan).size,1,`${personality}/${level}: un solo fronte, non incrementi sparsi (${plan})`);
+   assert.ok(mapFor(s).territories[plan[0]].neighbors.includes(19),`${personality}/${level}: il fronte confina con Ucraina`);
+  }
+ }
 });

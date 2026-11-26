@@ -6,7 +6,8 @@ import {resolveMapPointers} from './mapPointer.ts';
 import {bindMapGestures} from './mapGestures.ts';
 import {tutorialSteps} from '../engine/Tutorial.ts';
 import {profileView,profileExperience} from './views/ProfileView.ts';
-import {replayView} from './views/ReplayView.ts';
+import {replayBody} from './views/ReplayView.ts';
+import {resultsView} from './views/ResultsView.ts';
 import {icon,decorateIcons} from './Icons.ts';
 import {homeView} from './views/HomeView.ts';
 import {setupView,participants} from './views/SetupView.ts';
@@ -29,7 +30,7 @@ import {botPolicy,policyOptions} from '../ai/policy.ts';
 import { allTerritories as territories, objectives, allCards as cards, colors, mapFor } from '../data/mapGraph.ts';
 import { canAttack, moveBounds, validTris, exchangeValue } from '../engine/RisikoRulesEngine.ts';
 import type { GameView, Command, GameConfig } from '../engine/types.ts';
-import {tankModel,armyBadge,scoreChart,armyToken, counterFontSize, tankShape, territoryColors, cardFace, objectiveMap, dieMarkup} from './art.ts';
+import {tankModel,armyBadge,armyToken, counterFontSize, tankShape, territoryColors, cardFace, objectiveMap, dieMarkup} from './art.ts';
 import {playTransition, positionPanel, bindPanelDrag} from './effects.ts';
 import type {Transition} from '../engine/presentation.ts';
 import type { Profile } from '../services/StorageService.ts';
@@ -200,9 +201,7 @@ export function mountGame(root: HTMLElement): () => void {
   function table(){return boardView(state!,mapMarkup(),playerCards(),instructions(),phaseNames[state!.phase],placementCount,showNames,showLog,speed,animationFilter,pendingCommand,objectiveView)+(state!.tutorialStep!==undefined?`<aside class="tutorial-banner"><b>${tutorialSteps[state!.tutorialStep].title}</b><p>${tutorialSteps[state!.tutorialStep].text}</p><button class="primary" data-action="tutorial-next" ${tutorialDone?'':'disabled'}>Continua</button><button data-action="home">Esci dal tutorial</button></aside>`:'');}
   function miniObjective(id: number) { return objectiveMap(id,state?.antarctica===true); }
   function results() {
-    const s = state!,
-      ranking = [...s.players].sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (b.outside ?? 0) - (a.outside ?? 0) || s.order.indexOf(b.id) - s.order.indexOf(a.id));
-    return `<div class="classic-home portal-route">${header()}<main class="results-page portal-column"><span class="eyebrow">${s.reason === 'risiko' ? 'OBIETTIVO COMPLETATO' : s.reason==='countdown'?'COUNTDOWN TERMINATO':'LA SDADATA HA DECISO'}</span><h1>${s.winner === s.viewer ? 'La vittoria è tua.' : `${escape(s.players[s.winner!].name)} conquista la vittoria.`}</h1><p class="muted">${s.round} giri · ${duration(s.elapsedMs)} di gioco · Tutti gli obiettivi sono ora rivelati</p><div class="results-list">${ranking.map((p, i) => `<article class="result-row" style="--player:${p.color}"><strong class="rank">${String(i + 1).padStart(2, '0')}</strong><div class="result-player"><strong>${escape(p.name)} ${p.id===s.viewer ? '· TU' : p.human?'· UMANO':''}</strong><small>${p.human ? 'Comandante' : `Bot ${levelNames[p.difficulty]}${p.blind ? ' · livello svelato' : ''}`}</small></div><div class="result-objective">${miniObjective(p.objective!)}<span>${escape(objectives[p.objective! - 1].name)}</span></div><div><strong>${Math.min(86,p.points??0)}</strong><small>${p.points === 100 ? 'RISIKO! · 100 PT TAVOLO' : 'IN OBIETTIVO'}</small></div><div><strong>${p.outside}</strong><small>FUORI OBIETTIVO</small></div><div><strong>${p.territoryCount}</strong><small>TERRITORI</small></div><div><strong>${p.cardCount}</strong><small>CARTE</small></div></article>`).join('')}</div>${scoreChart(s.scoreHistory,s.players)}${replayView(s,replayIndex)}<div class="results-actions"><button class="primary" data-action="home">Un’altra strategia. Un nuovo tavolo. →</button><button class="secondary" data-action="profile">Le tue statistiche</button></div></main></div>`;
+    return resultsView(state!,replayIndex,{levelNames,duration});
   }
   function profilePage(){return profileView(profile,profileCategory);}
   function modalMarkup() {
@@ -488,6 +487,7 @@ export function mountGame(root: HTMLElement): () => void {
     if(presenting && el.dataset.card===undefined && el.dataset.removeCard===undefined && el.dataset.speed===undefined && !['game-menu','cards','objective','objective-map','objective-view','objective-widget','log','sound','close','pause','home','blitz','zoom-in','zoom-out','reset-map'].includes(el.dataset.action??''))return;
     if(el.dataset.blitzStep){blitzStop=Math.max(2,Math.min(130,blitzStop+Number(el.dataset.blitzStep)));render();return;}
     if(el.dataset.placeCount){placementCount=Number(el.dataset.placeCount);render();return;}
+    if(el.dataset.replayStep&&state?.replay?.length){replayIndex=Math.max(0,Math.min(state.replay.length-1,replayIndex+Number(el.dataset.replayStep)));const body=root.querySelector('.replay-body'),slider=root.querySelector<HTMLInputElement>('#replay-turn');if(slider)slider.value=String(replayIndex);if(body)body.outerHTML=replayBody(state,replayIndex);else render();return;}
     if (el.dataset.count) {
       config.participants=participants(config);config.players = Number(el.dataset.count);config.participants=participants(config);
       config.difficulties = Array.from({
@@ -717,7 +717,7 @@ export function mountGame(root: HTMLElement): () => void {
     if(privacy&&screen==='table')return;
     const el = e.target as HTMLInputElement;
     if(el.id==='profile-category'){profileCategory=el.value;render();return;}
-    if(el.id==='replay-turn'){replayIndex=Number(el.value);const panel=root.querySelector('.replay-panel');if(panel&&state)panel.outerHTML=replayView(state,replayIndex);return;}
+    if(el.id==='replay-turn'){replayIndex=Number(el.value);const body=root.querySelector('.replay-body');if(body&&state)body.outerHTML=replayBody(state,replayIndex);return;}
     if(el.id==='match-seed'){config.seedLabel=el.value;return;}
     if(el.id==='animation-filter'){animationFilter=el.value;send({type:'ANIMATION_FILTER',filter:animationFilter});return;}
     if(el.id==='global-difficulty'){if(el.value){config.difficulties.fill(el.value as never);config.participants=participants(config).map(p=>({...p,difficulty:el.value as never}));render();}return;}
@@ -892,7 +892,7 @@ export function mountGame(root: HTMLElement): () => void {
           selected=target;target=null;modal=null;blitz=false;
         }
         if (state!.phase === 'GAME_OVER' && screen === 'table') {
-          screen = 'results';
+          screen = 'results';replayIndex=0;
           modal = null;
           send({
             type: 'PROFILE',profileId:selectedProfile

@@ -511,3 +511,31 @@ test('riepilogo turno: Escape e Chiudi inviano un solo ACK e sbloccano i rinforz
   f.cleanup();
  }
 });
+test('risultati in stile Atlante: classifica, obiettivi, andamento, replay navigabile e azioni', () => {
+  const f = fixture();
+  f.click({action: 'new'});
+  let s = createGame({players: 3, name: 'Test', difficulties: ['medio', 'difficile'], turnSeconds: 180, seed: 11});
+  s.phase = 'GAME_OVER'; s.winner = 0; s.reason = 'sdadata'; s.round = 9;
+  const snap = (round: number, actor: number) => ({round, actor, revision: round, board: s.board.map(c => [c.owner, c.armies] as [number, number]), points: [10 + round, 8, 6], logIndex: 0});
+  s.replay = [snap(1, 0), snap(2, 1), snap(3, 2)];
+  s.scoreHistory = [{round: 1, player: 0, points: [10, 8, 6]}, {round: 1, player: 1, points: [11, 8, 6]}, {round: 2, player: 0, points: [20, 9, 7]}];
+  f.worker.emit({type: 'STATE', state: project(s, 0)});
+  const html = f.root.innerHTML;
+  assert.match(html, /class="atlas-home results-atlas"/);
+  assert.match(html, /La vittoria è tua\./);
+  assert.match(html, /Tutti gli obiettivi sono ora rivelati/);
+  assert.equal((html.match(/class="res-row/g) ?? []).length, 3, 'una riga per giocatore');
+  assert.equal((html.match(/class="res-thumb"/g) ?? []).length, 3, 'obiettivo svelato di ogni giocatore');
+  assert.equal((html.match(/<polyline /g) ?? []).length, 3, 'una linea per giocatore');
+  assert.match(html, /aria-label="Andamento punti obiettivo da 0 a 86"/);
+  assert.match(html, /id="replay-turn"[^>]*max="2"/);
+  assert.match(html, /Giro 1 · /);
+  for (const action of ['configure', 'profile', 'home', 'audio']) assert.match(html, new RegExp(`data-action="${action}"`));
+  f.click({replayStep: '1'});
+  assert.match(f.root.innerHTML, /Giro 2 · /, 'il pulsante avanti sposta il replay');
+  f.click({replayStep: '5'});
+  assert.match(f.root.innerHTML, /Giro 3 · /, 'il replay resta entro l’ultimo turno');
+  f.click({replayStep: '-9'});
+  assert.match(f.root.innerHTML, /Giro 1 · /);
+  f.cleanup();
+});

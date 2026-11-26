@@ -3,7 +3,8 @@ import {owned,border,canAttack,moveBounds,validTris} from '../engine/RisikoRules
 import {conquestOdds,diceDistribution} from './BotAI.ts';
 import type {BotMood} from './BotAI.ts';
 import {botPolicy} from './policy.ts';
-import {profileOf,setProfileLevel} from './Profile.ts';
+import {profileOf,setProfileLevel,leaderFocus,truceScale} from './Profile.ts';
+import {threatOf} from './Threat.ts';
 import type {GameView,Command,Difficulty,BotPolicy} from '../engine/types.ts';
 type Estimate={win:number;survivors:number};
 const estimates=new Map<string,Estimate>();
@@ -36,15 +37,17 @@ function gain(v:GameView,from:number,to:number,p:BotPolicy):number {
  const ci=continents.findIndex(c=>c.id===territories[to].continent),members=territories.filter(t=>t.continent===continents[ci].id).map(t=>t.id),bonus=continents[ci].bonus;
  const missing=members.filter(id=>v.board[id].owner!==v.active);
  const enemy=v.board[to].owner,enemyMembers=members.filter(id=>v.board[id].owner===enemy).length;
- const f=profileOf(p),inGoal=ownGoal.includes(to);let relevant=inGoal;
+ const f=profileOf(p),inGoal=ownGoal.includes(to),th=threatOf(v),lead=th.leader;let relevant=inGoal;
+ const calm=lead>=0&&enemy!==lead?1-.85*th.level*truceScale():1;
  let value=(inGoal?territories[to].points*1.4*f.objective:0)+(v.conquests===0?5:1);
- if(p.weakBorders)value+=Math.max(0,4-v.board[to].armies)*1.1*f.picker;
+ if(p.weakBorders)value+=Math.max(0,4-v.board[to].armies)*1.1*f.picker*calm;
  if(p.continents){
   if(missing.length===1){value+=bonus*9*f.continent;relevant=true;}
   else if(missing.length<=3){value+=bonus*4/missing.length*f.continent;relevant=true;}
  }
- if(p.breakBonus&&enemyMembers===members.length){value+=bonus*7*f.breaker;relevant=true;}
- if(p.disruptGrowth&&enemyMembers<members.length&&enemyMembers>=members.length-2){value+=bonus*3.5*f.breaker;relevant=true;}
+ if(p.breakBonus&&enemyMembers===members.length){value+=bonus*7*f.breaker*calm;relevant||=calm>.5;}
+ if(p.disruptGrowth&&enemyMembers<members.length&&enemyMembers>=members.length-2){value+=bonus*3.5*f.breaker*calm;relevant||=calm>.5;}
+ if(enemy===lead){value+=leaderFocus(p)*th.level*(6+th.denial[to]*1.5);relevant=true;}
  const enemyOwn=owned(v,enemy);
  if(p.eliminate&&enemyOwn.length<=3){value+=(enemyOwn.length===1?12+Math.min(7-v.players[v.active].cardCount,v.players[enemy].cardCount)*3:4/enemyOwn.length)*f.hunter;relevant=true;}
  if(p.containLeader){
