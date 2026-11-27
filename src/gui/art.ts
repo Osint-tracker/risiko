@@ -20,12 +20,7 @@ export function scoreChart(history:{round:number;points:(number|null)[]}[]|undef
  return `<figure class="score-chart"><figcaption>Andamento punti obiettivo</figcaption><svg viewBox="0 0 600 150" role="img" aria-label="Andamento punti obiettivo da 0 a 86"><path d="M30 10V125H590" fill="none" stroke="#748297"/><text x="4" y="18">86</text><text x="12" y="128">0</text>${players.map((p,i)=>`<polyline fill="none" stroke="${p.color}" stroke-width="2.5" points="${history.flatMap((row,j)=>row.points[i]===null?[]:[`${30+j*560/Math.max(1,history.length-1)},${125-Math.min(86,row.points[i]!)*110/86}`]).join(' ')}"/>`).join('')}</svg><div>${players.map(p=>`<span style="color:${p.color}">● ${escapeHtml(p.name)}</span>`).join(' ')}</div></figure>`;
 }
 export const territoryColors = [
-  '#a77d37','#956536','#b77519','#af994e','#b76631','#b08744','#a8391e','#a45128','#b96c24',
-  '#387b66','#528679','#749989','#38775e',
-  '#9a538a','#664a79','#926090','#653c71','#744780','#8b6080','#773b75',
-  '#876124','#986e32','#aa903e','#8b592c','#794920','#b49245',
-  '#829a4b','#27653d','#487e36','#8c9e38','#4e863b','#315f35','#57865b','#688743','#235a37','#8b9d4b','#287343','#367361',
-  '#914774','#963b78','#993c7b','#a4478c','#71b7d2','#b1d5e5'
+  '#e8a754', '#dc9162', '#f49f21', '#e5ae45', '#da7637', '#dfb05c', '#bc3f25', '#d5552c', '#cb632f', '#3ca3a0', '#5dc3ac', '#b3d7bc', '#45c1bc', '#d988af', '#c75c9d', '#bd7fb3', '#9e4788', '#986f99', '#ba5c9b', '#aa468b', '#dc9634', '#af552f', '#e4ad31', '#9b402d', '#b85731', '#e7b74d', '#c1c85d', '#35672f', '#85b43d', '#b4ac2e', '#699d36', '#307337', '#80aa3b', '#a5a731', '#13733d', '#b1c66a', '#328843', '#84ac3f', '#eb789b', '#db558d', '#ce377a', '#e54f8e', '#71b7d2', '#b1d5e5'
 ];
 const military: Record<string,string> = {
   cannone: '<path d="M7 10h22l5-4h5v7H23l-4 5H7zM6 22l9-8 4 2-9 9z"/><circle cx="26" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="3"/><path d="M26 17v10m-5-5h10" stroke="currentColor" stroke-width="1.5"/>',
@@ -44,7 +39,7 @@ function silhouette(id: number) {
 export function cardFace(id?: number) {
   if (id === undefined) return '<div class="card-face card-back"><span>RisiKo!</span><small>OFFLINE</small></div>';
   const c = cards[id];
-  if (c.symbol === 'jolly') return `<div class="card-face card-jolly"><svg class="compass-rose" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="35" fill="none" stroke="currentColor"/><path d="M50 1L59 39L91 9L61 41L99 50L61 59L91 91L59 61L50 99L41 61L9 91L39 59L1 50L39 41L9 9L41 39Z"/><circle cx="50" cy="50" r="7" fill="#0b1f2e"/></svg><strong>Jolly</strong></div>`;
+  if (c.symbol === 'jolly') return `<div class="card-face card-jolly" aria-label="Jolly">${['cavaliere','fante','cannone'].map(symbol=>`<span>${militaryIcon(symbol)}</span>`).join('')}</div>`;
   return `<div class="card-face"><div class="card-symbol">${militaryIcon(c.symbol)}</div>${silhouette(c.territory!)}<strong>${escapeHtml(territories[c.territory!].name)}</strong><small>${c.symbol}</small></div>`;
 }
 export function objectiveMap(id: number, antarctica=false) {

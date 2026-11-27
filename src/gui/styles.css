@@ -158,3 +158,28 @@ h1,h2,h3,.section-heading h1,.objective-score,.portal-brand{font-family:Cinzel,G
 .res-actions>div{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .res-actions>div button{min-height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;font:600 15px SourceSans,sans-serif}
 .res-actions .ui-icon{width:20px;height:20px}
+
+/* Printed board and territory cards */
+.world-map .territory .land{stroke:#f2d9b7;stroke-width:1.15}
+.world-map .territory.selected .land,.world-map .territory.target .land,.world-map .territory.attackable .land{stroke:#fff5ae;stroke-width:3}
+.world-map .territory.card-bonus-territory .land,.world-map .territory.inspected-neighbor .land,.world-map .territory:focus-visible .land{stroke:#fff9bf;stroke-width:3}
+.printed-grain{mix-blend-mode:soft-light;opacity:.77}
+.world-map .sea-links{fill:none;stroke:#91dcec;stroke-width:2.1;stroke-dasharray:2 3}
+.world-map .compass{fill:#24556d;stroke:#86cedd}.world-map .compass text{fill:#c5ebe8}
+.water-names,.board-legend text{font:700 9px SourceSans,Arial,sans-serif;fill:#c2e1df;text-anchor:middle;letter-spacing:.7px}
+.board-legend text{text-anchor:start;font-size:9px;letter-spacing:0;paint-order:stroke;stroke:#21323c;stroke-width:1.7;fill:white}
+.world-map .territory-name{text-transform:uppercase;font-size:10px;fill:#fff5df}
+.cards-window.modal{width:min(550px,calc(100% - 14px));padding:12px 14px 16px;border:2px solid #d3e7e9;border-radius:13px;background:radial-gradient(ellipse at 40% 38%,#103947,#032534 76%);color:#f6faf8;text-align:center}
+.cards-window h2{font:900 26px/1.2 system-ui,sans-serif;padding:0 42px;margin:0}.cards-window .card-instructions{font:750 18px/1.22 system-ui,sans-serif;margin:8px 0 22px}
+.cards-window .close-button,.card-guide summary{width:38px;height:38px;min-height:38px;border:2px solid #e5efed;border-radius:7px;display:grid;place-items:center;padding:0;color:#fff}
+.cards-window .close-button{background:#a73134;top:7px;right:8px}.card-guide{margin:0;border:0}.card-guide summary{position:absolute;left:8px;top:7px;background:#1b5970;font:800 26px SourceSans,sans-serif;list-style:none}.card-guide summary::-webkit-details-marker{display:none}.card-guide p{padding:12px 4px 0}
+.cards-window .hand{display:flex;align-items:center;justify-content:safe center;gap:8px;padding:8px 4px 13px;min-height:0;overflow-x:auto}
+.cards-window .territory-card{width:clamp(83px,20vw,110px);border:0;border-radius:6px}
+.card-face:not(.card-back):not(.card-jolly),.card-face.card-jolly{width:100%;height:auto;aspect-ratio:2/3;border:2px solid #dceae1;border-radius:7px;background:radial-gradient(ellipse,#188d90,#065257 48%,#032832 82%,#041c27);color:#fff;box-shadow:0 3px 6px #001c25;padding:7px;overflow:hidden}
+.card-face .card-symbol{align-self:flex-start;color:white}.card-face .card-symbol svg{width:26px;height:24px}.card-face .card-country{width:85%;min-height:0;margin:auto}.card-face .card-country path{stroke:#c5dbbd;stroke-width:1}
+.card-face:not(.card-jolly)>strong{font:700 13px SourceSans,sans-serif;text-transform:none;order:2;color:white}
+.card-face.card-jolly{display:grid;grid-template:repeat(3,minmax(0,1fr))/minmax(0,1fr);justify-content:stretch;align-items:stretch;gap:0;padding:0}.card-jolly .military-icon{height:80%;max-height:40px;width:43px}.card-jolly span{width:100%;display:grid;place-items:center;background:#408639;color:white}.card-jolly span:nth-child(2){background:#246da2}.card-jolly span:nth-child(3){background:#47494b}
+.cards-window .territory-card.chosen{outline:2px solid #b7e1ce;outline-offset:0;transform:translateY(-2px)}.hand.complete .territory-card:not(.chosen){filter:brightness(.57);transform:translateY(5px) rotate(-2deg)}
+.cards-window .tris-tray{border:0;display:flex;justify-content:center;gap:4px;padding:0}.cards-window .tris-slot{font-size:11px;min-height:26px;padding:2px 6px}.tris-slot svg{width:12px;height:12px}
+.cards-window .card-bonus{display:flex;flex-direction:column;gap:0;margin-top:9px}.card-bonus small{font:800 16px/1.2 system-ui,sans-serif;color:#eff7f2}.bonus-miniature{display:block;width:clamp(144px,24vw,185px);height:auto}.cards-window .trade-cards{width:auto;min-height:44px;background:linear-gradient(#686a6c,#393c40);border:2px solid #e4e6e2;color:white;font:800 15px SourceSans,sans-serif;text-transform:uppercase}.cards-window .trade-cards{gap:10px;padding:8px 18px;margin-top:10px;line-height:1.05}.trade-cards span{font-size:29px}.trade-cards b{font-weight:850;text-align:left}.cards-window .card-hint:empty{display:none}.card-owned-bonus{font-size:12px}
+@media(max-height:450px){.cards-window.modal{padding-block:7px}.cards-window .hand{padding-block:4px 7px}.cards-window .territory-card{width:76px}.cards-window .card-instructions{margin:2px 0 5px;font-size:15px}.cards-window .bonus-miniature{width:122px}.cards-window .card-bonus{margin:2px}.cards-window .trade-cards{margin:2px}.cards-window .card-hint{margin:3px}}

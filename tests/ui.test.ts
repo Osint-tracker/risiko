@@ -155,7 +155,8 @@ test('table renders 42 territories, hidden objectives, timer and battle controls
   mkdirSync('docs', {
     recursive: true
   });
-  writeFileSync('docs/board-preview.svg', svg.replace('class="world-map ', 'class="world-map reference-table ').replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace('<defs>', `<style>${css}</style><defs>`));
+  const preview = svg.replace('./art/territory-ink.png', 'data:image/png;base64,' + readFileSync('public/art/territory-ink.png').toString('base64'));
+  writeFileSync('docs/board-preview.svg', preview.replace('class="world-map ', 'class="world-map reference-table ').replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace('<defs>', `<style>${css}</style><defs>`));
   f.cleanup();
 });
 test('new game creates another slot without replacing the existing save', () => {

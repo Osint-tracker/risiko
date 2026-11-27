@@ -86,7 +86,7 @@ export const objectives = objectivesData.map(([name, territoryIds], i) => ({
   name,
   territories: territoryIds.sort((a, b) => a - b)
 }));
-export const seaLinks = [[0, 29], [2, 13], [8, 9], [11, 20], [16, 20], [18, 20], [18, 21], [21, 34], [37, 38], [38, 39], [38, 40], [39, 40], [39, 41], [23, 25], [24, 25], [29, 32], [31, 32], [13, 14], [13, 15], [14, 15], [14, 16], [14, 17]];
+export const seaLinks = [[1, 2], [2, 4], [2, 5], [0, 29], [2, 13], [11, 20], [16, 20], [18, 20], [18, 21], [21, 34], [37, 38], [38, 39], [38, 40], [39, 40], [39, 41], [23, 25], [24, 25], [29, 32], [31, 32], [13, 14], [13, 15], [14, 15], [14, 16], [14, 17]];
 export const colors = ['#2458ee', '#d91e34', '#303a3d', '#269459', '#f0d846'];
 export const objectivePoints = (id: number, owned: number[]) => objectives[id - 1].territories.reduce((sum, t) => sum + (owned.includes(t) ? territories[t].points : 0), 0);
 
