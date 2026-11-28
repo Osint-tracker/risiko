@@ -174,14 +174,19 @@ try{
  assert.deepEqual(await northWest.locator('tspan').allTextContents(),['TERRITORI DEL','NORD OVEST']);
  const inks=await page.locator('.territory-name').evaluateAll(names=>names.map(el=>getComputedStyle(el).stroke));
  assert.notEqual(inks[0],inks[3],'Anche nello stesso continente la tinta segue il territorio');
- const originalLabel=await northWest.boundingBox();
+ // The printed point size scales with the SVG. Glyph bounds also vary with font hinting.
+ const screenEm=()=>northWest.locator('tspan').first().evaluate(line=>{
+  const transform=line.getScreenCTM();
+  return parseFloat(getComputedStyle(line).fontSize)*Math.hypot(transform.c,transform.d);
+ });
+ const originalEm=await screenEm();
  const initialScale=await readMapScale(page);
  await page.locator('[data-action="zoom-in"]').click();
  await page.waitForFunction(before=>document.querySelector('#world-map')?.getAttribute('viewBox')!==before,initialScale.viewBox);
  const zoomedScale=await readMapScale(page);
- const zoomedLabel=await northWest.boundingBox();
- assert.ok(Math.abs(zoomedLabel.width/originalLabel.width-initialScale.viewWidth/zoomedScale.viewWidth)<.02,
-   'Il nome deve ingrandirsi nella stessa proporzione della plancia');
+ const zoomedEm=await screenEm(), expectedScale=initialScale.viewWidth/zoomedScale.viewWidth;
+ assert.ok(expectedScale>1&&Math.abs(zoomedEm/originalEm-expectedScale)<.02,
+   `Scala del nome errata: ${originalEm}px → ${zoomedEm}px, zoom atteso ×${expectedScale}`);
  assert.ok(Math.abs(zoomedScale.tokenWidth/initialScale.tokenWidth-initialScale.viewWidth/zoomedScale.viewWidth)<.02,'I carri devono scalare nella stessa proporzione dei territori');
  await page.locator('[data-action="reset-map"]').click();
 
