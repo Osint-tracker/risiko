@@ -162,6 +162,7 @@ try{
  for(const viewport of [{width:844,height:390},{width:932,height:430},{width:667,height:375}]){
   await page.setViewportSize(viewport);await page.waitForFunction(()=>document.querySelector('.map-stage')?.clientHeight>0);
   assertBoardLayout(await readBoardLayout(page));
+  await page.waitForFunction(()=>Array.from(document.querySelectorAll('.territory-name')).some(el=>el.checkVisibility({visibilityProperty:true})));
   await page.screenshot({path:`${artifactDir}/atlas-board-${viewport.width}x${viewport.height}.png`});
  }
  await page.setViewportSize({width:844,height:390});

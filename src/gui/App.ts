@@ -444,12 +444,15 @@ export function mountGame(root: HTMLElement): () => void {
     const key=scale.toFixed(5);if(svg.dataset.hitScale===key)return;svg.dataset.hitScale=key;
     svg.querySelectorAll<SVGCircleElement>('.territory-hit,.placement-plus-hit').forEach(el=>el.setAttribute('r',String(22/scale)));
     const labels=Array.from(svg.querySelectorAll<SVGTextElement>('.territory-name'));
+    // At full-board scale keep the baseline clear of its own tank before checking neighbours.
+    const labelPixels=Math.min(12,Math.max(9,12*scale));
+    const labelLift=Math.min(0,9-7/scale);
     // Batch writes, then reads, then visibility writes: no per-label reflow.
     for(const el of labels){
       const id=Number(el.closest('[data-token]')?.getAttribute('data-token'));
       const name=viewport.w<750?territories[id].name:territories[id].short;
       if(el.textContent!==name)el.textContent=name;
-      el.style.fontSize=`${12/scale}px`;el.style.visibility='visible';
+      el.style.fontSize=`${labelPixels/scale}px`;el.setAttribute('dy',String(labelLift));el.style.visibility='visible';
     }
     const occupied=Array.from(svg.querySelectorAll<SVGGraphicsElement>('.army-map-icon')).map(el=>el.getBoundingClientRect());
     const bounds=labels.map(el=>el.getBoundingClientRect());
