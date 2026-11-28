@@ -151,7 +151,8 @@ test('table renders 42 territories, hidden objectives, timer and battle controls
     action: 'close'
   });
   const svg = f.root.innerHTML.match(/<svg id="world-map"[\s\S]*?<\/svg>/)![0];
-  const css = readFileSync('src/gui/styles.css', 'utf8');
+  const css = readFileSync('src/gui/styles.css', 'utf8').replace('/fonts/territory-condensed-bold.ttf',
+    'data:font/ttf;base64,' + readFileSync('public/fonts/territory-condensed-bold.ttf').toString('base64'));
   mkdirSync('docs', {
     recursive: true
   });

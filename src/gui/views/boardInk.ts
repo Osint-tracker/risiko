@@ -1,5 +1,33 @@
-import type {Territory} from '../../data/mapGraph.ts';
-import {territoryColors} from '../art.ts';
+import type {ContinentId,Territory} from '../../data/mapGraph.ts';
+import {escapeHtml,territoryColors} from '../art.ts';
+
+// Short, centred lines follow the printed board, including its Italian place names.
+const printedLines: Record<string, readonly string[]> = {
+ 'Territori del Nord Ovest': ['Territori del', 'Nord Ovest'],
+ 'Quebec': ['Québec'],
+ 'Nuova Guinea': ['Nuova Guinea'],
+ 'Stati Uniti Occidentali': ['Stati Uniti', 'Occidentali'],
+ 'Stati Uniti Orientali': ['Stati Uniti', 'Orientali'],
+ 'Africa del Nord': ['Africa', 'del Nord'],
+ 'Africa del Sud': ['Africa', 'del Sud'],
+};
+// Letter and outline inks follow the print families; each also picks up its local land tint.
+const continentInks: Record<ContinentId,readonly [string,string]> = {
+ na:['#fff1dc','#733424'], sa:['#e5fbf8','#204f58'], eu:['#fff0f6','#4e274b'],
+ af:['#fff0ce','#683225'], as:['#f1f6df','#233b27'], oc:['#fff2f5','#772b4f'],
+ an:['#e7f9ff','#2f4b65']
+};
+export function territoryName(t:Territory,landColor:string){
+ const lines=printedLines[t.name]??t.name.split(' ');
+ const [letter,outline]=continentInks[t.continent];
+ // Southern Europe's upper edge shares a narrow space with Northern Europe's counter.
+ const x=t.name==='Europa Meridionale'?t.x+26:t.x;
+ const baseline=t.y-13;
+ const spans=lines.map((line,i)=>
+   `<tspan x="${x}" y="${baseline-(lines.length-1-i)*6.9}">${escapeHtml(line.toLocaleUpperCase('it'))}</tspan>`
+ );
+ return `<text class="territory-name" aria-label="${escapeHtml(t.name)}" fill="${letter}" stroke="${outline}" style="--letter:${letter};--outline:${outline};--land-ink:${escapeHtml(landColor)}">${spans.join('')}</text>`;
+}
 
 export function ocean(height:number){
  return `<defs>

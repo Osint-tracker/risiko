@@ -162,14 +162,26 @@ try{
  for(const viewport of [{width:844,height:390},{width:932,height:430},{width:667,height:375}]){
   await page.setViewportSize(viewport);await page.waitForFunction(()=>document.querySelector('.map-stage')?.clientHeight>0);
   assertBoardLayout(await readBoardLayout(page));
-  await page.waitForFunction(()=>Array.from(document.querySelectorAll('.territory-name')).some(el=>el.checkVisibility({visibilityProperty:true})));
+  const captions=page.locator('#world-map .territory-name');
+  assert.equal(await captions.count(),42);
+  assert.ok(await captions.evaluateAll(names=>names.every(el=>el.checkVisibility({visibilityProperty:true}))),
+    'Tutti i nomi stampati devono restare visibili sulla plancia');
   await page.screenshot({path:`${artifactDir}/atlas-board-${viewport.width}x${viewport.height}.png`});
  }
  await page.setViewportSize({width:844,height:390});
+ await page.evaluate(()=>document.fonts.ready);
+ const northWest=page.locator('[data-token="1"] .territory-name');
+ assert.deepEqual(await northWest.locator('tspan').allTextContents(),['TERRITORI DEL','NORD OVEST']);
+ const inks=await page.locator('.territory-name').evaluateAll(names=>names.map(el=>getComputedStyle(el).stroke));
+ assert.notEqual(inks[0],inks[3],'Anche nello stesso continente la tinta segue il territorio');
+ const originalLabel=await northWest.boundingBox();
  const initialScale=await readMapScale(page);
  await page.locator('[data-action="zoom-in"]').click();
  await page.waitForFunction(before=>document.querySelector('#world-map')?.getAttribute('viewBox')!==before,initialScale.viewBox);
  const zoomedScale=await readMapScale(page);
+ const zoomedLabel=await northWest.boundingBox();
+ assert.ok(Math.abs(zoomedLabel.width/originalLabel.width-initialScale.viewWidth/zoomedScale.viewWidth)<.02,
+   'Il nome deve ingrandirsi nella stessa proporzione della plancia');
  assert.ok(Math.abs(zoomedScale.tokenWidth/initialScale.tokenWidth-initialScale.viewWidth/zoomedScale.viewWidth)<.02,'I carri devono scalare nella stessa proporzione dei territori');
  await page.locator('[data-action="reset-map"]').click();
 

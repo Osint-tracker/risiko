@@ -443,26 +443,6 @@ export function mountGame(root: HTMLElement): () => void {
     const scale=Math.max(.01,Math.hypot(matrix.a,matrix.b));
     const key=scale.toFixed(5);if(svg.dataset.hitScale===key)return;svg.dataset.hitScale=key;
     svg.querySelectorAll<SVGCircleElement>('.territory-hit,.placement-plus-hit').forEach(el=>el.setAttribute('r',String(22/scale)));
-    const labels=Array.from(svg.querySelectorAll<SVGTextElement>('.territory-name'));
-    // At full-board scale keep the baseline clear of its own tank before checking neighbours.
-    const labelPixels=Math.min(12,Math.max(9,12*scale));
-    const labelLift=Math.min(0,9-7/scale);
-    // Batch writes, then reads, then visibility writes: no per-label reflow.
-    for(const el of labels){
-      const id=Number(el.closest('[data-token]')?.getAttribute('data-token'));
-      const name=viewport.w<750?territories[id].name:territories[id].short;
-      if(el.textContent!==name)el.textContent=name;
-      el.style.fontSize=`${labelPixels/scale}px`;el.setAttribute('dy',String(labelLift));el.style.visibility='visible';
-    }
-    const occupied=Array.from(svg.querySelectorAll<SVGGraphicsElement>('.army-map-icon')).map(el=>el.getBoundingClientRect());
-    const bounds=labels.map(el=>el.getBoundingClientRect());
-    const hidden=bounds.map(b=>{
-      if(occupied.some(r=>b.left<r.right+4&&b.right>r.left-4&&b.top<r.bottom+2&&b.bottom>r.top-2))return true;
-      occupied.push(b);return false;
-    });
-    labels.forEach((el,i)=>{if(hidden[i])el.style.visibility='hidden';});
-    // Only invisible touch targets remain 44 CSS pixels. Artwork and names
-    // stay in map coordinates, so zoom scales them with their territories.
   }
   let gestureMap:SVGSVGElement|null=null;
   let gestures:ReturnType<typeof bindMapGestures>|null=null;
